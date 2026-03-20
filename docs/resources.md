@@ -12,6 +12,7 @@ declare(strict_types=1);
 namespace App\Flashboard;
 
 use App\Models\Order;
+use Pepperfm\Flashboard\Flashboard;
 use Pepperfm\Flashboard\Contracts\Resources\Resource;
 use Pepperfm\Flashboard\Core\Tables\Builders\Table;
 
@@ -30,6 +31,9 @@ final class OrdersResource extends Resource
         ]);
     }
 }
+
+Flashboard::configure()
+    ->resource(OrdersResource::class);
 ```
 
 ## Available Resource Surfaces
@@ -59,3 +63,11 @@ final class OrdersResource extends Resource
 - `runtimeHooks()`
 
 Use these when the 80 percent declarative path is not enough.
+
+## Generate With Prompts
+
+```bash
+php artisan flashboard:make-resource
+```
+
+The command will ask for the resource class, model class, primary fields, and whether to scaffold form/detail/action sections.

@@ -14,18 +14,19 @@ Validate the package in a Laravel 13 application with:
 ## Validation Steps
 
 1. Require the package
-2. Publish config with `php artisan flashboard:install`
-3. Copy or generate a demo resource into `app/Flashboard`
-4. Register the demo resource and workspace page in `config/flashboard.php`
+2. Run `php artisan flashboard:install`
+3. Generate a resource with `php artisan flashboard:make-resource`
+4. Generate or copy a workspace page into `app/Flashboard`
+5. Register both classes inline with `Flashboard::configure()`
 5. Verify:
-   - `/admin/login`
-   - `/admin`
-   - `/admin/resources/demo_orders`
-   - `/admin/resources/demo_orders/create`
-   - `/admin/queues/review`
+   - `/panel/login`
+   - `/panel`
+   - `/panel/resources/demo_orders`
+   - `/panel/resources/demo_orders/create`
+   - `/panel/queues/review`
 
 ## Files In This Example
 
-- `config/flashboard.php`
+- `bootstrap/app.php` or `AppServiceProvider.php`
 - `app/Flashboard/DemoOrdersResource.php`
 - `app/Flashboard/DemoReviewQueuePage.php`

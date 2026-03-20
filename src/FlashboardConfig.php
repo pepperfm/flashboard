@@ -1,0 +1,313 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Pepperfm\Flashboard;
+
+final class FlashboardConfig
+{
+    private ?string $name = null;
+
+    private ?string $path = null;
+
+    private ?string $routeNamePrefix = null;
+
+    private ?string $guard = null;
+
+    /**
+     * @var list<string>|null
+     */
+    private ?array $webMiddleware = null;
+
+    /**
+     * @var list<string>|null
+     */
+    private ?array $authMiddleware = null;
+
+    private ?string $loginPath = null;
+
+    private ?string $logoutPath = null;
+
+    private ?string $usernameField = null;
+
+    private ?string $passwordField = null;
+
+    private ?string $rememberKey = null;
+
+    /**
+     * @var list<class-string>
+     */
+    private array $providerClasses = [];
+
+    /**
+     * @var list<class-string>
+     */
+    private array $resourceClasses = [];
+
+    /**
+     * @var list<class-string>
+     */
+    private array $pageClasses = [];
+
+    private ?bool $reportBoot = null;
+
+    public function name(string $name): self
+    {
+        $this->name = $name;
+
+        return $this;
+    }
+
+    public function path(string $path): self
+    {
+        $this->path = $path;
+
+        return $this;
+    }
+
+    public function routeNamePrefix(string $routeNamePrefix): self
+    {
+        $this->routeNamePrefix = $routeNamePrefix;
+
+        return $this;
+    }
+
+    public function guard(?string $guard): self
+    {
+        $this->guard = $guard;
+
+        return $this;
+    }
+
+    public function webMiddleware(string ...$middleware): self
+    {
+        $this->webMiddleware = self::normalizeValues($middleware);
+
+        return $this;
+    }
+
+    public function authMiddleware(string ...$middleware): self
+    {
+        $this->authMiddleware = self::normalizeValues($middleware);
+
+        return $this;
+    }
+
+    public function loginPath(string $loginPath): self
+    {
+        $this->loginPath = $loginPath;
+
+        return $this;
+    }
+
+    public function logoutPath(string $logoutPath): self
+    {
+        $this->logoutPath = $logoutPath;
+
+        return $this;
+    }
+
+    public function usernameField(string $usernameField): self
+    {
+        $this->usernameField = $usernameField;
+
+        return $this;
+    }
+
+    public function passwordField(string $passwordField): self
+    {
+        $this->passwordField = $passwordField;
+
+        return $this;
+    }
+
+    public function rememberKey(string $rememberKey): self
+    {
+        $this->rememberKey = $rememberKey;
+
+        return $this;
+    }
+
+    public function provider(string $providerClass): self
+    {
+        $this->providerClasses[] = $providerClass;
+        $this->providerClasses = array_values(array_unique($this->providerClasses));
+
+        return $this;
+    }
+
+    /**
+     * @param list<class-string> $providerClasses
+     */
+    public function providers(array $providerClasses): self
+    {
+        foreach ($providerClasses as $providerClass) {
+            $this->provider($providerClass);
+        }
+
+        return $this;
+    }
+
+    public function resource(string $resourceClass): self
+    {
+        $this->resourceClasses[] = $resourceClass;
+        $this->resourceClasses = array_values(array_unique($this->resourceClasses));
+
+        return $this;
+    }
+
+    /**
+     * @param list<class-string> $resourceClasses
+     */
+    public function resources(array $resourceClasses): self
+    {
+        foreach ($resourceClasses as $resourceClass) {
+            $this->resource($resourceClass);
+        }
+
+        return $this;
+    }
+
+    public function page(string $pageClass): self
+    {
+        $this->pageClasses[] = $pageClass;
+        $this->pageClasses = array_values(array_unique($this->pageClasses));
+
+        return $this;
+    }
+
+    /**
+     * @param list<class-string> $pageClasses
+     */
+    public function pages(array $pageClasses): self
+    {
+        foreach ($pageClasses as $pageClass) {
+            $this->page($pageClass);
+        }
+
+        return $this;
+    }
+
+    public function reportBoot(bool $reportBoot = true): self
+    {
+        $this->reportBoot = $reportBoot;
+
+        return $this;
+    }
+
+    /**
+     * @param array<string, mixed> $config
+     *
+     * @return array<string, mixed>
+     */
+    public function merge(array $config): array
+    {
+        if ($this->name !== null) {
+            $config['name'] = $this->name;
+        }
+
+        if ($this->path !== null) {
+            $config['path'] = $this->path;
+        }
+
+        if ($this->routeNamePrefix !== null) {
+            $config['route_name_prefix'] = $this->routeNamePrefix;
+        }
+
+        if ($this->guard !== null) {
+            $config['guard'] = $this->guard;
+        }
+
+        if ($this->webMiddleware !== null) {
+            $config['middleware']['web'] = $this->webMiddleware;
+        }
+
+        if ($this->authMiddleware !== null) {
+            $config['middleware']['auth'] = $this->authMiddleware;
+        }
+
+        if ($this->loginPath !== null) {
+            $config['auth']['login_path'] = $this->loginPath;
+        }
+
+        if ($this->logoutPath !== null) {
+            $config['auth']['logout_path'] = $this->logoutPath;
+        }
+
+        if ($this->usernameField !== null) {
+            $config['auth']['username'] = $this->usernameField;
+        }
+
+        if ($this->passwordField !== null) {
+            $config['auth']['password'] = $this->passwordField;
+        }
+
+        if ($this->rememberKey !== null) {
+            $config['auth']['remember_key'] = $this->rememberKey;
+        }
+
+        $config['discovery']['providers'] = self::mergeClasses(
+            (array) ($config['discovery']['providers'] ?? []),
+            $this->providerClasses,
+        );
+        $config['discovery']['resources'] = self::mergeClasses(
+            (array) ($config['discovery']['resources'] ?? []),
+            $this->resourceClasses,
+        );
+        $config['discovery']['pages'] = self::mergeClasses(
+            (array) ($config['discovery']['pages'] ?? []),
+            $this->pageClasses,
+        );
+
+        if ($this->reportBoot !== null) {
+            $config['logging']['report_boot'] = $this->reportBoot;
+        }
+
+        return $config;
+    }
+
+    public function reset(): self
+    {
+        $this->name = null;
+        $this->path = null;
+        $this->routeNamePrefix = null;
+        $this->guard = null;
+        $this->webMiddleware = null;
+        $this->authMiddleware = null;
+        $this->loginPath = null;
+        $this->logoutPath = null;
+        $this->usernameField = null;
+        $this->passwordField = null;
+        $this->rememberKey = null;
+        $this->providerClasses = [];
+        $this->resourceClasses = [];
+        $this->pageClasses = [];
+        $this->reportBoot = null;
+
+        return $this;
+    }
+
+    /**
+     * @param list<string> $values
+     *
+     * @return list<string>
+     */
+    private static function normalizeValues(array $values): array
+    {
+        return array_values(array_filter(
+            $values,
+            static fn (string $value): bool => $value !== '',
+        ));
+    }
+
+    /**
+     * @param list<class-string> $base
+     * @param list<class-string> $extra
+     *
+     * @return list<class-string>
+     */
+    private static function mergeClasses(array $base, array $extra): array
+    {
+        return array_values(array_unique(array_merge($base, $extra)));
+    }
+}

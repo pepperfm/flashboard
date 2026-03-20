@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Pepperfm\Flashboard\Integration\Laravel\Discovery;
 
 use Illuminate\Support\Arr;
+use Pepperfm\Flashboard\Flashboard;
 use Pepperfm\Flashboard\Contracts\Pages\PageDefinitionContract;
 use Pepperfm\Flashboard\Contracts\Panel\PanelDefinitionContract;
 use Pepperfm\Flashboard\Contracts\Panel\PanelHookContract;
@@ -36,8 +37,10 @@ final readonly class ConfigPanelProvider implements PanelProviderContract
      */
     public function resources(): array
     {
+        $config = Flashboard::resolvedConfig((array) config('flashboard', []));
+
         return $this->normalizeClasses(
-            (array) Arr::get(config('flashboard', []), 'discovery.resources', []),
+            (array) Arr::get($config, 'discovery.resources', []),
         );
     }
 
@@ -46,10 +49,12 @@ final readonly class ConfigPanelProvider implements PanelProviderContract
      */
     public function pages(): array
     {
+        $config = Flashboard::resolvedConfig((array) config('flashboard', []));
+
         return array_values(array_unique(array_merge(
             self::DEFAULT_PAGE_CLASSES,
             $this->normalizeClasses(
-                (array) Arr::get(config('flashboard', []), 'discovery.pages', []),
+                (array) Arr::get($config, 'discovery.pages', []),
             ),
         )));
     }

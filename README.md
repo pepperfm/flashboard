@@ -37,8 +37,9 @@ The full resource runtime, table engine, form engine, detail views, and operator
 
 1. Require the package in the host application.
 2. Run `php artisan flashboard:install`.
-3. Review `config/flashboard.php`.
-4. Visit `/admin`.
+3. Configure Flashboard inline with `Flashboard::configure()`.
+4. Generate a resource or page with `php artisan flashboard:make-resource` / `flashboard:make-page`.
+5. Visit your panel path.
 
 ## Local Development
 

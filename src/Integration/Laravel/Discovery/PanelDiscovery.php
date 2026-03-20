@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Pepperfm\Flashboard\Integration\Laravel\Discovery;
 
 use Illuminate\Support\Arr;
+use Pepperfm\Flashboard\Flashboard;
 use Pepperfm\Flashboard\Contracts\Panel\PanelProviderContract;
 use Pepperfm\Flashboard\Core\Registry\PageRegistry;
 use Pepperfm\Flashboard\Core\Registry\PanelRegistry;
@@ -40,8 +41,10 @@ final readonly class PanelDiscovery
      */
     private function configuredProviderClasses(): array
     {
+        $config = Flashboard::resolvedConfig((array) config('flashboard', []));
+
         return array_values(array_filter(
-            (array) Arr::get(config('flashboard', []), 'discovery.providers', []),
+            (array) Arr::get($config, 'discovery.providers', []),
             static fn(mixed $provider): bool => is_string($provider) && $provider !== '',
         ));
     }

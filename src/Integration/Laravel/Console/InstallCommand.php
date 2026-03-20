@@ -15,7 +15,7 @@ use function Laravel\Prompts\warning;
 #[Signature('flashboard:install {--force : Overwrite publish targets when supported}')]
 final class InstallCommand extends \Illuminate\Console\Command
 {
-    protected $description = 'Publish Flashboard configuration and starter panel assets.';
+    protected $description = 'Publish Flashboard panel assets and starter integration files.';
 
     public function handle(): int
     {
@@ -30,7 +30,6 @@ final class InstallCommand extends \Illuminate\Console\Command
             $publishOptions['--force'] = true;
         }
 
-        $this->call('vendor:publish', $publishOptions + ['--tag' => 'flashboard-config']);
         $this->call('vendor:publish', $publishOptions + ['--tag' => 'flashboard-views']);
         $this->call('vendor:publish', $publishOptions + ['--tag' => 'flashboard-assets']);
 
@@ -39,8 +38,8 @@ final class InstallCommand extends \Illuminate\Console\Command
         table(
             ['Step', 'Action'],
             [
-                ['1', 'Review config/flashboard.php'],
-                ['2', 'Register a resource/page in config/flashboard.php'],
+                ['1', 'Configure Flashboard inline with Flashboard::configure() in your app bootstrap'],
+                ['2', 'Generate a resource or page with php artisan flashboard:make-resource / make-page'],
                 ['3', sprintf('Ensure your auth middleware can protect %s', $panelPath)],
                 ['4', sprintf('Visit %s to confirm the package wiring', $panelPath)],
             ],

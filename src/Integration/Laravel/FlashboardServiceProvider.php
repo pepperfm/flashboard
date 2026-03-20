@@ -51,6 +51,10 @@ final class FlashboardServiceProvider extends \Illuminate\Support\ServiceProvide
     public function register(): void
     {
         $this->mergeConfigFrom($this->configPath(), Flashboard::CONFIG_NAME);
+        $this->app['config']->set(
+            Flashboard::CONFIG_NAME,
+            Flashboard::resolvedConfig((array) $this->app['config']->get(Flashboard::CONFIG_NAME, [])),
+        );
 
         $this->app->singleton(PanelDefinitionContract::class,
             function (\Illuminate\Contracts\Foundation\Application $app): PanelDefinitionContract {
@@ -111,6 +115,8 @@ final class FlashboardServiceProvider extends \Illuminate\Support\ServiceProvide
         if ($this->app->runningInConsole()) {
             $this->commands([
                 InstallCommand::class,
+                \Pepperfm\Flashboard\Integration\Laravel\Console\MakePageCommand::class,
+                \Pepperfm\Flashboard\Integration\Laravel\Console\MakeResourceCommand::class,
                 MakeDemoResourceCommand::class,
                 PlaygroundInfoCommand::class,
             ]);
@@ -127,10 +133,6 @@ final class FlashboardServiceProvider extends \Illuminate\Support\ServiceProvide
 
         if ($this->app->runningInConsole()) {
             $this->publishes([
-                $this->configPath() => config_path('flashboard.php'),
-            ], 'flashboard-config');
-
-            $this->publishes([
                 $this->viewsPath() => resource_path('views/vendor/flashboard'),
             ], 'flashboard-views');
 
@@ -141,8 +143,8 @@ final class FlashboardServiceProvider extends \Illuminate\Support\ServiceProvide
 
         if (config('flashboard.logging.report_boot', false)) {
             logger()->info('Flashboard package booted.', [
-                'path' => config('flashboard.path', 'admin'),
-                'route_name_prefix' => config('flashboard.route_name_prefix', 'flashboard.'),
+                'path' => Flashboard::resolvedConfig((array) config('flashboard', []))['path'] ?? 'admin',
+                'route_name_prefix' => Flashboard::resolvedConfig((array) config('flashboard', []))['route_name_prefix'] ?? 'flashboard.',
             ]);
         }
     }

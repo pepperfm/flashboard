@@ -1,0 +1,31 @@
+<?php
+
+declare(strict_types=1);
+
+namespace {{ namespace }};
+
+use Pepperfm\Flashboard\Contracts\Pages\PageType;
+use Pepperfm\Flashboard\Core\Pages\CustomPage;
+
+final class {{ class }} extends CustomPage
+{
+    public static function title(): string
+    {
+        return '{{ title }}';
+    }
+
+    public static function type(): PageType
+    {
+        return PageType::Custom;
+    }
+
+    public static function uri(): string
+    {
+        return '{{ uri }}';
+    }
+
+    public static function workspaceDescription(): ?string
+    {
+        return {{ description }};
+    }
+}

@@ -14,7 +14,7 @@ use function Laravel\Prompts\warning;
 #[Signature('flashboard:make-demo-resource {name=DemoOrdersResource} {--force : Overwrite the target file if it exists}')]
 final class MakeDemoResourceCommand extends \Illuminate\Console\Command
 {
-    protected $description = 'Generate a demo Flashboard resource from the package stub.';
+    protected $description = 'Generate a demo Flashboard resource from the package stub (legacy alias).';
 
     public function handle(Filesystem $files): int
     {
@@ -39,7 +39,7 @@ final class MakeDemoResourceCommand extends \Illuminate\Console\Command
         $files->put($targetPath, $contents);
 
         info("Demo resource created: $targetPath");
-        note('Register the generated class in config/flashboard.php under discovery.resources to expose it in the panel.');
+        note('Register the generated class inline with Flashboard::configure()->resource(...).');
 
         return self::SUCCESS;
     }

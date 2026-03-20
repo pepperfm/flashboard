@@ -19,7 +19,6 @@ return [
         'remember_key' => 'remember',
     ],
     'install' => [
-        'publish_config' => true,
         'publish_views' => true,
     ],
     'discovery' => [
