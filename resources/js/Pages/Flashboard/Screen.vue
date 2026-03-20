@@ -129,8 +129,6 @@ function logout() {
                 :panel="props.panel"
                 :payload="props.payload"
                 :state-message="props.layout.state.message"
-                :theme-name="props.layout.theme.name"
-                :version="props.version"
               />
 
               <FlashboardScreenContent :payload="props.payload" />
