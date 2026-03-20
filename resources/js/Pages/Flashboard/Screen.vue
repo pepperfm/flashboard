@@ -83,22 +83,27 @@ function logout() {
   <Head :title="props.layout.title" />
 
   <UApp>
-    <UDashboardGroup storage="local" storage-key="flashboard">
+    <UDashboardGroup
+      storage="local"
+      storage-key="flashboard"
+      unit="rem"
+      class="screen-shell"
+    >
       <FlashboardSidebar
         :items="props.layout.navigation"
         :panel-name="props.panel.name"
+        :user="props.user"
         @navigate="visit"
+        @logout="logout"
       />
 
-      <UDashboardPanel id="flashboard-main">
+      <UDashboardPanel id="flashboard-main" class="screen-panel">
         <template #header>
           <FlashboardNavbar
             :actions="props.layout.header_actions"
             :breadcrumbs="props.layout.breadcrumbs"
             :title="props.layout.title"
-            :user="props.user"
             @navigate="visit"
-            @logout="logout"
           />
         </template>
 
@@ -127,20 +132,32 @@ function logout() {
 <style scoped>
 :global(:root) {
   color-scheme: light;
-  font-family: "Iowan Old Style", "Palatino Linotype", "Book Antiqua", serif;
+  font-family: "Inter", "Segoe UI", sans-serif;
 }
 
 :global(body) {
   margin: 0;
   min-height: 100vh;
-  background:
-    radial-gradient(circle at top left, rgba(235, 199, 84, 0.24), transparent 32%),
-    linear-gradient(135deg, #f4efe2 0%, #e8dfcf 46%, #d7cab4 100%);
-  color: #1f1a16;
+  background: rgb(250 250 250);
+  color: rgb(24 24 27);
+}
+
+:global(.dark body) {
+  background: rgb(10 10 11);
+  color: rgb(244 244 245);
+}
+
+.screen-shell {
+  min-height: 100vh;
+  background: color-mix(in srgb, var(--ui-bg) 92%, transparent);
+}
+
+.screen-panel {
+  min-height: 100vh;
 }
 
 .content {
-  padding: 1.5rem;
+  padding: 1.25rem;
 }
 
 .stack {

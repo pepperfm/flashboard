@@ -13,19 +13,21 @@ defineProps<{
   actions: HeaderAction[]
   breadcrumbs: BreadcrumbItem[]
   title: string
-  user: string | number | null
 }>()
 
 const emit = defineEmits<{
   navigate: [href?: string]
-  logout: []
 }>()
 </script>
 
 <template>
-  <UDashboardNavbar :title="title">
-    <template #left>
-      <div class="nav-left">
+  <UDashboardNavbar :title="title" class="border-b border-default bg-default/80 backdrop-blur">
+    <template #leading>
+      <UDashboardSidebarCollapse variant="subtle" />
+    </template>
+
+    <template #default>
+      <div v-if="breadcrumbs.length" class="nav-center">
         <UBreadcrumb :items="breadcrumbs" />
       </div>
     </template>
@@ -41,22 +43,16 @@ const emit = defineEmits<{
         >
           {{ action.label }}
         </UButton>
-
-        <UBadge v-if="user !== null" color="neutral" variant="soft">
-          {{ user }}
-        </UBadge>
-
-        <UButton color="neutral" variant="soft" @click="emit('logout')">
-          Logout
-        </UButton>
       </div>
     </template>
   </UDashboardNavbar>
 </template>
 
 <style scoped>
-.nav-left {
+.nav-center {
   min-width: 0;
+  display: flex;
+  align-items: center;
 }
 
 .nav-right {

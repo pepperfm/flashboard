@@ -1,64 +1,245 @@
 <script setup lang="ts">
+import type { DropdownMenuItem, NavigationMenuItem } from '@nuxt/ui'
+import { computed, onMounted, ref, watch } from 'vue'
+
 type NavigationItem = {
   href?: string
   label: string
 }
 
-defineProps<{
+type ThemeMode = 'light' | 'dark' | 'system'
+
+const props = defineProps<{
   items: NavigationItem[]
   panelName: string
+  user: string | number | null
 }>()
 
 const emit = defineEmits<{
   navigate: [href?: string]
+  logout: []
 }>()
+
+const collapsed = ref(false)
+const userMenuOpen = ref(false)
+const themeMode = ref<ThemeMode>('system')
+
+const userLabel = computed(() => {
+  if (props.user === null) {
+    return 'Operator'
+  }
+
+  return String(props.user)
+})
+
+const navigationItems = computed<NavigationMenuItem[][]>(() => [
+  props.items.map((item, index) => ({
+    label: item.label,
+    icon: 'i-lucide-panel-left',
+    active: isActive(item.href),
+    onSelect: (event: Event) => {
+      event.preventDefault()
+      emit('navigate', item.href)
+    },
+    tooltip: item.label,
+    value: `navigation-${index}`,
+  })),
+])
+
+const userMenuItems = computed<DropdownMenuItem[][]>(() => [
+  [
+    {
+      label: 'Theme',
+      icon: 'i-lucide-swatch-book',
+      children: [
+        {
+          label: 'Light',
+          icon: 'i-lucide-sun-medium',
+          type: 'checkbox',
+          checked: themeMode.value === 'light',
+          onSelect: closeMenu(() => {
+            themeMode.value = 'light'
+          }),
+        },
+        {
+          label: 'Dark',
+          icon: 'i-lucide-moon-star',
+          type: 'checkbox',
+          checked: themeMode.value === 'dark',
+          onSelect: closeMenu(() => {
+            themeMode.value = 'dark'
+          }),
+        },
+        {
+          label: 'System',
+          icon: 'i-lucide-monitor-cog',
+          type: 'checkbox',
+          checked: themeMode.value === 'system',
+          onSelect: closeMenu(() => {
+            themeMode.value = 'system'
+          }),
+        },
+      ],
+    },
+  ],
+  [
+    {
+      label: 'Logout',
+      icon: 'i-lucide-log-out',
+      color: 'error',
+      onSelect: closeMenu(() => {
+        emit('logout')
+      }),
+    },
+  ],
+])
+
+onMounted(() => {
+  const storedMode = window.localStorage.getItem('flashboard-theme')
+
+  if (storedMode === 'light' || storedMode === 'dark' || storedMode === 'system') {
+    themeMode.value = storedMode
+  }
+
+  applyTheme(themeMode.value)
+})
+
+watch(themeMode, (value) => {
+  window.localStorage.setItem('flashboard-theme', value)
+  applyTheme(value)
+})
+
+function closeMenu(handler: () => void): (event: Event) => void {
+  return (event: Event) => {
+    event.preventDefault()
+    handler()
+    userMenuOpen.value = false
+  }
+}
+
+function isActive(href?: string): boolean {
+  if (!href || typeof window === 'undefined') {
+    return false
+  }
+
+  const targetPath = new URL(href, window.location.origin).pathname
+
+  return window.location.pathname === targetPath
+}
+
+function applyTheme(mode: ThemeMode): void {
+  const root = document.documentElement
+  const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches
+  const shouldUseDark = mode === 'dark' || (mode === 'system' && prefersDark)
+
+  root.classList.toggle('dark', shouldUseDark)
+}
 </script>
 
 <template>
-  <UDashboardSidebar :resizable="true" :collapsible="true" :default-size="18" :min-size="14" :max-size="26">
-    <template #header>
+  <UDashboardSidebar
+    id="flashboard-sidebar"
+    v-model:collapsed="collapsed"
+    collapsible
+    :resizable="true"
+    :size="5"
+    :collapsed-size="5"
+    class="border-r border-default bg-elevated/30 sm:data-[collapsed=false]:!w-[17rem] sm:data-[collapsed=true]:!w-[5rem] max-sm:!w-[18rem]"
+  >
+    <template #header="{ collapsed: isCollapsed }">
       <div class="sidebar-header">
-        <p class="eyebrow">Nuxt UI Navigation</p>
-        <p class="brand">{{ panelName }}</p>
+        <UButton
+          variant="ghost"
+          color="neutral"
+          class="brand-button"
+          @click="emit('navigate', items[0]?.href)"
+        >
+          <UIcon name="i-lucide-layout-dashboard" class="size-5" />
+          <span v-if="!isCollapsed">{{ panelName }}</span>
+        </UButton>
       </div>
     </template>
 
-    <div class="nav-stack">
-      <UButton
-        v-for="item in items"
-        :key="`${item.label}-${item.href ?? 'no-href'}`"
-        block
-        color="neutral"
-        variant="ghost"
-        @click="emit('navigate', item.href)"
-      >
-        {{ item.label }}
-      </UButton>
-    </div>
+    <template #default="{ collapsed: isCollapsed }">
+      <div class="nav-shell">
+        <UNavigationMenu
+          :items="navigationItems"
+          orientation="vertical"
+          :collapsed="isCollapsed"
+          :tooltip="isCollapsed"
+          highlight
+          highlight-color="primary"
+          class="nav-menu"
+          :ui="{
+            root: 'flex flex-col gap-2 px-2',
+            list: 'flex flex-col gap-2',
+            link: 'rounded-md px-3 py-2 text-sm font-medium hover:bg-primary-500/10 data-[active=true]:bg-primary-500/10 data-[active=true]:text-primary-600 dark:data-[active=true]:text-primary-400',
+          }"
+        />
+      </div>
+    </template>
+
+    <template #footer="{ collapsed: isCollapsed }">
+      <div class="sidebar-footer">
+        <UDropdownMenu
+          v-model:open="userMenuOpen"
+          :items="userMenuItems"
+          :content="{ align: 'center', collisionPadding: 12 }"
+          :ui="{
+            content: isCollapsed ? 'w-48' : 'w-(--reka-dropdown-menu-trigger-width)',
+          }"
+        >
+          <UButton
+            variant="ghost"
+            color="neutral"
+            :label="isCollapsed ? undefined : userLabel"
+            :block="!isCollapsed"
+            :square="isCollapsed"
+            icon="i-lucide-user-round"
+          />
+        </UDropdownMenu>
+      </div>
+    </template>
   </UDashboardSidebar>
 </template>
 
 <style scoped>
 .sidebar-header {
-  padding: 0.25rem 0.25rem 0.5rem;
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+  padding: 1rem 0.75rem;
 }
 
-.eyebrow {
-  margin: 0 0 0.5rem;
-  font-size: 0.75rem;
-  letter-spacing: 0.18em;
+.brand-button {
+  justify-content: flex-start;
+  width: 100%;
+  font-size: 0.875rem;
+  font-weight: 600;
+  letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: #75624d;
 }
 
-.brand {
-  margin: 0;
-  font-size: 1.35rem;
-  line-height: 1;
+.nav-shell {
+  display: flex;
+  height: 100%;
+  flex-direction: column;
 }
 
-.nav-stack {
-  display: grid;
-  gap: 0.625rem;
+.nav-menu {
+  flex: 1;
+  overflow-y: auto;
+  padding-block: 1rem;
+}
+
+.sidebar-footer {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  gap: 0.5rem;
+  padding: 0.75rem;
+  border-top: 1px solid rgba(120, 130, 150, 0.16);
 }
 </style>
