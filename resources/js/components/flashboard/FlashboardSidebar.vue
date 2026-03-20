@@ -1,11 +1,13 @@
 <script setup lang="ts">
 import type { DropdownMenuItem, NavigationMenuItem } from '@nuxt/ui'
-import { computed, ref } from 'vue'
+import { computed, onMounted, ref, watch } from 'vue'
 
 type NavigationItem = {
   href?: string
   label: string
 }
+
+type ThemeMode = 'light' | 'dark' | 'system'
 
 const props = defineProps<{
   items: NavigationItem[]
@@ -20,6 +22,7 @@ const emit = defineEmits<{
 
 const collapsed = ref(false)
 const userMenuOpen = ref(false)
+const themeMode = ref<ThemeMode>('system')
 
 const userLabel = computed(() => {
   if (props.user === null) {
@@ -46,6 +49,41 @@ const navigationItems = computed<NavigationMenuItem[][]>(() => [
 const userMenuItems = computed<DropdownMenuItem[][]>(() => [
   [
     {
+      label: 'Theme',
+      icon: 'i-lucide-swatch-book',
+      children: [
+        {
+          label: 'Light',
+          icon: 'i-lucide-sun-medium',
+          type: 'checkbox',
+          checked: themeMode.value === 'light',
+          onSelect: closeMenu(() => {
+            themeMode.value = 'light'
+          }),
+        },
+        {
+          label: 'Dark',
+          icon: 'i-lucide-moon-star',
+          type: 'checkbox',
+          checked: themeMode.value === 'dark',
+          onSelect: closeMenu(() => {
+            themeMode.value = 'dark'
+          }),
+        },
+        {
+          label: 'System',
+          icon: 'i-lucide-monitor-cog',
+          type: 'checkbox',
+          checked: themeMode.value === 'system',
+          onSelect: closeMenu(() => {
+            themeMode.value = 'system'
+          }),
+        },
+      ],
+    },
+  ],
+  [
+    {
       label: 'Logout',
       icon: 'i-lucide-log-out',
       color: 'error',
@@ -55,6 +93,21 @@ const userMenuItems = computed<DropdownMenuItem[][]>(() => [
     },
   ],
 ])
+
+onMounted(() => {
+  const storedMode = window.localStorage.getItem('flashboard-theme')
+
+  if (storedMode === 'light' || storedMode === 'dark' || storedMode === 'system') {
+    themeMode.value = storedMode
+  }
+
+  applyTheme(themeMode.value)
+})
+
+watch(themeMode, (value) => {
+  window.localStorage.setItem('flashboard-theme', value)
+  applyTheme(value)
+})
 
 function closeMenu(handler: () => void): (event: Event) => void {
   return (event: Event) => {
@@ -72,6 +125,13 @@ function isActive(href?: string): boolean {
   const targetPath = new URL(href, window.location.origin).pathname
 
   return window.location.pathname === targetPath
+}
+
+function applyTheme(mode: ThemeMode): void {
+  const shouldUseDark = mode === 'dark'
+    || (mode === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)
+
+  document.documentElement.classList.toggle('dark', shouldUseDark)
 }
 </script>
 
