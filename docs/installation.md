@@ -47,9 +47,43 @@ use Pepperfm\Flashboard\Flashboard;
 
 Flashboard::configure()
     ->path('panel')
-    ->resource(App\Flashboard\DemoOrdersResource::class)
-    ->page(App\Flashboard\DemoReviewQueuePage::class);
+    ->discover();
 ```
+
+By default this scans `app/Flashboard` for classes ending with `Resource` or `Page`.
+Use `->resource(...)` and `->page(...)` only when you want to register classes explicitly.
+
+### Discovery Controls
+
+```php
+Flashboard::configure()
+    ->path('panel')
+    ->discoverResources(in: app_path('Flashboard'))
+    ->discoverPages(in: app_path('Flashboard'))
+    ->except(
+        App\Flashboard\Support\DraftResource::class,
+        'LegacyQueuePage',
+        'Support/IgnoredResource.php',
+    );
+```
+
+- `discover()` scans both resources and pages
+- `discoverResources()` scans only `*Resource`
+- `discoverPages()` scans only `*Page`
+- `except()` excludes classes by FQCN, basename, or relative path
+- `withoutDiscovery()` disables auto-discovery when you want explicit registration only
+
+### Explicit Overrides
+
+```php
+Flashboard::configure()
+    ->path('panel')
+    ->discover()
+    ->resource(App\Flashboard\UsersResource::class)
+    ->page(App\Flashboard\ReviewQueuePage::class);
+```
+
+Explicit `resource()` and `page()` registration is merged with discovered classes and deduplicated automatically.
 
 ## Environment
 
@@ -60,11 +94,17 @@ Optional environment variables:
 - `FLASHBOARD_GUARD`
 - `FLASHBOARD_REPORT_BOOT`
 
+## Fallback Config File
+
+The package still ships `config/flashboard.php` as a fallback source for package defaults and compatibility with older setups.
+For new host apps, the primary user-facing API is the inline object config through `Flashboard::configure()`.
+If both are present, the inline config wins.
+
 ## Access
 
-- login: `/admin/login`
-- panel root: `/admin`
-- resource index: `/admin/resources/<resource-key>`
+- login: `/panel/login` when `path('panel')` is configured
+- panel root: `/panel`
+- resource index: `/panel/resources/<resource-key>`
 
 ## Quick Validation
 
@@ -72,7 +112,7 @@ For the fastest first run:
 
 1. Copy `examples/host-app/app/Flashboard/DemoReviewQueuePage.php` into the host app at `app/Flashboard/DemoReviewQueuePage.php`
 2. Run `php artisan flashboard:make-resource DemoOrdersResource App\\Models\\Order`
-3. Register both classes with `Flashboard::configure()`
+3. Enable `Flashboard::configure()->path('panel')->discover()`
 4. Visit your configured panel login path, for example `/panel/login`
 
 ## Debug Surfaces

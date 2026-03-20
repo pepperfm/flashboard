@@ -23,6 +23,7 @@ final class FlashboardInlineConfigTest extends TestCase
             ->routeNamePrefix('panel')
             ->resource('App\\Flashboard\\UsersResource')
             ->page('App\\Flashboard\\ReviewQueuePage')
+            ->withoutDiscovery()
             ->reportBoot();
 
         $resolved = Flashboard::resolvedConfig([

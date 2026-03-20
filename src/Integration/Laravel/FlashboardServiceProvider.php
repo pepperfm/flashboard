@@ -34,6 +34,7 @@ use Pepperfm\Flashboard\Integration\Laravel\DataSources\ResourceDetailDataSource
 use Pepperfm\Flashboard\Integration\Laravel\DataSources\ResourceFormDataSource;
 use Pepperfm\Flashboard\Integration\Laravel\DataSources\ResourceListDataSource;
 use Pepperfm\Flashboard\Integration\Laravel\Discovery\ConfigPanelProvider;
+use Pepperfm\Flashboard\Integration\Laravel\Discovery\AutoDiscoveryScanner;
 use Pepperfm\Flashboard\Integration\Laravel\Discovery\PanelDiscovery;
 use Pepperfm\Flashboard\Integration\Laravel\Http\Middleware\AuthenticatePanelUser;
 use Pepperfm\Flashboard\Integration\Laravel\Persistence\ResourceFormPersister;
@@ -51,14 +52,12 @@ final class FlashboardServiceProvider extends \Illuminate\Support\ServiceProvide
     public function register(): void
     {
         $this->mergeConfigFrom($this->configPath(), Flashboard::CONFIG_NAME);
-        $this->app['config']->set(
-            Flashboard::CONFIG_NAME,
-            Flashboard::resolvedConfig((array) $this->app['config']->get(Flashboard::CONFIG_NAME, [])),
-        );
 
         $this->app->singleton(PanelDefinitionContract::class,
             function (\Illuminate\Contracts\Foundation\Application $app): PanelDefinitionContract {
-                return PanelConfig::fromArray((array) $app['config']->get(Flashboard::CONFIG_NAME, []));
+                return PanelConfig::fromArray(Flashboard::resolvedConfig(
+                    (array) $app['config']->get(Flashboard::CONFIG_NAME, []),
+                ));
             });
 
         $this->app->singleton(FlashboardManager::class,
@@ -69,10 +68,14 @@ final class FlashboardServiceProvider extends \Illuminate\Support\ServiceProvide
         $this->app->singleton(PanelRegistry::class);
         $this->app->singleton(ResourceRegistry::class);
         $this->app->singleton(PageRegistry::class);
+        $this->app->singleton(AutoDiscoveryScanner::class);
 
         $this->app->singleton(ConfigPanelProvider::class,
             function (\Illuminate\Contracts\Foundation\Application $app): ConfigPanelProvider {
-                return new ConfigPanelProvider($app->make(PanelDefinitionContract::class));
+                return new ConfigPanelProvider(
+                    $app->make(PanelDefinitionContract::class),
+                    $app->make(AutoDiscoveryScanner::class),
+                );
             });
 
         $this->app->singleton(PanelDiscovery::class);
@@ -125,6 +128,11 @@ final class FlashboardServiceProvider extends \Illuminate\Support\ServiceProvide
 
     public function boot(): void
     {
+        $this->app['config']->set(
+            Flashboard::CONFIG_NAME,
+            Flashboard::resolvedConfig((array) $this->app['config']->get(Flashboard::CONFIG_NAME, [])),
+        );
+
         $this->app->make(PanelDiscovery::class)->discover();
         $this->app['router']->aliasMiddleware('flashboard.auth', AuthenticatePanelUser::class);
 
@@ -142,9 +150,11 @@ final class FlashboardServiceProvider extends \Illuminate\Support\ServiceProvide
         }
 
         if (config('flashboard.logging.report_boot', false)) {
+            $config = Flashboard::resolvedConfig((array) config('flashboard', []));
+
             logger()->info('Flashboard package booted.', [
-                'path' => Flashboard::resolvedConfig((array) config('flashboard', []))['path'] ?? 'admin',
-                'route_name_prefix' => Flashboard::resolvedConfig((array) config('flashboard', []))['route_name_prefix'] ?? 'flashboard.',
+                'path' => $config['path'] ?? 'admin',
+                'route_name_prefix' => $config['route_name_prefix'] ?? 'flashboard.',
             ]);
         }
     }

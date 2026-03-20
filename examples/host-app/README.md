@@ -17,8 +17,8 @@ Validate the package in a Laravel 13 application with:
 2. Run `php artisan flashboard:install`
 3. Generate a resource with `php artisan flashboard:make-resource`
 4. Generate or copy a workspace page into `app/Flashboard`
-5. Register both classes inline with `Flashboard::configure()`
-5. Verify:
+5. Enable `Flashboard::configure()->path('panel')->discover()`
+6. Verify:
    - `/panel/login`
    - `/panel`
    - `/panel/resources/demo_orders`
@@ -30,3 +30,15 @@ Validate the package in a Laravel 13 application with:
 - `bootstrap/app.php` or `AppServiceProvider.php`
 - `app/Flashboard/DemoOrdersResource.php`
 - `app/Flashboard/DemoReviewQueuePage.php`
+
+If you need to keep helper classes in `app/Flashboard`, exclude them explicitly:
+
+```php
+Flashboard::configure()
+    ->path('panel')
+    ->discover()
+    ->except(
+        App\Flashboard\Support\DraftResource::class,
+        'Support/IgnoredResource.php',
+    );
+```

@@ -8,11 +8,43 @@
 
 ## Upgrade Checklist
 
-1. Republish config if release notes require it
-2. Review resource/page registration changes
+1. Review whether your host app should move from explicit registration to `Flashboard::configure()->discover()`
+2. Keep explicit `resource()` / `page()` registration only for overrides or non-standard directories
 3. Re-run host-app validation from `examples/host-app/README.md`
 4. Verify custom extensions against new contracts
 5. Re-test protected panel routes and JSON payload consumers
+
+## Discovery Coexistence
+
+Older setups may still use `config/flashboard.php` discovery arrays:
+
+```php
+'discovery' => [
+    'resources' => [
+        App\Flashboard\UsersResource::class,
+    ],
+    'pages' => [
+        App\Flashboard\ReviewQueuePage::class,
+    ],
+],
+```
+
+This remains supported as a fallback and compatibility layer.
+
+The new primary DX is inline config:
+
+```php
+Flashboard::configure()
+    ->path('panel')
+    ->discover();
+```
+
+Coexistence rules:
+
+- fallback config arrays are still read
+- inline `Flashboard::configure()` values are merged on top
+- explicit `resource()` / `page()` registrations are deduplicated with discovered classes
+- `withoutDiscovery()` disables only auto-discovery, not explicit or fallback registrations
 
 ## Breaking-Change Classes
 

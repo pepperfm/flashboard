@@ -18,6 +18,7 @@
 During release prep verify:
 
 - config publish still works
+- inline `Flashboard::configure()->discover()` still resolves generated classes
 - route registration still resolves
 - JSON payload contains `schema_version`
 - login flow and protected panel routes still behave correctly

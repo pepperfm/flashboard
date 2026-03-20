@@ -34,3 +34,10 @@ if (!function_exists('route')) {
         return "/$name";
     }
 }
+
+if (!function_exists('app_path')) {
+    function app_path(string $path = ''): string
+    {
+        return __DIR__ . '/app' . ($path === '' ? '' : '/' . $path);
+    }
+}

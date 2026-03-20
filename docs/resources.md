@@ -33,8 +33,30 @@ final class OrdersResource extends Resource
 }
 
 Flashboard::configure()
-    ->resource(OrdersResource::class);
+    ->discover();
 ```
+
+Any `*Resource` class placed in `app/Flashboard` will be picked up automatically by `discover()`.
+Use `->resource(OrdersResource::class)` only when you want explicit registration.
+
+## Discovery Variants
+
+```php
+Flashboard::configure()
+    ->discoverResources()
+    ->except(
+        App\Flashboard\Support\DraftResource::class,
+        'Support/IgnoredResource.php',
+    );
+```
+
+Use:
+
+- `discover()` to scan both resources and pages
+- `discoverResources()` to scan only resources
+- `discoverPages()` to scan only pages
+- `except()` to exclude helper or draft classes from auto-registration
+- `withoutDiscovery()` to opt out completely and register resources explicitly
 
 ## Available Resource Surfaces
 
@@ -71,3 +93,5 @@ php artisan flashboard:make-resource
 ```
 
 The command will ask for the resource class, model class, primary fields, and whether to scaffold form/detail/action sections.
+
+When generated into `app/Flashboard`, the resource is auto-discovered by default.

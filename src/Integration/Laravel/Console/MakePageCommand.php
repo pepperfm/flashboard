@@ -65,7 +65,7 @@ final class MakePageCommand extends \Illuminate\Console\Command
         ));
 
         info("Flashboard page created: {$targetPath}");
-        note('Register it inline via Flashboard::configure()->page(' . "App\\\\Flashboard\\\\{$className}::class" . ');');
+        note('Pages placed in app/Flashboard are auto-discovered when you use Flashboard::configure()->discover().');
 
         return self::SUCCESS;
     }

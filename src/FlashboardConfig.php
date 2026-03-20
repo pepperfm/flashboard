@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Pepperfm\Flashboard;
 
+use Pepperfm\Flashboard\Core\Panel\DiscoveryScope;
+use Pepperfm\Flashboard\Core\Panel\DiscoveryTarget;
+
 final class FlashboardConfig
 {
     private ?string $name = null;
@@ -48,6 +51,18 @@ final class FlashboardConfig
      * @var list<class-string>
      */
     private array $pageClasses = [];
+
+    /**
+     * @var list<DiscoveryTarget>
+     */
+    private array $discoveryTargets = [];
+
+    /**
+     * @var list<string>
+     */
+    private array $excludedDiscoveryClasses = [];
+
+    private bool $autoDiscoveryEnabled = true;
 
     private ?bool $reportBoot = null;
 
@@ -176,6 +191,38 @@ final class FlashboardConfig
         return $this;
     }
 
+    public function discover(?string $in = null, ?string $namespace = null): self
+    {
+        return $this->addDiscoveryTarget($in, $namespace, DiscoveryScope::Both);
+    }
+
+    public function discoverResources(?string $in = null, ?string $namespace = null): self
+    {
+        return $this->addDiscoveryTarget($in, $namespace, DiscoveryScope::Resources);
+    }
+
+    public function discoverPages(?string $in = null, ?string $namespace = null): self
+    {
+        return $this->addDiscoveryTarget($in, $namespace, DiscoveryScope::Pages);
+    }
+
+    public function withoutDiscovery(): self
+    {
+        $this->autoDiscoveryEnabled = false;
+
+        return $this;
+    }
+
+    public function except(string ...$classes): self
+    {
+        $this->excludedDiscoveryClasses = array_values(array_unique(array_merge(
+            $this->excludedDiscoveryClasses,
+            self::normalizeValues($classes),
+        )));
+
+        return $this;
+    }
+
     /**
      * @param list<class-string> $pageClasses
      */
@@ -205,43 +252,33 @@ final class FlashboardConfig
         if ($this->name !== null) {
             $config['name'] = $this->name;
         }
-
         if ($this->path !== null) {
             $config['path'] = $this->path;
         }
-
         if ($this->routeNamePrefix !== null) {
             $config['route_name_prefix'] = $this->routeNamePrefix;
         }
-
         if ($this->guard !== null) {
             $config['guard'] = $this->guard;
         }
-
         if ($this->webMiddleware !== null) {
             $config['middleware']['web'] = $this->webMiddleware;
         }
-
         if ($this->authMiddleware !== null) {
             $config['middleware']['auth'] = $this->authMiddleware;
         }
-
         if ($this->loginPath !== null) {
             $config['auth']['login_path'] = $this->loginPath;
         }
-
         if ($this->logoutPath !== null) {
             $config['auth']['logout_path'] = $this->logoutPath;
         }
-
         if ($this->usernameField !== null) {
             $config['auth']['username'] = $this->usernameField;
         }
-
         if ($this->passwordField !== null) {
             $config['auth']['password'] = $this->passwordField;
         }
-
         if ($this->rememberKey !== null) {
             $config['auth']['remember_key'] = $this->rememberKey;
         }
@@ -258,6 +295,14 @@ final class FlashboardConfig
             (array) ($config['discovery']['pages'] ?? []),
             $this->pageClasses,
         );
+        $config['discovery']['auto'] = [
+            'enabled' => $this->autoDiscoveryEnabled,
+            'targets' => array_map(
+                static fn (DiscoveryTarget $target): array => $target->toArray(),
+                $this->resolvedDiscoveryTargets(),
+            ),
+            'except' => $this->excludedDiscoveryClasses,
+        ];
 
         if ($this->reportBoot !== null) {
             $config['logging']['report_boot'] = $this->reportBoot;
@@ -282,9 +327,44 @@ final class FlashboardConfig
         $this->providerClasses = [];
         $this->resourceClasses = [];
         $this->pageClasses = [];
+        $this->discoveryTargets = [];
+        $this->excludedDiscoveryClasses = [];
+        $this->autoDiscoveryEnabled = true;
         $this->reportBoot = null;
 
         return $this;
+    }
+
+    private function addDiscoveryTarget(?string $directory, ?string $namespace, DiscoveryScope $scope): self
+    {
+        $this->discoveryTargets[] = DiscoveryTarget::make(
+            directory: $directory ?? app_path('Flashboard'),
+            namespace: $namespace ?? 'App\\Flashboard',
+            scope: $scope,
+        );
+        $this->discoveryTargets = $this->uniqueDiscoveryTargets($this->discoveryTargets);
+
+        return $this;
+    }
+
+    /**
+     * @return list<DiscoveryTarget>
+     */
+    private function resolvedDiscoveryTargets(): array
+    {
+        if (!$this->autoDiscoveryEnabled) {
+            return [];
+        }
+        if ($this->discoveryTargets !== []) {
+            return $this->discoveryTargets;
+        }
+
+        return [
+            DiscoveryTarget::make(
+                directory: app_path('Flashboard'),
+                namespace: 'App\\Flashboard',
+            ),
+        ];
     }
 
     /**
@@ -309,5 +389,33 @@ final class FlashboardConfig
     private static function mergeClasses(array $base, array $extra): array
     {
         return array_values(array_unique(array_merge($base, $extra)));
+    }
+
+    /**
+     * @param list<DiscoveryTarget> $targets
+     *
+     * @return list<DiscoveryTarget>
+     */
+    private function uniqueDiscoveryTargets(array $targets): array
+    {
+        $serialized = [];
+        $uniqueTargets = [];
+
+        foreach ($targets as $target) {
+            $key = implode('|', [
+                $target->directory(),
+                $target->namespace(),
+                $target->scope()->value,
+            ]);
+
+            if (isset($serialized[$key])) {
+                continue;
+            }
+
+            $serialized[$key] = true;
+            $uniqueTargets[] = $target;
+        }
+
+        return $uniqueTargets;
     }
 }

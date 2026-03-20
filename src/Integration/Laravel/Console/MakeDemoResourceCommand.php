@@ -39,7 +39,7 @@ final class MakeDemoResourceCommand extends \Illuminate\Console\Command
         $files->put($targetPath, $contents);
 
         info("Demo resource created: $targetPath");
-        note('Register the generated class inline with Flashboard::configure()->resource(...).');
+        note('If you use Flashboard::configure()->discover(), resources in app/Flashboard will be picked up automatically.');
 
         return self::SUCCESS;
     }

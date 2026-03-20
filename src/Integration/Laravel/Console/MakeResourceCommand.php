@@ -74,7 +74,7 @@ final class MakeResourceCommand extends \Illuminate\Console\Command
         ));
 
         info("Flashboard resource created: {$targetPath}");
-        note('Register it inline via Flashboard::configure()->resource(' . "App\\\\Flashboard\\\\{$className}::class" . ');');
+        note('Resources placed in app/Flashboard are auto-discovered when you use Flashboard::configure()->discover().');
 
         return self::SUCCESS;
     }
