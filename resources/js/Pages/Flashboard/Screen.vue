@@ -6,6 +6,9 @@ import FlashboardScreenContent from '@/components/flashboard/FlashboardScreenCon
 import FlashboardSidebar from '@/components/flashboard/FlashboardSidebar.vue'
 import { computed } from 'vue'
 
+const FLASHBOARD_CURRENT_URL_KEY = 'flashboard.current_url'
+const FLASHBOARD_PREVIOUS_URL_KEY = 'flashboard.previous_url'
+
 type LayoutAction = {
   behavior?: 'back' | 'link'
   color?: string
@@ -78,6 +81,19 @@ const props = defineProps<{
   version: string
 }>()
 
+if (typeof window !== 'undefined') {
+  const currentUrl = window.location.href
+  const storedCurrentUrl = window.sessionStorage.getItem(FLASHBOARD_CURRENT_URL_KEY)
+
+  if (storedCurrentUrl !== currentUrl) {
+    if (storedCurrentUrl) {
+      window.sessionStorage.setItem(FLASHBOARD_PREVIOUS_URL_KEY, storedCurrentUrl)
+    }
+
+    window.sessionStorage.setItem(FLASHBOARD_CURRENT_URL_KEY, currentUrl)
+  }
+}
+
 const visibleBreadcrumbs = computed(() => {
   if (props.payload.page?.key === 'dashboard' || props.payload.page?.type === 'dashboard') {
     return []
@@ -141,9 +157,18 @@ const navbarActions = computed<LayoutAction[]>(() => {
 })
 
 function goBack(fallbackHref?: string) {
-  if (typeof window !== 'undefined' && window.history.length > 1) {
-    window.history.back()
-    return
+  if (typeof window !== 'undefined') {
+    const previousUrl = window.sessionStorage.getItem(FLASHBOARD_PREVIOUS_URL_KEY)
+
+    if (previousUrl && previousUrl !== window.location.href) {
+      router.get(previousUrl)
+      return
+    }
+
+    if (window.history.length > 1) {
+      window.history.back()
+      return
+    }
   }
 
   if (fallbackHref) {
