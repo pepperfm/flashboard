@@ -7,7 +7,9 @@ import FlashboardSidebar from '@/components/flashboard/FlashboardSidebar.vue'
 import { computed } from 'vue'
 
 type LayoutAction = {
+  behavior?: 'back' | 'link'
   color?: string
+  fallbackHref?: string
   href: string
   icon?: string
   label: string
@@ -97,6 +99,7 @@ const navbarActions = computed<LayoutAction[]>(() => {
         href: props.payload.table.dataset.routes.create,
         label: 'Create',
         icon: 'i-lucide-plus',
+        behavior: 'link',
         color: 'primary',
         variant: 'solid',
       },
@@ -112,7 +115,9 @@ const navbarActions = computed<LayoutAction[]>(() => {
         href: props.payload.form.cancel.url,
         label: 'Back',
         icon: 'i-lucide-chevron-left',
+        behavior: 'back',
         color: 'neutral',
+        fallbackHref: props.payload.form.cancel.url,
         variant: 'ghost',
       },
     ]
@@ -124,7 +129,9 @@ const navbarActions = computed<LayoutAction[]>(() => {
         href: props.payload.detail.routes.index,
         label: 'Back',
         icon: 'i-lucide-chevron-left',
+        behavior: 'back',
         color: 'neutral',
+        fallbackHref: props.payload.detail.routes.index,
         variant: 'ghost',
       },
     ]
@@ -133,12 +140,38 @@ const navbarActions = computed<LayoutAction[]>(() => {
   return props.layout.header_actions
 })
 
-function visit(href?: string) {
+function goBack(fallbackHref?: string) {
+  if (typeof window !== 'undefined' && window.history.length > 1) {
+    window.history.back()
+    return
+  }
+
+  if (fallbackHref) {
+    router.get(fallbackHref)
+  }
+}
+
+function handleSidebarNavigate(href?: string) {
   if (!href) {
     return
   }
 
   router.get(href)
+}
+
+function handleNavbarAction(action?: LayoutAction) {
+  if (!action) {
+    return
+  }
+
+  if (action.behavior === 'back') {
+    goBack(action.fallbackHref ?? action.href)
+    return
+  }
+
+  if (action.href) {
+    router.get(action.href)
+  }
 }
 
 function logout() {
@@ -160,7 +193,7 @@ function logout() {
         :items="props.layout.navigation"
         :panel-name="props.panel.name"
         :user="props.user"
-        @navigate="visit"
+        @navigate="handleSidebarNavigate"
         @logout="logout"
       />
 
@@ -169,7 +202,7 @@ function logout() {
           <FlashboardNavbar
             :actions="navbarActions"
             :title="props.layout.title"
-            @navigate="visit"
+            @navigate="handleNavbarAction"
           />
         </template>
 

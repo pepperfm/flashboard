@@ -373,9 +373,6 @@ function runAction(action: { url?: string; method?: string; requires_confirmatio
             <UButton color="primary" :loading="form.processing" @click="submitForm">
               {{ payload.form?.mode === 'edit' ? 'Save changes' : 'Create record' }}
             </UButton>
-            <UButton color="neutral" variant="ghost" @click="visit(payload.form?.cancel?.url)">
-              Cancel
-            </UButton>
           </div>
         </template>
       </UCard>

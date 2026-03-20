@@ -1,11 +1,8 @@
 <script setup lang="ts">
-type BreadcrumbItem = {
-  href: string
-  label: string
-}
-
 type HeaderAction = {
+  behavior?: 'back' | 'link'
   color?: string
+  fallbackHref?: string
   href: string
   icon?: string
   label: string
@@ -18,7 +15,7 @@ defineProps<{
 }>()
 
 const emit = defineEmits<{
-  navigate: [href?: string]
+  navigate: [action?: HeaderAction]
 }>()
 </script>
 
@@ -36,7 +33,7 @@ const emit = defineEmits<{
           :color="action.color ?? 'neutral'"
           :icon="action.icon"
           :variant="action.variant ?? 'outline'"
-          @click="emit('navigate', action.href)"
+          @click="emit('navigate', action)"
         >
           {{ action.label }}
         </UButton>
