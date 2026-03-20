@@ -4,15 +4,28 @@ declare(strict_types=1);
 
 namespace Pepperfm\Flashboard\Integration\Laravel\Auth;
 
+use Illuminate\Contracts\Auth\Factory as AuthFactoryContract;
+use Illuminate\Contracts\Auth\StatefulGuard;
 use Illuminate\Support\Arr;
 
-final class PanelAuthenticator
+final readonly class PanelAuthenticator
 {
-    public function guard(): \Illuminate\Contracts\Auth\StatefulGuard
+    public function __construct(
+        private AuthFactoryContract $authFactory,
+    ) {
+    }
+
+    public function guard(): StatefulGuard
     {
         $guard = config('flashboard.guard');
 
-        return auth(is_string($guard) && $guard !== '' ? $guard : null);
+        $resolvedGuard = $this->authFactory->guard(is_string($guard) && $guard !== '' ? $guard : null);
+
+        if (! $resolvedGuard instanceof StatefulGuard) {
+            throw new \LogicException('Flashboard requires a stateful Laravel auth guard.');
+        }
+
+        return $resolvedGuard;
     }
 
     public function user(): ?\Illuminate\Contracts\Auth\Authenticatable
