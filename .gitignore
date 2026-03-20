@@ -10,6 +10,8 @@
 # Build outputs
 /public/build/
 /resources/dist/
+!/public/build/
+!/public/build/**
 
 # IDE/editor
 .idea/
