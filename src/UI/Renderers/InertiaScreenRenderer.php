@@ -27,6 +27,7 @@ final class InertiaScreenRenderer implements ScreenRendererContract
             'panel' => [
                 'name' => $panel->name(),
                 'path' => $panel->path(),
+                'logout_url' => route($panel->routeNamePrefix() . 'auth.logout'),
                 'route_name_prefix' => $panel->routeNamePrefix(),
             ],
             'payload' => $payload,

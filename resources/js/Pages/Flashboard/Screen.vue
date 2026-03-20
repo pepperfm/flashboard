@@ -56,6 +56,7 @@ const props = defineProps<{
   panel: {
     name: string
     path: string
+    logout_url: string
     route_name_prefix: string
   }
   payload: PayloadShape
@@ -72,7 +73,7 @@ function visit(href?: string) {
 }
 
 function logout() {
-  router.visit(`/${props.panel.path}/logout`, {
+  router.visit(props.panel.logout_url, {
     method: 'post',
   })
 }
