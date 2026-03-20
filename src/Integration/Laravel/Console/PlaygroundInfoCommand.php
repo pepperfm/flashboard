@@ -16,6 +16,8 @@ final class PlaygroundInfoCommand extends \Illuminate\Console\Command
 
     public function handle(): int
     {
+        $resourcePath = $this->resourcePath();
+
         info('Flashboard playground guidance');
         note('Suggested flow');
         table(
@@ -24,10 +26,21 @@ final class PlaygroundInfoCommand extends \Illuminate\Console\Command
                 ['1', 'Read playground/README.md'],
                 ['2', 'Generate a demo resource with php artisan flashboard:make-demo-resource'],
                 ['3', 'Register your resource class in config/flashboard.php under discovery.resources'],
-                ['4', 'Visit /admin/resources/<resource-key>'],
+                ['4', sprintf('Visit %s', $resourcePath)],
             ],
         );
 
         return self::SUCCESS;
+    }
+
+    private function resourcePath(): string
+    {
+        $path = trim((string) config('flashboard.path', 'admin'), '/');
+
+        if ($path === '') {
+            return '/resources/<resource-key>';
+        }
+
+        return sprintf('/%s/resources/<resource-key>', $path);
     }
 }

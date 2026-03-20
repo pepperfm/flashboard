@@ -19,6 +19,8 @@ final class InstallCommand extends \Illuminate\Console\Command
 
     public function handle(): int
     {
+        $panelPath = $this->panelPath();
+
         info('Installing Flashboard...');
 
         $publishOptions = [
@@ -39,8 +41,8 @@ final class InstallCommand extends \Illuminate\Console\Command
             [
                 ['1', 'Review config/flashboard.php'],
                 ['2', 'Register a resource/page in config/flashboard.php'],
-                ['3', 'Ensure your auth middleware can protect /admin'],
-                ['4', 'Visit /admin to confirm the package wiring'],
+                ['3', sprintf('Ensure your auth middleware can protect %s', $panelPath)],
+                ['4', sprintf('Visit %s to confirm the package wiring', $panelPath)],
             ],
         );
 
@@ -49,5 +51,16 @@ final class InstallCommand extends \Illuminate\Console\Command
         }
 
         return self::SUCCESS;
+    }
+
+    private function panelPath(): string
+    {
+        $path = trim((string) config('flashboard.path', 'admin'), '/');
+
+        if ($path === '') {
+            return '/';
+        }
+
+        return '/' . $path;
     }
 }
