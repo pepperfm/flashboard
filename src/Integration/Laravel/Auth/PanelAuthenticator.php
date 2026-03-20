@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace Pepperfm\Flashboard\Integration\Laravel\Auth;
 
-use Illuminate\Contracts\Auth\Factory as AuthFactoryContract;
+use Illuminate\Contracts\Auth\Factory;
 use Illuminate\Contracts\Auth\StatefulGuard;
 use Illuminate\Support\Arr;
 
 final readonly class PanelAuthenticator
 {
     public function __construct(
-        private AuthFactoryContract $authFactory,
+        private Factory $authFactory,
     ) {
     }
 
