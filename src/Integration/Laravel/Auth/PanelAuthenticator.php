@@ -20,8 +20,7 @@ final readonly class PanelAuthenticator
         $guard = config('flashboard.guard');
 
         $resolvedGuard = $this->authFactory->guard(is_string($guard) && $guard !== '' ? $guard : null);
-
-        if (! $resolvedGuard instanceof StatefulGuard) {
+        if (!$resolvedGuard instanceof StatefulGuard) {
             throw new \LogicException('Flashboard requires a stateful Laravel auth guard.');
         }
 
