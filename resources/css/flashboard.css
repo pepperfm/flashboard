@@ -1,0 +1,12 @@
+@import "tailwindcss";
+@import "@nuxt/ui";
+
+:root {
+  --flashboard-ink: #1f1a16;
+  --flashboard-muted: #75624d;
+  --flashboard-surface: rgba(255, 251, 243, 0.86);
+}
+
+[data-flashboard='ready'] {
+  color: var(--flashboard-ink);
+}

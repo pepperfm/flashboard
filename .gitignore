@@ -1,0 +1,45 @@
+# Local AI/tooling directories
+.codex/
+.claude/
+.agents/
+
+# Dependencies
+/vendor/
+/node_modules/
+
+# Build outputs
+/public/build/
+/resources/dist/
+
+# IDE/editor
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# PHPUnit / PHPStan / logs
+/.phpunit.result.cache
+/phpunit.xml.cache
+/storage/
+/coverage/
+/tmp/
+*.log
+
+# Generated frontend type helpers
+/components.d.ts
+/auto-imports.d.ts
+
+# Environment / machine-local config
+/.env
+/.env.*
+!/.env.example
+/.mcp.json
+/.ai-factory.json
+
+# Lockfiles not used by this project
+/bun.lock
+
+# OS noise
+.DS_Store
+Thumbs.db
