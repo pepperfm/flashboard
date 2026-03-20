@@ -4,6 +4,7 @@ import type { FormSubmitEvent } from '@nuxt/ui'
 import { computed } from 'vue'
 
 const props = defineProps<{
+  attemptUrl: string
   error?: string | null
   panelName: string
   usernameField: string
@@ -42,7 +43,7 @@ const fields = computed(() => [
 ])
 
 function submit(event: FormSubmitEvent<Record<string, string | boolean>>) {
-  form.transform(() => event.data).post('/admin/login')
+  form.transform(() => event.data).post(props.attemptUrl)
 }
 </script>
 

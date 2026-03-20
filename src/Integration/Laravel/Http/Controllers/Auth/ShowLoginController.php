@@ -12,6 +12,7 @@ final readonly class ShowLoginController
         $inertia->setRootView('flashboard::panel');
 
         return $inertia->render('Flashboard/Auth/Login', [
+            'attemptUrl' => route(config('flashboard.route_name_prefix', 'flashboard.') . 'auth.attempt'),
             'error' => $request->session()->get('errors')?->first(),
             'panelName' => config('flashboard.name', 'Flashboard'),
             'usernameField' => config('flashboard.auth.username', 'email'),
