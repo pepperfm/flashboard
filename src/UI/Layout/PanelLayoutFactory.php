@@ -45,12 +45,7 @@ final readonly class PanelLayoutFactory
                     'href' => '#',
                 ],
             ],
-            headerActions: [
-                [
-                    'label' => 'Refresh',
-                    'href' => $context->request()->fullUrl(),
-                ],
-            ],
+            headerActions: [],
             userMenu: $this->userMenu($user),
             notifications: $this->notificationCenter->current(),
             overlays: $this->overlayFactory->make($payload),

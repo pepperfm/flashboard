@@ -9,18 +9,5 @@ use {{ model }};
 
 final class {{ class }} extends Resource
 {
-    public static function model(): string
-    {
-        return {{ model_basename }}::class;
-    }
-{{ navigation_group_method }}
-    public static function table(TableContract $table): TableContract
-    {
-        return $table->columns([
-            ['key' => 'id', 'label' => 'ID', 'sortable' => true],
-            ['key' => '{{ title_field }}', 'label' => '{{ title_label }}', 'sortable' => true, 'searchable' => true],
-{{ secondary_table_column }}
-        ]);
-    }
-{{ form_method }}{{ detail_method }}{{ actions_method }}
+{{ methods }}
 }

@@ -8,8 +8,11 @@ import FlashboardSidebar from '@/components/flashboard/FlashboardSidebar.vue'
 import { computed } from 'vue'
 
 type LayoutAction = {
+  color?: string
   href: string
+  icon?: string
   label: string
+  variant?: string
 }
 
 type LayoutState = {
@@ -35,20 +38,29 @@ type PayloadShape = {
   schema_version?: string
   page?: { key?: string; title: string; type?: string }
   workspace?: { title?: string; description?: string }
-  resource?: { page?: string }
+  resource?: { name?: string; page?: string }
   table?: {
     dataset?: {
       columns?: Array<{ key: string; label: string }>
       rows?: Array<{ id: string | number; attributes: Record<string, unknown> }>
+      routes?: {
+        create?: string | null
+      }
     }
   }
   form?: {
     mode?: string
     fields?: Array<{ key?: string; label?: string }>
+    cancel?: {
+      url?: string | null
+    }
   } | null
   detail?: {
     entries?: Array<{ label?: string; value?: unknown }>
     relations?: Array<{ key?: string; label?: string; records?: Array<{ key: string | number; title: string }> }>
+    routes?: {
+      index?: string | null
+    }
   } | null
 }
 
@@ -75,6 +87,51 @@ const visibleBreadcrumbs = computed(() => {
   }
 
   return props.layout.breadcrumbs
+})
+
+const navbarActions = computed<LayoutAction[]>(() => {
+  const resourcePage = props.payload.resource?.page
+
+  if (resourcePage === 'index' && props.payload.table?.dataset?.routes?.create) {
+    return [
+      {
+        href: props.payload.table.dataset.routes.create,
+        label: 'Create',
+        icon: 'i-lucide-plus',
+        color: 'primary',
+        variant: 'solid',
+      },
+    ]
+  }
+
+  if (
+    (resourcePage === 'create' || resourcePage === 'edit')
+    && props.payload.form?.cancel?.url
+  ) {
+    return [
+      {
+        href: props.payload.form.cancel.url,
+        label: 'Back',
+        icon: 'i-lucide-chevron-left',
+        color: 'neutral',
+        variant: 'ghost',
+      },
+    ]
+  }
+
+  if (resourcePage === 'detail' && props.payload.detail?.routes?.index) {
+    return [
+      {
+        href: props.payload.detail.routes.index,
+        label: 'Back',
+        icon: 'i-lucide-chevron-left',
+        color: 'neutral',
+        variant: 'ghost',
+      },
+    ]
+  }
+
+  return props.layout.header_actions
 })
 
 function visit(href?: string) {
@@ -113,7 +170,7 @@ function logout() {
       <UDashboardPanel id="flashboard-main" class="screen-panel">
         <template #header>
           <FlashboardNavbar
-            :actions="props.layout.header_actions"
+            :actions="navbarActions"
             :breadcrumbs="visibleBreadcrumbs"
             :title="props.layout.title"
             @navigate="visit"

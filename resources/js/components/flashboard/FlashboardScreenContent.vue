@@ -6,6 +6,7 @@ type PayloadShape = {
   page?: { title: string }
   workspace?: { title?: string; description?: string }
   resource?: {
+    name?: string
     page?: string
     routes?: {
       create?: string | null
@@ -32,6 +33,12 @@ type PayloadShape = {
       }>
       routes?: {
         create?: string
+      }
+      pagination?: {
+        current_page?: number
+        last_page?: number
+        per_page?: number
+        total?: number
       }
     }
   }
@@ -61,6 +68,29 @@ const props = defineProps<{
   payload: PayloadShape
 }>()
 
+type RowActionConfig = {
+  ariaLabel: string
+  href: string
+  icon: string
+}
+
+const pagination = computed(() => props.payload.table?.dataset?.pagination)
+const hasPagination = computed(() => (pagination.value?.last_page ?? 1) > 1)
+
+function rowActionButton(action: RowActionConfig) {
+  const UButton = resolveComponent('UButton')
+
+  return h(UButton, {
+    'aria-label': action.ariaLabel,
+    color: 'neutral',
+    icon: action.icon,
+    square: true,
+    title: action.ariaLabel,
+    variant: 'ghost',
+    onClick: () => visit(action.href),
+  })
+}
+
 const tableColumns = computed(() =>
   [
     ...(props.payload.table?.dataset?.columns ?? []).map((column) => ({
@@ -71,23 +101,22 @@ const tableColumns = computed(() =>
       id: '__actions',
       header: 'Actions',
       cell: ({ row }: { row: { original: Record<string, unknown> } }) => {
-        const UButton = resolveComponent('UButton')
         const links = row.original.__links as { detail?: string; edit?: string } | undefined
 
         return h('div', { class: 'row-actions' }, [
           links?.detail
-            ? h(UButton, {
-              color: 'neutral',
-              variant: 'ghost',
-              onClick: () => visit(links.detail),
-            }, { default: () => 'Open' })
+            ? rowActionButton({
+              ariaLabel: 'Open record',
+              href: links.detail,
+              icon: 'i-lucide-eye',
+            })
             : null,
           links?.edit
-            ? h(UButton, {
-              color: 'neutral',
-              variant: 'ghost',
-              onClick: () => visit(links.edit),
-            }, { default: () => 'Edit' })
+            ? rowActionButton({
+              ariaLabel: 'Edit record',
+              href: links.edit,
+              icon: 'i-lucide-pencil',
+            })
             : null,
         ])
       },
@@ -118,6 +147,34 @@ watch(
   },
   { immediate: true },
 )
+
+function visit(href?: string) {
+  if (!href) {
+    return
+  }
+
+  router.visit(href)
+}
+
+function visitPage(page: number) {
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  const url = new URL(window.location.href)
+
+  if (page <= 1) {
+    url.searchParams.delete('page')
+  } else {
+    url.searchParams.set('page', String(page))
+  }
+
+  router.visit(url.toString(), {
+    preserveScroll: true,
+    preserveState: true,
+    replace: true,
+  })
+}
 
 function fieldComponent(key?: string) {
   if (!key) {
@@ -162,7 +219,20 @@ function runAction(action: { url?: string; method?: string; requires_confirmatio
   <template v-if="payload.resource?.page === 'index'">
     <UCard variant="outline">
       <template #header>
-        Resource Index
+        <div class="section-header">
+          <div>
+            <p class="section-kicker">Collection</p>
+            <h3 class="section-title">{{ payload.resource?.name ?? 'Resource' }}</h3>
+          </div>
+
+          <UBadge
+            v-if="pagination?.total !== undefined"
+            color="neutral"
+            variant="subtle"
+          >
+            {{ pagination.total }} total
+          </UBadge>
+        </div>
       </template>
 
       <UTable
@@ -171,16 +241,8 @@ function runAction(action: { url?: string; method?: string; requires_confirmatio
         empty="The resource index route is wired, but there are no registered records to render yet."
       />
 
-      <template v-if="payload.actions?.length" #footer>
-        <div class="action-row">
-          <UButton
-            v-if="payload.table?.dataset?.routes?.create"
-            color="primary"
-            @click="visit(payload.table.dataset.routes.create)"
-          >
-            Create record
-          </UButton>
-
+      <div v-if="payload.actions?.length || hasPagination" class="table-footer">
+        <div v-if="payload.actions?.length" class="action-row">
           <UButton
             v-for="action in payload.actions"
             :key="action.key"
@@ -191,7 +253,33 @@ function runAction(action: { url?: string; method?: string; requires_confirmatio
             {{ action.label ?? action.key }}
           </UButton>
         </div>
-      </template>
+
+        <div v-if="hasPagination && pagination" class="pagination-shell">
+          <p class="pagination-summary">
+            Page {{ pagination.current_page ?? 1 }} of {{ pagination.last_page ?? 1 }}
+          </p>
+
+          <UPagination
+            :page="pagination.current_page ?? 1"
+            :items-per-page="pagination.per_page ?? 15"
+            :total="pagination.total ?? 0"
+            active-color="primary"
+            active-variant="subtle"
+            color="neutral"
+            show-edges
+            size="sm"
+            variant="ghost"
+            @update:page="visitPage"
+          >
+            <template #prev>
+              <span>Prev</span>
+            </template>
+            <template #next>
+              <span>Next</span>
+            </template>
+          </UPagination>
+        </div>
+      </div>
     </UCard>
   </template>
 
@@ -225,52 +313,64 @@ function runAction(action: { url?: string; method?: string; requires_confirmatio
   </template>
 
   <template v-else-if="payload.resource?.page === 'create' || payload.resource?.page === 'edit'">
-    <UCard variant="outline">
-      <template #header>
-        {{ payload.form?.mode ?? 'create' }} form
-      </template>
+    <div class="form-page-shell">
+      <UCard class="form-card" variant="outline">
+        <template #header>
+          <div class="section-header">
+            <div>
+              <p class="section-kicker">{{ payload.form?.mode === 'edit' ? 'Edit' : 'Create' }}</p>
+              <h3 class="section-title">{{ payload.resource?.name ?? 'Resource' }}</h3>
+            </div>
+          </div>
+        </template>
 
-      <p>
-        Form payload prepared with {{ payload.form?.fields?.length ?? 0 }} field definitions.
-      </p>
+        <p class="section-description">
+          Form payload prepared with {{ payload.form?.fields?.length ?? 0 }} field definitions.
+        </p>
 
-      <div class="form-stack">
-        <UFormField
-          v-for="field in payload.form?.fields ?? []"
-          :key="field.key ?? field.label"
-          :name="field.key"
-          :label="field.label ?? field.key"
-        >
-          <component
-            :is="fieldComponent(field.key)"
-            v-model="form[field.key ?? '']"
+        <div class="form-stack">
+          <UFormField
+            v-for="field in payload.form?.fields ?? []"
+            :key="field.key ?? field.label"
             :name="field.key"
-            :placeholder="field.label ?? field.key"
-            :rows="fieldComponent(field.key) === 'UTextarea' ? 4 : undefined"
-          />
-        </UFormField>
-      </div>
-
-      <template #footer>
-        <div class="action-row">
-          <UButton color="primary" :loading="form.processing" @click="submitForm">
-            {{ payload.form?.mode === 'edit' ? 'Save changes' : 'Create record' }}
-          </UButton>
-          <UButton color="neutral" variant="outline" @click="visit(payload.form?.cancel?.url)">
-            Cancel
-          </UButton>
+            :label="field.label ?? field.key"
+          >
+            <component
+              :is="fieldComponent(field.key)"
+              v-model="form[field.key ?? '']"
+              :name="field.key"
+              :placeholder="field.label ?? field.key"
+              :rows="fieldComponent(field.key) === 'UTextarea' ? 4 : undefined"
+            />
+          </UFormField>
         </div>
-      </template>
-    </UCard>
+
+        <template #footer>
+          <div class="action-row">
+            <UButton color="primary" :loading="form.processing" @click="submitForm">
+              {{ payload.form?.mode === 'edit' ? 'Save changes' : 'Create record' }}
+            </UButton>
+            <UButton color="neutral" variant="ghost" @click="visit(payload.form?.cancel?.url)">
+              Cancel
+            </UButton>
+          </div>
+        </template>
+      </UCard>
+    </div>
   </template>
 
   <template v-else-if="payload.resource?.page === 'detail'">
     <UCard variant="outline">
       <template #header>
-        Detail screen
+        <div class="section-header">
+          <div>
+            <p class="section-kicker">Details</p>
+            <h3 class="section-title">{{ payload.resource?.name ?? 'Resource' }}</h3>
+          </div>
+        </div>
       </template>
 
-      <p>
+      <p class="section-description">
         Detail payload prepared with {{ payload.detail?.entries?.length ?? 0 }} entries
         and {{ payload.detail?.relations?.length ?? 0 }} relation groups.
       </p>
@@ -327,15 +427,6 @@ function runAction(action: { url?: string; method?: string; requires_confirmatio
           </UButton>
 
           <UButton
-            v-if="payload.detail?.routes?.index"
-            color="neutral"
-            variant="ghost"
-            @click="visit(payload.detail.routes.index)"
-          >
-            Back to list
-          </UButton>
-
-          <UButton
             v-for="action in payload.actions ?? []"
             :key="action.key"
             :color="action.requires_confirmation ? 'warning' : 'neutral'"
@@ -357,15 +448,70 @@ function runAction(action: { url?: string; method?: string; requires_confirmatio
   gap: 0.75rem;
 }
 
+.form-page-shell {
+  margin-inline: auto;
+  max-width: 64rem;
+}
+
+.form-card {
+  width: 100%;
+}
+
 .row-actions {
   display: flex;
   gap: 0.5rem;
+  justify-content: flex-end;
 }
 
 .form-stack {
   display: grid;
   gap: 1rem;
   margin-top: 1rem;
+}
+
+.section-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.section-kicker {
+  margin: 0 0 0.25rem;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: color-mix(in srgb, var(--ui-text-muted) 92%, transparent);
+}
+
+.section-title {
+  margin: 0;
+  font-size: 1.125rem;
+  font-weight: 700;
+}
+
+.section-description {
+  margin: 0 0 1rem;
+  color: color-mix(in srgb, var(--ui-text-muted) 92%, transparent);
+}
+
+.table-footer {
+  display: grid;
+  gap: 1rem;
+  padding-top: 1rem;
+}
+
+.pagination-shell {
+  display: grid;
+  justify-items: center;
+  gap: 0.75rem;
+}
+
+.pagination-summary {
+  margin: 0;
+  font-size: 0.875rem;
+  color: color-mix(in srgb, var(--ui-text-muted) 92%, transparent);
 }
 
 .detail-stack {

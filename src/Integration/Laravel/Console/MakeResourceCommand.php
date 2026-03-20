@@ -6,6 +6,11 @@ namespace Pepperfm\Flashboard\Integration\Laravel\Console;
 
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Filesystem\Filesystem;
+use Pepperfm\Flashboard\Contracts\Resources\Resource;
+use Pepperfm\Flashboard\Contracts\Tables\TableContract;
+use Pepperfm\Flashboard\Contracts\Forms\FormContract;
+use Pepperfm\Flashboard\Contracts\Detail\DetailContract;
+use Pepperfm\Flashboard\Core\Actions\Builders\Action;
 
 use function Laravel\Prompts\confirm;
 use function Laravel\Prompts\info;
@@ -13,10 +18,17 @@ use function Laravel\Prompts\note;
 use function Laravel\Prompts\text;
 use function Laravel\Prompts\warning;
 
-#[Signature('flashboard:make-resource {name? : Resource class name} {model? : Eloquent model FQCN} {--force : Overwrite the target file if it exists}')]
+#[Signature(
+    'flashboard:make-resource
+    {name? : Resource class name}
+    {model? : Eloquent model FQCN}
+    {--force : Overwrite the target file if it exists}'
+)]
 final class MakeResourceCommand extends \Illuminate\Console\Command
 {
     protected $description = 'Generate a Flashboard resource with prompt-driven defaults.';
+
+    protected $aliases = ['fb:mr'];
 
     public function handle(Filesystem $files): int
     {
@@ -32,30 +44,27 @@ final class MakeResourceCommand extends \Illuminate\Console\Command
             default: 'App\\Models\\User',
             required: true,
         ));
-        $titleField = (string) text(
+        $titleField = text(
             label: 'Primary display field',
             default: 'name',
             required: true,
         );
-        $secondaryField = trim((string) text(
+        $secondaryField = trim(text(
             label: 'Secondary field (optional)',
             default: 'email',
-            required: false,
         ));
-        $navigationGroup = trim((string) text(
+        $navigationGroup = trim(text(
             label: 'Navigation group (optional)',
-            default: '',
-            required: false,
         ));
-        $includeForm = confirm('Include create and edit form?', default: true);
-        $includeDetail = confirm('Include detail screen?', default: true);
+        $includeForm = confirm('Include create and edit form?');
+        $includeDetail = confirm('Include detail screen?');
         $includeActions = confirm('Include example action?', default: false);
 
         $targetDirectory = app_path('Flashboard');
-        $targetPath = $targetDirectory . '/' . $className . '.php';
+        $targetPath = "$targetDirectory/$className.php";
 
         if ($files->exists($targetPath) && !$this->option('force')) {
-            warning("File already exists: {$targetPath}");
+            warning("File already exists: $targetPath");
 
             return self::FAILURE;
         }
@@ -73,8 +82,8 @@ final class MakeResourceCommand extends \Illuminate\Console\Command
             includeActions: $includeActions,
         ));
 
-        info("Flashboard resource created: {$targetPath}");
-        note('Resources placed in app/Flashboard are auto-discovered when you use Flashboard::configure()->discover().');
+        info("Flashboard resource created: $targetPath");
+        note('Resources placed in app/Flashboard are auto-discovered when your panel provider calls $this->panelConfig()->discover().');
 
         return self::SUCCESS;
     }
@@ -96,20 +105,17 @@ final class MakeResourceCommand extends \Illuminate\Console\Command
         bool $includeActions,
     ): string {
         $imports = [
-            'Pepperfm\\Flashboard\\Contracts\\Resources\\Resource',
-            'Pepperfm\\Flashboard\\Contracts\\Tables\\TableContract',
+            Resource::class,
+            TableContract::class,
         ];
-
         if ($includeForm) {
-            $imports[] = 'Pepperfm\\Flashboard\\Contracts\\Forms\\FormContract';
+            $imports[] = FormContract::class;
         }
-
         if ($includeDetail) {
-            $imports[] = 'Pepperfm\\Flashboard\\Contracts\\Detail\\DetailContract';
+            $imports[] = DetailContract::class;
         }
-
         if ($includeActions) {
-            $imports[] = 'Pepperfm\\Flashboard\\Core\\Actions\\Builders\\Action';
+            $imports[] = Action::class;
         }
 
         sort($imports);
@@ -120,46 +126,47 @@ final class MakeResourceCommand extends \Illuminate\Console\Command
                 '{{ model }}',
                 '{{ imports }}',
                 '{{ class }}',
-                '{{ model_basename }}',
-                '{{ navigation_group_method }}',
-                '{{ title_field }}',
-                '{{ title_label }}',
-                '{{ secondary_table_column }}',
-                '{{ form_method }}',
-                '{{ detail_method }}',
-                '{{ actions_method }}',
+                '{{ methods }}',
             ],
             [
                 'App\\Flashboard',
                 $modelClass,
                 implode(PHP_EOL, array_map(static fn (string $import): string => 'use ' . $import . ';', $imports)),
                 $className,
-                class_basename($modelClass),
-                $this->navigationGroupMethod($navigationGroup),
-                $titleField,
-                str($titleField)->headline()->toString(),
-                $this->secondaryTableColumn($secondaryField),
-                $this->formMethod($includeForm, $titleField, $secondaryField),
-                $this->detailMethod($includeDetail, $titleField, $secondaryField),
-                $this->actionsMethod($includeActions, $className),
+                $this->methods(
+                    $this->modelMethod(class_basename($modelClass)),
+                    $this->navigationGroupMethod($navigationGroup),
+                    $this->tableMethod($titleField, $secondaryField),
+                    $this->formMethod($includeForm, $titleField, $secondaryField),
+                    $this->detailMethod($includeDetail, $titleField, $secondaryField),
+                    $this->actionsMethod($includeActions, $className),
+                ),
             ],
             $stub,
         );
     }
 
+    private function modelMethod(string $modelBasename): string
+    {
+        return <<<PHP
+    public static function model(): string
+    {
+        return {$modelBasename}::class;
+    }
+PHP;
+    }
+
     private function navigationGroupMethod(string $navigationGroup): string
     {
         if ($navigationGroup === '') {
-            return PHP_EOL;
+            return '';
         }
 
         return <<<PHP
-
     public static function navigationGroup(): ?string
     {
         return '{$navigationGroup}';
     }
-
 PHP;
     }
 
@@ -169,33 +176,48 @@ PHP;
             return '';
         }
 
-        return "            ['key' => '{$secondaryField}', 'label' => '" . str($secondaryField)->headline()->toString() . "', 'searchable' => true]," . PHP_EOL;
+        return PHP_EOL . "            ['key' => '$secondaryField', 'label' => '" . str($secondaryField)->headline()->toString() . "', 'searchable' => true],";
     }
 
-    private function formMethod(bool $includeForm, string $titleField, string $secondaryField): string
+    private function tableMethod(string $titleField, string $secondaryField): string
+    {
+        $titleLabel = str($titleField)->headline()->toString();
+        $secondaryTableColumn = $this->secondaryTableColumn($secondaryField);
+
+        return <<<PHP
+    public static function table(TableContract \$table): TableContract
+    {
+        return \$table->columns([
+            ['key' => 'id', 'label' => 'ID', 'sortable' => true],
+            ['key' => '$titleField', 'label' => '$titleLabel', 'sortable' => true, 'searchable' => true],{$secondaryTableColumn}
+        ]);
+    }
+PHP;
+    }
+
+    private function formMethod(bool $includeForm, string $titleField, string $secondaryField): ?string
     {
         if (!$includeForm) {
-            return PHP_EOL;
+            return null;
         }
 
         $fieldRows = [
-            "                ['key' => '{$titleField}', 'label' => '" . str($titleField)->headline()->toString() . "'],",
+            "                ['key' => '$titleField', 'label' => '" . str($titleField)->headline()->toString() . "'],",
         ];
         $rules = [
-            "                '{$titleField}' => ['required', 'string'],",
+            "                '$titleField' => ['required', 'string'],",
         ];
 
         if ($secondaryField !== '') {
             $label = str($secondaryField)->headline()->toString();
-            $fieldRows[] = "                ['key' => '{$secondaryField}', 'label' => '{$label}'],";
-            $rules[] = "                '{$secondaryField}' => ['nullable', 'string'],";
+            $fieldRows[] = "                ['key' => '$secondaryField', 'label' => '{$label}'],";
+            $rules[] = "                '$secondaryField' => ['nullable', 'string'],";
         }
 
         $fields = implode(PHP_EOL, $fieldRows);
         $formRules = implode(PHP_EOL, $rules);
 
         return <<<PHP
-
     public static function form(FormContract \$form): FormContract
     {
         return \$form
@@ -206,47 +228,45 @@ PHP;
 {$formRules}
             ]);
     }
-
 PHP;
     }
 
-    private function detailMethod(bool $includeDetail, string $titleField, string $secondaryField): string
+    private function detailMethod(bool $includeDetail, string $titleField, string $secondaryField): ?string
     {
         if (!$includeDetail) {
-            return PHP_EOL;
+            return null;
         }
 
         $entries = [
-            "                ['key' => 'id', 'label' => 'ID'],",
-            "                ['key' => '{$titleField}', 'label' => '" . str($titleField)->headline()->toString() . "'],",
+            "            ['key' => 'id', 'label' => 'ID'],",
+            "            ['key' => '$titleField', 'label' => '" . str($titleField)->headline()->toString() . "'],",
         ];
 
         if ($secondaryField !== '') {
-            $entries[] = "                ['key' => '{$secondaryField}', 'label' => '" . str($secondaryField)->headline()->toString() . "'],";
+            $entries[] = "            ['key' => '$secondaryField', 'label' => '" . str($secondaryField)->headline()->toString() . "'],";
         }
 
-        return <<<PHP
+        $detailEntries = implode(PHP_EOL, $entries);
 
+        return <<<PHP
     public static function detail(DetailContract \$detail): DetailContract
     {
         return \$detail->entries([
-{$this->indentLines($entries)}
+{$detailEntries}
         ]);
     }
-
 PHP;
     }
 
-    private function actionsMethod(bool $includeActions, string $className): string
+    private function actionsMethod(bool $includeActions, string $className): ?string
     {
         if (!$includeActions) {
-            return PHP_EOL;
+            return null;
         }
 
-        $resourceLabel = str(str_replace('Resource', '', $className))->headline()->toString();
+        $resourceLabel = str(str_replace('Resource', '', $className))->headline()->value();
 
         return <<<PHP
-
     public static function actions(): array
     {
         return [
@@ -255,15 +275,16 @@ PHP;
                 ->successMessage('{$resourceLabel} refreshed.'),
         ];
     }
-
 PHP;
     }
 
-    /**
-     * @param list<string> $lines
-     */
-    private function indentLines(array $lines): string
+    private function methods(?string ...$methods): string
     {
-        return implode(PHP_EOL, $lines) . PHP_EOL;
+        $methods = array_values(array_filter(
+            $methods,
+            static fn (?string $method): bool => $method !== null && $method !== '',
+        ));
+
+        return implode(PHP_EOL . PHP_EOL, $methods);
     }
 }

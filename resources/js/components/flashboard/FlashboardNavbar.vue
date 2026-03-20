@@ -5,8 +5,11 @@ type BreadcrumbItem = {
 }
 
 type HeaderAction = {
+  color?: string
   href: string
+  icon?: string
   label: string
+  variant?: string
 }
 
 defineProps<{
@@ -36,9 +39,10 @@ const emit = defineEmits<{
       <div class="nav-right">
         <UButton
           v-for="action in actions"
-          :key="action.href"
-          color="neutral"
-          variant="outline"
+          :key="`${action.href}-${action.label}`"
+          :color="action.color ?? 'neutral'"
+          :icon="action.icon"
+          :variant="action.variant ?? 'outline'"
           @click="emit('navigate', action.href)"
         >
           {{ action.label }}
