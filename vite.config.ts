@@ -5,6 +5,7 @@ import laravel from 'laravel-vite-plugin';
 import ui from '@nuxt/ui/vite';
 
 export default defineConfig({
+  base: '/vendor/flashboard/build/',
   plugins: [
     laravel({
       input: ['resources/js/flashboard.ts'],
