@@ -8,7 +8,7 @@ It is currently in early implementation: the product direction is documented, pa
 
 ## Tech Stack
 - **Language:** PHP 8.4
-- **Framework:** Laravel package
+- **Framework:** Laravel package (Laravel 12/13 host support target)
 - **Database:** Host application database
 - **ORM:** Eloquent in the consuming application
 - **Frontend:** Inertia + Vue + Nuxt UI + Vite

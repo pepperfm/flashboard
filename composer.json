@@ -1,5 +1,6 @@
 {
     "name": "pepperfm/flashboard",
+    "version": "0.1.0",
     "description": "Backend-driven Laravel admin runtime package for internal panels.",
     "type": "library",
     "license": "proprietary",
@@ -37,7 +38,7 @@
         "illuminate/pagination": "^13",
         "illuminate/routing": "^13",
         "illuminate/support": "^13",
-        "inertiajs/inertia-laravel": "^0.2.5"
+        "inertiajs/inertia-laravel": "^2.0"
     },
     "require-dev": {
         "phpstan/phpstan": "^2.1",

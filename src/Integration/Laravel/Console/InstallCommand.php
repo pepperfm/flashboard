@@ -30,6 +30,7 @@ final class InstallCommand extends \Illuminate\Console\Command
 
         $this->call('vendor:publish', $publishOptions + ['--tag' => 'flashboard-config']);
         $this->call('vendor:publish', $publishOptions + ['--tag' => 'flashboard-views']);
+        $this->call('vendor:publish', $publishOptions + ['--tag' => 'flashboard-assets']);
 
         info('Flashboard install bootstrap completed.');
         note('Next steps');
@@ -37,8 +38,9 @@ final class InstallCommand extends \Illuminate\Console\Command
             ['Step', 'Action'],
             [
                 ['1', 'Review config/flashboard.php'],
-                ['2', 'Ensure your auth middleware can protect /admin'],
-                ['3', 'Visit /admin to confirm the package wiring'],
+                ['2', 'Register a resource/page in config/flashboard.php'],
+                ['3', 'Ensure your auth middleware can protect /admin'],
+                ['4', 'Visit /admin to confirm the package wiring'],
             ],
         );
 

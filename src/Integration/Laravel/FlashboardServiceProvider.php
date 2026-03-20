@@ -38,6 +38,7 @@ use Pepperfm\Flashboard\Integration\Laravel\Discovery\PanelDiscovery;
 use Pepperfm\Flashboard\Integration\Laravel\Http\Middleware\AuthenticatePanelUser;
 use Pepperfm\Flashboard\Integration\Laravel\Persistence\ResourceFormPersister;
 use Pepperfm\Flashboard\Integration\Laravel\Routing\PanelRouteRegistrar;
+use Pepperfm\Flashboard\UI\Assets\PublishedAssetManager;
 use Pepperfm\Flashboard\UI\Layout\PanelLayoutFactory;
 use Pepperfm\Flashboard\UI\Notifications\NotificationCenter;
 use Pepperfm\Flashboard\UI\Overlays\OverlayFactory;
@@ -96,6 +97,12 @@ final class FlashboardServiceProvider extends \Illuminate\Support\ServiceProvide
         $this->app->singleton(NotificationCenter::class);
         $this->app->singleton(OverlayFactory::class);
         $this->app->singleton(ScreenStateFactory::class);
+        $this->app->singleton(PublishedAssetManager::class,
+            fn (\Illuminate\Contracts\Foundation\Application $app): PublishedAssetManager => new PublishedAssetManager(
+                $app->make(\Illuminate\Routing\UrlGenerator::class),
+                (string) $app->make('path.public'),
+                dirname(__DIR__, 3),
+            ));
         $this->app->singleton(InertiaScreenRenderer::class);
         $this->app->singleton(JsonScreenRenderer::class);
         $this->app->singleton(PanelLayoutFactory::class);
@@ -126,6 +133,10 @@ final class FlashboardServiceProvider extends \Illuminate\Support\ServiceProvide
             $this->publishes([
                 $this->viewsPath() => resource_path('views/vendor/flashboard'),
             ], 'flashboard-views');
+
+            $this->publishes([
+                dirname(__DIR__, 3) . '/public/build' => $this->app->make('path.public') . '/vendor/flashboard/build',
+            ], 'flashboard-assets');
         }
 
         if (config('flashboard.logging.report_boot', false)) {
