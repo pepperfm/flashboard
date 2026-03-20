@@ -65,6 +65,7 @@ type PayloadShape = {
 }
 
 const props = defineProps<{
+  breadcrumbs?: Array<{ href: string; label: string }>
   payload: PayloadShape
 }>()
 
@@ -153,7 +154,7 @@ function visit(href?: string) {
     return
   }
 
-  router.visit(href)
+  router.get(href)
 }
 
 function visitPage(page: number) {
@@ -169,11 +170,15 @@ function visitPage(page: number) {
     url.searchParams.set('page', String(page))
   }
 
-  router.visit(url.toString(), {
-    preserveScroll: true,
-    preserveState: true,
-    replace: true,
-  })
+  router.get(
+    url.toString(),
+    {},
+    {
+      preserveScroll: true,
+      preserveState: true,
+      replace: true,
+    },
+  )
 }
 
 function fieldComponent(key?: string) {
@@ -208,14 +213,32 @@ function runAction(action: { url?: string; method?: string; requires_confirmatio
     return
   }
 
-  router.visit(action.url, {
-    method: (action.method ?? 'post') as 'post',
-    preserveScroll: true,
-  })
+  const method = (action.method ?? 'post').toLowerCase()
+
+  if (method === 'get') {
+    router.get(action.url, {}, { preserveScroll: true })
+    return
+  }
+
+  if (method === 'put') {
+    router.put(action.url, {}, { preserveScroll: true })
+    return
+  }
+
+  if (method === 'patch') {
+    router.patch(action.url, {}, { preserveScroll: true })
+    return
+  }
+
+  router.post(action.url, {}, { preserveScroll: true })
 }
 </script>
 
 <template>
+  <div v-if="breadcrumbs?.length" class="screen-breadcrumbs">
+    <UBreadcrumb :items="breadcrumbs" />
+  </div>
+
   <template v-if="payload.resource?.page === 'index'">
     <UCard variant="outline">
       <template #header>
@@ -446,6 +469,12 @@ function runAction(action: { url?: string; method?: string; requires_confirmatio
   display: flex;
   flex-wrap: wrap;
   gap: 0.75rem;
+}
+
+.screen-breadcrumbs {
+  margin-bottom: 0.875rem;
+  display: flex;
+  justify-content: flex-start;
 }
 
 .form-page-shell {

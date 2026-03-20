@@ -14,7 +14,6 @@ type HeaderAction = {
 
 defineProps<{
   actions: HeaderAction[]
-  breadcrumbs: BreadcrumbItem[]
   title: string
 }>()
 
@@ -27,12 +26,6 @@ const emit = defineEmits<{
   <UDashboardNavbar :title="title" class="border-b border-default bg-default/80 backdrop-blur">
     <template #leading>
       <UDashboardSidebarCollapse variant="subtle" />
-    </template>
-
-    <template #default>
-      <div v-if="breadcrumbs.length" class="nav-center">
-        <UBreadcrumb :items="breadcrumbs" />
-      </div>
     </template>
 
     <template #right>
@@ -53,12 +46,6 @@ const emit = defineEmits<{
 </template>
 
 <style scoped>
-.nav-center {
-  min-width: 0;
-  display: flex;
-  align-items: center;
-}
-
 .nav-right {
   display: flex;
   flex-wrap: wrap;

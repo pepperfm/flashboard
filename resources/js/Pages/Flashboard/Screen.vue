@@ -2,7 +2,6 @@
 import { Head, router } from '@inertiajs/vue3'
 import FlashboardNavbar from '@/components/flashboard/FlashboardNavbar.vue'
 import FlashboardNotifications from '@/components/flashboard/FlashboardNotifications.vue'
-import FlashboardOverview from '@/components/flashboard/FlashboardOverview.vue'
 import FlashboardScreenContent from '@/components/flashboard/FlashboardScreenContent.vue'
 import FlashboardSidebar from '@/components/flashboard/FlashboardSidebar.vue'
 import { computed } from 'vue'
@@ -139,13 +138,11 @@ function visit(href?: string) {
     return
   }
 
-  router.visit(href)
+  router.get(href)
 }
 
 function logout() {
-  router.visit(props.panel.logout_url, {
-    method: 'post',
-  })
+  router.post(props.panel.logout_url)
 }
 </script>
 
@@ -171,7 +168,6 @@ function logout() {
         <template #header>
           <FlashboardNavbar
             :actions="navbarActions"
-            :breadcrumbs="visibleBreadcrumbs"
             :title="props.layout.title"
             @navigate="visit"
           />
@@ -182,13 +178,10 @@ function logout() {
             <FlashboardNotifications :notifications="props.layout.notifications" />
 
             <div class="stack">
-              <FlashboardOverview
-                :panel="props.panel"
+              <FlashboardScreenContent
+                :breadcrumbs="visibleBreadcrumbs"
                 :payload="props.payload"
-                :state-message="props.layout.state.message"
               />
-
-              <FlashboardScreenContent :payload="props.payload" />
             </div>
           </div>
         </template>
