@@ -5,6 +5,7 @@ import FlashboardNotifications from '@/components/flashboard/FlashboardNotificat
 import FlashboardOverview from '@/components/flashboard/FlashboardOverview.vue'
 import FlashboardScreenContent from '@/components/flashboard/FlashboardScreenContent.vue'
 import FlashboardSidebar from '@/components/flashboard/FlashboardSidebar.vue'
+import { computed } from 'vue'
 
 type LayoutAction = {
   href: string
@@ -32,7 +33,7 @@ type PayloadShape = {
     screen_kind: string
   }
   schema_version?: string
-  page?: { title: string }
+  page?: { key?: string; title: string; type?: string }
   workspace?: { title?: string; description?: string }
   resource?: { page?: string }
   table?: {
@@ -63,6 +64,18 @@ const props = defineProps<{
   user: string | number | null
   version: string
 }>()
+
+const visibleBreadcrumbs = computed(() => {
+  if (props.payload.page?.key === 'dashboard' || props.payload.page?.type === 'dashboard') {
+    return []
+  }
+
+  if (props.payload.metadata.screen_key === 'dashboard') {
+    return []
+  }
+
+  return props.layout.breadcrumbs
+})
 
 function visit(href?: string) {
   if (!href) {
@@ -101,7 +114,7 @@ function logout() {
         <template #header>
           <FlashboardNavbar
             :actions="props.layout.header_actions"
-            :breadcrumbs="props.layout.breadcrumbs"
+            :breadcrumbs="visibleBreadcrumbs"
             :title="props.layout.title"
             @navigate="visit"
           />

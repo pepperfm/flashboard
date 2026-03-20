@@ -1,18 +1,18 @@
 {
-  "__plugin-vue_export-helper-PVdie7Bo.js": {
-    "file": "assets/_plugin-vue_export-helper-PVdie7Bo.js",
+  "__plugin-vue_export-helper-yrXqcmTR.js": {
+    "file": "assets/_plugin-vue_export-helper-yrXqcmTR.js",
     "name": "_plugin-vue_export-helper",
     "imports": [
       "resources/js/flashboard.ts"
     ]
   },
   "resources/js/Pages/Flashboard/Auth/Login.vue": {
-    "file": "assets/Login-COZPGdHX.js",
+    "file": "assets/Login-ylGbkIyt.js",
     "name": "Login",
     "src": "resources/js/Pages/Flashboard/Auth/Login.vue",
     "isDynamicEntry": true,
     "imports": [
-      "__plugin-vue_export-helper-PVdie7Bo.js",
+      "__plugin-vue_export-helper-yrXqcmTR.js",
       "resources/js/flashboard.ts"
     ],
     "css": [
@@ -20,20 +20,20 @@
     ]
   },
   "resources/js/Pages/Flashboard/Screen.vue": {
-    "file": "assets/Screen-DYEjnj5g.js",
+    "file": "assets/Screen-B682ZZ_I.js",
     "name": "Screen",
     "src": "resources/js/Pages/Flashboard/Screen.vue",
     "isDynamicEntry": true,
     "imports": [
-      "__plugin-vue_export-helper-PVdie7Bo.js",
+      "__plugin-vue_export-helper-yrXqcmTR.js",
       "resources/js/flashboard.ts"
     ],
     "css": [
-      "assets/Screen-D3crs9Jn.css"
+      "assets/Screen-DEJYhsrA.css"
     ]
   },
   "resources/js/flashboard.ts": {
-    "file": "assets/flashboard-BYv-rFne.js",
+    "file": "assets/flashboard-DNGe4YKc.js",
     "name": "flashboard",
     "src": "resources/js/flashboard.ts",
     "isEntry": true,
