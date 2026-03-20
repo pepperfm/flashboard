@@ -17,8 +17,9 @@
 
 During release prep verify:
 
-- config publish still works
-- inline `Flashboard::configure()->discover()` still resolves generated classes
+- provider-based panel config resolves before route/runtime boot
+- `flashboard:make-provider` generates a working host provider
+- inline `Flashboard::configure()` still works as a compatibility layer
 - route registration still resolves
 - JSON payload contains `schema_version`
 - login flow and protected panel routes still behave correctly

@@ -9,3 +9,4 @@
 - add form persistence, detail hydration, relations, action execution, and custom workspace support
 - add versioned UI payload contracts, renderers, policy bridge, extension hooks, playground tooling, and test scaffold
 - add fluent inline configuration, prompt-driven `make-resource` / `make-page` commands, and auto-discovery for `app/Flashboard`
+- add provider-first panel configuration with `make-provider` and keep inline config as compatibility mode

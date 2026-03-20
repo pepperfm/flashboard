@@ -42,9 +42,20 @@ Flashboard::configure()
 Coexistence rules:
 
 - fallback config arrays are still read
-- inline `Flashboard::configure()` values are merged on top
+- inline `Flashboard::configure()` values are merged as a compatibility layer
+- provider configuration is merged last and wins over inline and fallback config
 - explicit `resource()` / `page()` registrations are deduplicated with discovered classes
 - `withoutDiscovery()` disables only auto-discovery, not explicit or fallback registrations
+
+## Provider-First Direction
+
+New host applications should prefer a generated panel provider:
+
+```bash
+php artisan flashboard:make-provider
+```
+
+Use inline `Flashboard::configure()` only when you need a transitional or compatibility path in an existing host app.
 
 ## Breaking-Change Classes
 

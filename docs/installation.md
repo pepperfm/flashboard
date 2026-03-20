@@ -40,31 +40,47 @@ The package ships its own built frontend assets. A host application does not nee
 
 ## Configure Flashboard
 
-Configure Flashboard inline in your host app bootstrap:
+Generate a host-side panel provider:
+
+```bash
+php artisan flashboard:make-provider
+```
+
+Then register it in your host app bootstrap/provider list and configure Flashboard there:
 
 ```php
-use Pepperfm\Flashboard\Flashboard;
+use Pepperfm\Flashboard\FlashboardConfig;
+use Pepperfm\Flashboard\Integration\Laravel\FlashboardPanelProvider;
 
-Flashboard::configure()
-    ->path('panel')
-    ->discover();
+final class AdminPanelProvider extends FlashboardPanelProvider
+{
+    public function register(): void
+    {
+        $this->panelConfig()
+            ->path('panel')
+            ->discover();
+    }
+}
 ```
 
 By default this scans `app/Flashboard` for classes ending with `Resource` or `Page`.
-Use `->resource(...)` and `->page(...)` only when you want to register classes explicitly.
+Use provider `register()` for primary configuration and provider `boot()` for extra host-side customization.
 
 ### Discovery Controls
 
 ```php
-Flashboard::configure()
-    ->path('panel')
-    ->discoverResources(in: app_path('Flashboard'))
-    ->discoverPages(in: app_path('Flashboard'))
-    ->except(
-        App\Flashboard\Support\DraftResource::class,
-        'LegacyQueuePage',
-        'Support/IgnoredResource.php',
-    );
+public function register(): void
+{
+    $this->panelConfig()
+        ->path('panel')
+        ->discoverResources(in: app_path('Flashboard'))
+        ->discoverPages(in: app_path('Flashboard'))
+        ->except(
+            App\Flashboard\Support\DraftResource::class,
+            'LegacyQueuePage',
+            'Support/IgnoredResource.php',
+        );
+}
 ```
 
 - `discover()` scans both resources and pages
@@ -76,11 +92,14 @@ Flashboard::configure()
 ### Explicit Overrides
 
 ```php
-Flashboard::configure()
-    ->path('panel')
-    ->discover()
-    ->resource(App\Flashboard\UsersResource::class)
-    ->page(App\Flashboard\ReviewQueuePage::class);
+public function register(): void
+{
+    $this->panelConfig()
+        ->path('panel')
+        ->discover()
+        ->resource(App\Flashboard\UsersResource::class)
+        ->page(App\Flashboard\ReviewQueuePage::class);
+}
 ```
 
 Explicit `resource()` and `page()` registration is merged with discovered classes and deduplicated automatically.
@@ -97,8 +116,8 @@ Optional environment variables:
 ## Fallback Config File
 
 The package still ships `config/flashboard.php` as a fallback source for package defaults and compatibility with older setups.
-For new host apps, the primary user-facing API is the inline object config through `Flashboard::configure()`.
-If both are present, the inline config wins.
+For new host apps, the primary user-facing API is the panel provider.
+If provider config, inline `Flashboard::configure()`, and fallback config all coexist, provider config wins.
 
 ## Access
 
@@ -111,9 +130,10 @@ If both are present, the inline config wins.
 For the fastest first run:
 
 1. Copy `examples/host-app/app/Flashboard/DemoReviewQueuePage.php` into the host app at `app/Flashboard/DemoReviewQueuePage.php`
-2. Run `php artisan flashboard:make-resource DemoOrdersResource App\\Models\\Order`
-3. Enable `Flashboard::configure()->path('panel')->discover()`
-4. Visit your configured panel login path, for example `/panel/login`
+2. Run `php artisan flashboard:make-provider`
+3. Run `php artisan flashboard:make-resource DemoOrdersResource App\\Models\\Order`
+4. Enable `$this->panelConfig()->path('panel')->discover()` inside the generated provider
+5. Visit your configured panel login path, for example `/panel/login`
 
 ## Debug Surfaces
 

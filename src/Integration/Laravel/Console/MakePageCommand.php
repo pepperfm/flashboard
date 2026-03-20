@@ -17,6 +17,8 @@ final class MakePageCommand extends \Illuminate\Console\Command
 {
     protected $description = 'Generate a Flashboard custom page with prompt-driven defaults.';
 
+    protected $aliases = ['fb:mp'];
+
     public function handle(Filesystem $files): int
     {
         $className = $this->qualifyPageClassName(
@@ -26,27 +28,25 @@ final class MakePageCommand extends \Illuminate\Console\Command
                 required: true,
             )),
         );
-        $title = (string) text(
+        $title = text(
             label: 'Page title',
             default: str(str_replace('Page', '', $className))->headline()->toString(),
             required: true,
         );
-        $uri = trim((string) text(
+        $uri = trim(text(
             label: 'Page URI',
             default: str(str_replace('Page', '', $className))->snake()->replace('_', '/')->toString(),
             required: true,
         ), '/');
-        $description = trim((string) text(
+        $description = trim(text(
             label: 'Workspace description (optional)',
-            default: '',
-            required: false,
         ));
 
         $targetDirectory = app_path('Flashboard');
         $targetPath = $targetDirectory . '/' . $className . '.php';
 
         if ($files->exists($targetPath) && !$this->option('force')) {
-            warning("File already exists: {$targetPath}");
+            warning("File already exists: $targetPath");
 
             return self::FAILURE;
         }
@@ -64,8 +64,8 @@ final class MakePageCommand extends \Illuminate\Console\Command
             $files->get(dirname(__DIR__, 4) . '/stubs/page.stub'),
         ));
 
-        info("Flashboard page created: {$targetPath}");
-        note('Pages placed in app/Flashboard are auto-discovered when you use Flashboard::configure()->discover().');
+        info('Flashboard page created: ' . $this->relativePath($targetPath));
+        note('Pages placed in app/Flashboard are auto-discovered when your panel provider calls $this->panelConfig()->discover().');
 
         return self::SUCCESS;
     }
@@ -73,5 +73,14 @@ final class MakePageCommand extends \Illuminate\Console\Command
     private function qualifyPageClassName(string $className): string
     {
         return str_ends_with($className, 'Page') ? $className : $className . 'Page';
+    }
+
+    private function relativePath(string $path): string
+    {
+        $basePath = rtrim(base_path(), DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
+
+        return str_starts_with($path, $basePath)
+            ? substr($path, strlen($basePath))
+            : $path;
     }
 }

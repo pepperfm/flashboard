@@ -16,6 +16,8 @@ use Pepperfm\Flashboard\Core\Pages\DashboardPage;
 
 final class ConfigPanelProvider implements PanelProviderContract
 {
+    use ResolvesConfiguredDiscovery;
+
     /**
      * @var list<class-string<PageDefinitionContract>>
      */
@@ -23,14 +25,9 @@ final class ConfigPanelProvider implements PanelProviderContract
         DashboardPage::class,
     ];
 
-    /**
-     * @var array{resources: list<class-string<Resource>>, pages: list<class-string<PageDefinitionContract>>}|null
-     */
-    private ?array $discoveredClassesCache = null;
-
     public function __construct(
-        private PanelDefinitionContract $panel,
-        private AutoDiscoveryScanner $autoDiscoveryScanner,
+        private readonly PanelDefinitionContract $panel,
+        private readonly AutoDiscoveryScanner $autoDiscoveryScanner,
     ) {
     }
 
@@ -45,7 +42,7 @@ final class ConfigPanelProvider implements PanelProviderContract
     public function resources(): array
     {
         $config = Flashboard::resolvedConfig((array) config('flashboard', []));
-        $discovered = $this->discoveredClasses($config);
+        $discovered = $this->discoveredClassesFromConfig($config);
 
         return array_values(array_unique(array_merge(
             $this->normalizeClasses((array) Arr::get($config, 'discovery.resources', [])),
@@ -59,7 +56,7 @@ final class ConfigPanelProvider implements PanelProviderContract
     public function pages(): array
     {
         $config = Flashboard::resolvedConfig((array) config('flashboard', []));
-        $discovered = $this->discoveredClasses($config);
+        $discovered = $this->discoveredClassesFromConfig($config);
 
         return array_values(array_unique(array_merge(
             self::DEFAULT_PAGE_CLASSES,
@@ -76,52 +73,8 @@ final class ConfigPanelProvider implements PanelProviderContract
         return [];
     }
 
-    /**
-     * @param array<int, mixed> $classes
-     *
-     * @return list<class-string>
-     */
-    private function normalizeClasses(array $classes): array
+    protected function autoDiscoveryScanner(): AutoDiscoveryScanner
     {
-        return array_values(array_filter(
-            $classes,
-            static fn(mixed $class): bool => is_string($class) && $class !== '',
-        ));
-    }
-
-    /**
-     * @param array<string, mixed> $config
-     *
-     * @return array{resources: list<class-string<Resource>>, pages: list<class-string<PageDefinitionContract>>}
-     */
-    private function discoveredClasses(array $config): array
-    {
-        if ($this->discoveredClassesCache !== null) {
-            return $this->discoveredClassesCache;
-        }
-
-        if (!Arr::get($config, 'discovery.auto.enabled', true)) {
-            $this->discoveredClassesCache = [
-                'resources' => [],
-                'pages' => [],
-            ];
-
-            return $this->discoveredClassesCache;
-        }
-
-        $targets = array_values(array_map(
-            static fn(array $target): DiscoveryTarget => DiscoveryTarget::fromArray($target),
-            array_filter(
-                (array) Arr::get($config, 'discovery.auto.targets', []),
-                static fn(mixed $target): bool => is_array($target),
-            ),
-        ));
-
-        $this->discoveredClassesCache = $this->autoDiscoveryScanner->scan(
-            $targets,
-            $this->normalizeClasses((array) Arr::get($config, 'discovery.auto.except', [])),
-        );
-
-        return $this->discoveredClassesCache;
+        return $this->autoDiscoveryScanner;
     }
 }

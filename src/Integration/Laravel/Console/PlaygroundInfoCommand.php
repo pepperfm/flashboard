@@ -24,8 +24,8 @@ final class PlaygroundInfoCommand extends \Illuminate\Console\Command
             ['Step', 'Action'],
             [
                 ['1', 'Read playground/README.md'],
-                ['2', 'Generate a resource with php artisan flashboard:make-resource'],
-                ['3', 'Enable auto-discovery with Flashboard::configure()->discover()'],
+                ['2', 'Generate a panel provider with php artisan flashboard:make-provider'],
+                ['3', 'Generate a resource with php artisan flashboard:make-resource'],
                 ['4', sprintf('Visit %s', $resourcePath)],
             ],
         );

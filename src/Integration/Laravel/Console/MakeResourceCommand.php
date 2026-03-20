@@ -82,7 +82,7 @@ final class MakeResourceCommand extends \Illuminate\Console\Command
             includeActions: $includeActions,
         ));
 
-        info("Flashboard resource created: $targetPath");
+        info('Flashboard resource created: ' . $this->relativePath($targetPath));
         note('Resources placed in app/Flashboard are auto-discovered when your panel provider calls $this->panelConfig()->discover().');
 
         return self::SUCCESS;
@@ -286,5 +286,14 @@ PHP;
         ));
 
         return implode(PHP_EOL . PHP_EOL, $methods);
+    }
+
+    private function relativePath(string $path): string
+    {
+        $basePath = rtrim(base_path(), DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
+
+        return str_starts_with($path, $basePath)
+            ? substr($path, strlen($basePath))
+            : $path;
     }
 }

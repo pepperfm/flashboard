@@ -1,0 +1,23 @@
+<?php
+
+declare(strict_types=1);
+
+namespace {{ namespace }};
+
+use Pepperfm\Flashboard\FlashboardConfig;
+use Pepperfm\Flashboard\Integration\Laravel\FlashboardPanelProvider;
+
+final class {{ class }} extends FlashboardPanelProvider
+{
+    public function register(): void
+    {
+        $this->panelConfig()
+            ->path('{{ path }}')
+            ->discover();
+    }
+
+    public function boot(): void
+    {
+        //
+    }
+}

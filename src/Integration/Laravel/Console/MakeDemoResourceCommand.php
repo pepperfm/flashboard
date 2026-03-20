@@ -38,9 +38,18 @@ final class MakeDemoResourceCommand extends \Illuminate\Console\Command
         $files->ensureDirectoryExists($targetDirectory);
         $files->put($targetPath, $contents);
 
-        info("Demo resource created: $targetPath");
-        note('If you use Flashboard::configure()->discover(), resources in app/Flashboard will be picked up automatically.');
+        info('Demo resource created: ' . $this->relativePath($targetPath));
+        note('If your panel provider calls $this->panelConfig()->discover(), resources in app/Flashboard will be picked up automatically.');
 
         return self::SUCCESS;
+    }
+
+    private function relativePath(string $path): string
+    {
+        $basePath = rtrim(base_path(), DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR;
+
+        return str_starts_with($path, $basePath)
+            ? substr($path, strlen($basePath))
+            : $path;
     }
 }

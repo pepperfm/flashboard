@@ -40,7 +40,7 @@ final class FlashboardInlineConfigTest extends TestCase
         ]);
 
         self::assertSame('panel', $resolved['path']);
-        self::assertSame('panel', $resolved['route_name_prefix']);
+        self::assertSame('panel.', $resolved['route_name_prefix']);
         self::assertSame(
             ['App\\Flashboard\\OrdersResource', 'App\\Flashboard\\UsersResource'],
             $resolved['discovery']['resources'],

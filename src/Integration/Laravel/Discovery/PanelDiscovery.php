@@ -10,6 +10,7 @@ use Pepperfm\Flashboard\Contracts\Panel\PanelProviderContract;
 use Pepperfm\Flashboard\Core\Registry\PageRegistry;
 use Pepperfm\Flashboard\Core\Registry\PanelRegistry;
 use Pepperfm\Flashboard\Core\Registry\ResourceRegistry;
+use Pepperfm\Flashboard\Integration\Laravel\FlashboardPanelProvider;
 
 final readonly class PanelDiscovery
 {
@@ -25,6 +26,10 @@ final readonly class PanelDiscovery
     public function discover(): void
     {
         $this->registerProvider($this->configPanelProvider);
+
+        foreach ($this->loadedPanelProviders() as $provider) {
+            $this->registerProvider($provider);
+        }
 
         foreach ($this->configuredProviderClasses() as $providerClass) {
             $provider = $this->app->make($providerClass);
@@ -46,6 +51,17 @@ final readonly class PanelDiscovery
         return array_values(array_filter(
             (array) Arr::get($config, 'discovery.providers', []),
             static fn(mixed $provider): bool => is_string($provider) && $provider !== '',
+        ));
+    }
+
+    /**
+     * @return list<FlashboardPanelProvider>
+     */
+    private function loadedPanelProviders(): array
+    {
+        return array_values(array_filter(
+            $this->app->getProviders(FlashboardPanelProvider::class),
+            static fn (mixed $provider): bool => $provider instanceof FlashboardPanelProvider,
         ));
     }
 

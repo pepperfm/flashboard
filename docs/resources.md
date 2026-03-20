@@ -12,9 +12,9 @@ declare(strict_types=1);
 namespace App\Flashboard;
 
 use App\Models\Order;
-use Pepperfm\Flashboard\Flashboard;
 use Pepperfm\Flashboard\Contracts\Resources\Resource;
 use Pepperfm\Flashboard\Core\Tables\Builders\Table;
+use Pepperfm\Flashboard\Integration\Laravel\FlashboardPanelProvider;
 
 final class OrdersResource extends Resource
 {
@@ -32,22 +32,31 @@ final class OrdersResource extends Resource
     }
 }
 
-Flashboard::configure()
-    ->discover();
+final class AdminPanelProvider extends FlashboardPanelProvider
+{
+    public function register(): void
+    {
+        $this->panelConfig()
+            ->discover();
+    }
+}
 ```
 
-Any `*Resource` class placed in `app/Flashboard` will be picked up automatically by `discover()`.
-Use `->resource(OrdersResource::class)` only when you want explicit registration.
+Any `*Resource` class placed in `app/Flashboard` will be picked up automatically by provider `discover()`.
+Use `->resource(OrdersResource::class)` only when you want explicit registration in the provider.
 
 ## Discovery Variants
 
 ```php
-Flashboard::configure()
-    ->discoverResources()
-    ->except(
-        App\Flashboard\Support\DraftResource::class,
-        'Support/IgnoredResource.php',
-    );
+public function register(): void
+{
+    $this->panelConfig()
+        ->discoverResources()
+        ->except(
+            App\Flashboard\Support\DraftResource::class,
+            'Support/IgnoredResource.php',
+        );
+}
 ```
 
 Use:
@@ -94,4 +103,4 @@ php artisan flashboard:make-resource
 
 The command will ask for the resource class, model class, primary fields, and whether to scaffold form/detail/action sections.
 
-When generated into `app/Flashboard`, the resource is auto-discovered by default.
+When generated into `app/Flashboard`, the resource is auto-discovered by default from your panel provider.

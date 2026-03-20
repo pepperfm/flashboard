@@ -36,6 +36,7 @@ use Pepperfm\Flashboard\Integration\Laravel\DataSources\ResourceListDataSource;
 use Pepperfm\Flashboard\Integration\Laravel\Discovery\ConfigPanelProvider;
 use Pepperfm\Flashboard\Integration\Laravel\Discovery\AutoDiscoveryScanner;
 use Pepperfm\Flashboard\Integration\Laravel\Discovery\PanelDiscovery;
+use Pepperfm\Flashboard\Integration\Laravel\Discovery\PanelConfigurationResolver;
 use Pepperfm\Flashboard\Integration\Laravel\Http\Middleware\AuthenticatePanelUser;
 use Pepperfm\Flashboard\Integration\Laravel\Persistence\ResourceFormPersister;
 use Pepperfm\Flashboard\Integration\Laravel\Routing\PanelRouteRegistrar;
@@ -55,9 +56,7 @@ final class FlashboardServiceProvider extends \Illuminate\Support\ServiceProvide
 
         $this->app->singleton(PanelDefinitionContract::class,
             function (\Illuminate\Contracts\Foundation\Application $app): PanelDefinitionContract {
-                return PanelConfig::fromArray(Flashboard::resolvedConfig(
-                    (array) $app['config']->get(Flashboard::CONFIG_NAME, []),
-                ));
+                return PanelConfig::fromArray($app->make(PanelConfigurationResolver::class)->resolve());
             });
 
         $this->app->singleton(FlashboardManager::class,
@@ -69,11 +68,12 @@ final class FlashboardServiceProvider extends \Illuminate\Support\ServiceProvide
         $this->app->singleton(ResourceRegistry::class);
         $this->app->singleton(PageRegistry::class);
         $this->app->singleton(AutoDiscoveryScanner::class);
+        $this->app->singleton(PanelConfigurationResolver::class);
 
         $this->app->singleton(ConfigPanelProvider::class,
             function (\Illuminate\Contracts\Foundation\Application $app): ConfigPanelProvider {
                 return new ConfigPanelProvider(
-                    $app->make(PanelDefinitionContract::class),
+                    PanelConfig::fromArray($app->make(PanelConfigurationResolver::class)->resolve()),
                     $app->make(AutoDiscoveryScanner::class),
                 );
             });
@@ -119,6 +119,7 @@ final class FlashboardServiceProvider extends \Illuminate\Support\ServiceProvide
             $this->commands([
                 InstallCommand::class,
                 \Pepperfm\Flashboard\Integration\Laravel\Console\MakePageCommand::class,
+                \Pepperfm\Flashboard\Integration\Laravel\Console\MakeProviderCommand::class,
                 \Pepperfm\Flashboard\Integration\Laravel\Console\MakeResourceCommand::class,
                 MakeDemoResourceCommand::class,
                 PlaygroundInfoCommand::class,
@@ -130,7 +131,7 @@ final class FlashboardServiceProvider extends \Illuminate\Support\ServiceProvide
     {
         $this->app['config']->set(
             Flashboard::CONFIG_NAME,
-            Flashboard::resolvedConfig((array) $this->app['config']->get(Flashboard::CONFIG_NAME, [])),
+            $this->app->make(PanelConfigurationResolver::class)->resolve(),
         );
 
         $this->app->make(PanelDiscovery::class)->discover();
@@ -150,7 +151,7 @@ final class FlashboardServiceProvider extends \Illuminate\Support\ServiceProvide
         }
 
         if (config('flashboard.logging.report_boot', false)) {
-            $config = Flashboard::resolvedConfig((array) config('flashboard', []));
+            $config = $this->app->make(PanelConfigurationResolver::class)->resolve();
 
             logger()->info('Flashboard package booted.', [
                 'path' => $config['path'] ?? 'admin',

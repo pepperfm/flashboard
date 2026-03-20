@@ -253,10 +253,10 @@ final class FlashboardConfig
             $config['name'] = $this->name;
         }
         if ($this->path !== null) {
-            $config['path'] = $this->path;
+            $config['path'] = $this->normalizePath($this->path);
         }
         if ($this->routeNamePrefix !== null) {
-            $config['route_name_prefix'] = $this->routeNamePrefix;
+            $config['route_name_prefix'] = $this->normalizeRouteNamePrefix($this->routeNamePrefix);
         }
         if ($this->guard !== null) {
             $config['guard'] = $this->guard;
@@ -389,6 +389,24 @@ final class FlashboardConfig
     private static function mergeClasses(array $base, array $extra): array
     {
         return array_values(array_unique(array_merge($base, $extra)));
+    }
+
+    private function normalizePath(string $path): string
+    {
+        $path = trim($path, '/');
+
+        return $path === '' ? 'admin' : $path;
+    }
+
+    private function normalizeRouteNamePrefix(string $routeNamePrefix): string
+    {
+        $routeNamePrefix = trim($routeNamePrefix);
+
+        if ($routeNamePrefix === '') {
+            return 'flashboard.';
+        }
+
+        return str_ends_with($routeNamePrefix, '.') ? $routeNamePrefix : $routeNamePrefix . '.';
     }
 
     /**
