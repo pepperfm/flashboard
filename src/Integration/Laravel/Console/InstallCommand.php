@@ -46,7 +46,7 @@ final class InstallCommand extends \Illuminate\Console\Command
             ['Step', 'Action'],
             [
                 ['1', sprintf('Review %s', $providerPath)],
-                ['2', 'Generate a resource or page with php artisan flashboard:make-resource / make-page'],
+                ['2', 'Generate a resource or page with php artisan fb:mr / fb:mp'],
                 ['3', sprintf('Ensure your auth middleware can protect %s', $this->panelPath($panelPath))],
                 ['4', sprintf('Visit %s to confirm the package wiring', $this->panelPath($panelPath))],
             ],
@@ -60,9 +60,9 @@ final class InstallCommand extends \Illuminate\Console\Command
             $pageCount = count($discovered['pages']);
 
             if ($resourceCount > 0 || $pageCount > 0) {
-                note("Auto-discovery detected {$resourceCount} resource(s) and {$pageCount} page(s) in {$discoveryDirectory}.");
+                note("Auto-discovery detected $resourceCount resource(s) and $pageCount page(s) in $discoveryDirectory.");
             } else {
-                note("Default discovery directory detected: {$discoveryDirectory}. No discoverable Flashboard classes found yet.");
+                note("Default discovery directory detected: $discoveryDirectory. No discoverable Flashboard classes found yet.");
             }
         }
 
@@ -76,7 +76,6 @@ final class InstallCommand extends \Illuminate\Console\Command
     private function panelPath(string $panelPath): string
     {
         $path = trim($panelPath, '/');
-
         if ($path === '') {
             return '/';
         }
@@ -86,7 +85,7 @@ final class InstallCommand extends \Illuminate\Console\Command
 
     private function requestedPanelPath(): string
     {
-        $path = trim((string) text(
+        $path = trim(text(
             label: 'Panel path',
             default: 'panel',
             required: true,
@@ -146,14 +145,13 @@ final class InstallCommand extends \Illuminate\Console\Command
         }
 
         $contents = $files->get($providersPath);
-
         if (str_contains($contents, $providerClass . '::class')) {
             return 'Panel provider is already registered in bootstrap/providers.php.';
         }
 
         $updatedContents = preg_replace(
             '/\];\s*$/',
-            "    {$providerClass}::class," . PHP_EOL . '];' . PHP_EOL,
+            "    $providerClass::class," . PHP_EOL . '];' . PHP_EOL,
             $contents,
             1,
             $count,
