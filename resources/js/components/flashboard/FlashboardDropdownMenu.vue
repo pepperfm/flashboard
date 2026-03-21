@@ -30,6 +30,18 @@ function chipStyle(item: DropdownMenuItem) {
   >
     <slot />
 
+    <template
+      v-for="(_, name) in $slots"
+      :key="name"
+      #[name]="slotData"
+    >
+      <slot
+        v-if="name !== 'default' && name !== 'chip-leading'"
+        :name="name"
+        v-bind="slotData"
+      />
+    </template>
+
     <template #chip-leading="{ item }">
       <div
         v-if="chipStyle(item)"

@@ -30,7 +30,6 @@ const emit = defineEmits<{
 
 const appConfig = useAppConfig()
 const collapsed = ref(false)
-const themePanelOpen = ref(false)
 const userMenuOpen = ref(false)
 const themeMode = ref<ThemeMode>('system')
 const primaryColor = ref<string>(appConfig.ui.colors.primary)
@@ -60,6 +59,14 @@ const navigationItems = computed<NavigationMenuItem[][]>(() => [
 ])
 
 const userMenuItems = computed<DropdownMenuItem[][]>(() => [
+  [
+    {
+      label: 'Theme',
+      icon: 'i-lucide-palette',
+      slot: 'theme',
+      type: 'label',
+    },
+  ],
   [
     {
       label: 'Logout',
@@ -205,40 +212,6 @@ function applyRadius(): void {
 
     <template #footer="{ collapsed: isCollapsed }">
       <div class="sidebar-footer">
-        <UPopover
-          v-model:open="themePanelOpen"
-          mode="hover"
-          :open-delay="80"
-          :close-delay="120"
-          :content="{ side: isCollapsed ? 'right' : 'top', align: isCollapsed ? 'start' : 'end', sideOffset: 10 }"
-        >
-          <UButton
-            variant="ghost"
-            color="neutral"
-            :label="isCollapsed ? undefined : 'Theme'"
-            :block="!isCollapsed"
-            :square="isCollapsed"
-            icon="i-lucide-palette"
-            class="data-[state=open]:bg-elevated"
-          />
-
-          <template #content>
-            <FlashboardThemePanel
-              :primary-options="PRIMARY_OPTIONS"
-              :primary-color="primaryColor"
-              :neutral-options="NEUTRAL_OPTIONS"
-              :neutral-color="neutralColor"
-              :radius-options="RADIUS_OPTIONS"
-              :radius="radius"
-              :theme-mode="themeMode"
-              @update:primary-color="primaryColor = $event"
-              @update:neutral-color="neutralColor = $event"
-              @update:radius="radius = $event"
-              @update:theme-mode="themeMode = $event"
-            />
-          </template>
-        </UPopover>
-
         <FlashboardDropdownMenu
           v-model:open="userMenuOpen"
           :items="userMenuItems"
@@ -247,6 +220,42 @@ function applyRadius(): void {
             content: isCollapsed ? 'w-48' : 'w-(--reka-dropdown-menu-trigger-width)',
           }"
         >
+          <template #theme="{ item }">
+            <UPopover
+              mode="hover"
+              :open-delay="80"
+              :close-delay="120"
+              :content="{ side: 'right', align: 'start', sideOffset: 10, collisionPadding: 12 }"
+            >
+              <button
+                type="button"
+                class="theme-trigger"
+              >
+                <span class="theme-trigger-main">
+                  <UIcon :name="item.icon" class="size-5 shrink-0 text-default" />
+                  <span class="theme-trigger-label">{{ item.label }}</span>
+                </span>
+                <UIcon name="i-lucide-chevron-right" class="size-4 shrink-0 text-muted" />
+              </button>
+
+              <template #content>
+                <FlashboardThemePanel
+                  :primary-options="PRIMARY_OPTIONS"
+                  :primary-color="primaryColor"
+                  :neutral-options="NEUTRAL_OPTIONS"
+                  :neutral-color="neutralColor"
+                  :radius-options="RADIUS_OPTIONS"
+                  :radius="radius"
+                  :theme-mode="themeMode"
+                  @update:primary-color="primaryColor = $event"
+                  @update:neutral-color="neutralColor = $event"
+                  @update:radius="radius = $event"
+                  @update:theme-mode="themeMode = $event"
+                />
+              </template>
+            </UPopover>
+          </template>
+
           <UButton
             variant="ghost"
             color="neutral"
@@ -299,5 +308,33 @@ function applyRadius(): void {
   gap: 0.5rem;
   padding: 0.75rem;
   border-top: 1px solid rgba(120, 130, 150, 0.16);
+}
+
+.theme-trigger {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.625rem 0.75rem;
+  border-radius: 0.5rem;
+  color: inherit;
+  background: transparent;
+}
+
+.theme-trigger:hover {
+  background: color-mix(in srgb, var(--ui-bg-elevated) 78%, transparent);
+}
+
+.theme-trigger-main {
+  display: flex;
+  min-width: 0;
+  align-items: center;
+  gap: 0.625rem;
+}
+
+.theme-trigger-label {
+  font-size: 0.875rem;
+  font-weight: 500;
 }
 </style>
