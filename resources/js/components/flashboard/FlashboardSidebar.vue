@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import type { DropdownMenuItem, NavigationMenuItem } from '@nuxt/ui'
-import FlashboardThemePanel from '@/components/flashboard/FlashboardThemePanel.vue'
 import { NEUTRAL_OPTIONS, PRIMARY_OPTIONS, RADIUS_OPTIONS } from '@/components/flashboard/themeOptions'
 import { computed, onMounted, ref, watch } from 'vue'
 
@@ -62,7 +61,85 @@ const userMenuItems = computed<DropdownMenuItem[][]>(() => [
     {
       label: 'Theme',
       icon: 'i-lucide-palette',
-      slot: 'theme',
+      children: [
+        {
+          label: 'Primary',
+          slot: 'chip',
+          chip: primaryColor.value,
+          content: { align: 'center', collisionPadding: 16 },
+          children: PRIMARY_OPTIONS.map((color) => ({
+            label: color,
+            chip: color,
+            slot: 'chip',
+            type: 'checkbox',
+            checked: primaryColor.value === color,
+            onSelect: closeMenu(() => {
+              primaryColor.value = color
+            }),
+          })),
+        },
+        {
+          label: 'Neutral',
+          slot: 'chip',
+          chip: neutralColor.value,
+          content: { align: 'end', collisionPadding: 16 },
+          children: NEUTRAL_OPTIONS.map((color) => ({
+            label: color,
+            chip: color,
+            slot: 'chip',
+            type: 'checkbox',
+            checked: neutralColor.value === color,
+            onSelect: closeMenu(() => {
+              neutralColor.value = color
+            }),
+          })),
+        },
+        {
+          label: 'Radius',
+          content: { align: 'center', collisionPadding: 16 },
+          children: RADIUS_OPTIONS.map((value) => ({
+            label: String(value),
+            type: 'checkbox',
+            checked: radius.value === value,
+            onSelect: closeMenu(() => {
+              radius.value = value
+            }),
+          })),
+        },
+      ],
+    },
+    {
+      label: 'Appearance',
+      icon: 'i-lucide-sun-moon',
+      children: [
+        {
+          label: 'Light',
+          icon: 'i-lucide-sun-medium',
+          type: 'checkbox',
+          checked: themeMode.value === 'light',
+          onSelect: closeMenu(() => {
+            themeMode.value = 'light'
+          }),
+        },
+        {
+          label: 'Dark',
+          icon: 'i-lucide-moon-star',
+          type: 'checkbox',
+          checked: themeMode.value === 'dark',
+          onSelect: closeMenu(() => {
+            themeMode.value = 'dark'
+          }),
+        },
+        {
+          label: 'System',
+          icon: 'i-lucide-monitor-cog',
+          type: 'checkbox',
+          checked: themeMode.value === 'system',
+          onSelect: closeMenu(() => {
+            themeMode.value = 'system'
+          }),
+        },
+      ],
     },
   ],
   [
@@ -218,66 +295,6 @@ function applyRadius(): void {
             content: isCollapsed ? 'w-48' : 'w-(--reka-dropdown-menu-trigger-width)',
           }"
         >
-          <template #theme="{ item, ui }">
-            <UPopover
-              mode="hover"
-              :open-delay="80"
-              :close-delay="120"
-              :content="{ side: 'right', align: 'start', sideOffset: 10, collisionPadding: 12 }"
-            >
-              <button
-                type="button"
-                data-slot="item"
-                :class="ui.item({ color: item?.color })"
-              >
-                <span class="theme-trigger-main">
-                  <UIcon
-                    :name="item.icon"
-                    data-slot="itemLeadingIcon"
-                    :class="ui.itemLeadingIcon({ color: item?.color })"
-                  />
-                  <span
-                    data-slot="itemWrapper"
-                    :class="ui.itemWrapper()"
-                  >
-                    <span
-                      data-slot="itemLabel"
-                      :class="ui.itemLabel()"
-                  >
-                      {{ item.label }}
-                    </span>
-                  </span>
-                </span>
-                <span
-                  data-slot="itemTrailing"
-                  :class="ui.itemTrailing()"
-                >
-                  <UIcon
-                    name="i-lucide-chevron-right"
-                    data-slot="itemTrailingIcon"
-                    :class="ui.itemTrailingIcon({ color: item?.color })"
-                  />
-                </span>
-              </button>
-
-              <template #content>
-                <FlashboardThemePanel
-                  :primary-options="PRIMARY_OPTIONS"
-                  :primary-color="primaryColor"
-                  :neutral-options="NEUTRAL_OPTIONS"
-                  :neutral-color="neutralColor"
-                  :radius-options="RADIUS_OPTIONS"
-                  :radius="radius"
-                  :theme-mode="themeMode"
-                  @update:primary-color="primaryColor = $event"
-                  @update:neutral-color="neutralColor = $event"
-                  @update:radius="radius = $event"
-                  @update:theme-mode="themeMode = $event"
-                />
-              </template>
-            </UPopover>
-          </template>
-
           <UButton
             variant="ghost"
             color="neutral"
@@ -330,12 +347,5 @@ function applyRadius(): void {
   gap: 0.5rem;
   padding: 0.75rem;
   border-top: 1px solid rgba(120, 130, 150, 0.16);
-}
-
-.theme-trigger-main {
-  display: flex;
-  min-width: 0;
-  align-items: center;
-  gap: 0.625rem;
 }
 </style>
