@@ -1,6 +1,5 @@
 <script setup lang="ts">
 import type { DropdownMenuItem, NavigationMenuItem } from '@nuxt/ui'
-import FlashboardDropdownMenu from '@/components/flashboard/FlashboardDropdownMenu.vue'
 import FlashboardThemePanel from '@/components/flashboard/FlashboardThemePanel.vue'
 import { NEUTRAL_OPTIONS, PRIMARY_OPTIONS, RADIUS_OPTIONS } from '@/components/flashboard/themeOptions'
 import { computed, onMounted, ref, watch } from 'vue'
@@ -211,7 +210,7 @@ function applyRadius(): void {
 
     <template #footer="{ collapsed: isCollapsed }">
       <div class="sidebar-footer">
-        <FlashboardDropdownMenu
+        <UDropdownMenu
           v-model:open="userMenuOpen"
           :items="userMenuItems"
           :content="{ align: 'center', collisionPadding: 12 }"
@@ -263,7 +262,7 @@ function applyRadius(): void {
             :square="isCollapsed"
             icon="i-lucide-user-round"
           />
-        </FlashboardDropdownMenu>
+        </UDropdownMenu>
       </div>
     </template>
   </UDashboardSidebar>
