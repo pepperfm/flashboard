@@ -6,11 +6,10 @@ namespace Pepperfm\Flashboard\Integration\Laravel\Console;
 
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Filesystem\Filesystem;
-use Pepperfm\Flashboard\Contracts\Resources\Resource;
 use Pepperfm\Flashboard\Contracts\Detail\DetailContract;
 use Pepperfm\Flashboard\Contracts\Forms\FormContract;
+use Pepperfm\Flashboard\Contracts\Resources\Resource;
 use Pepperfm\Flashboard\Contracts\Tables\TableContract;
-use Pepperfm\Flashboard\Core\Actions\Builders\Action;
 use Pepperfm\Flashboard\Core\Detail\Entries\TextEntry;
 use Pepperfm\Flashboard\Core\Forms\Fields\TextInput;
 use Pepperfm\Flashboard\Core\Forms\Layout\Section;
@@ -60,7 +59,6 @@ final class MakeResourceCommand extends \Illuminate\Console\Command
             label: 'Navigation group (optional)',
         ));
         $includeDetail = confirm('Include detail screen?');
-        $includeActions = confirm('Include example action?', default: false);
 
         $targetDirectory = app_path('Flashboard');
         $targetPath = "$targetDirectory/$className.php";
@@ -80,7 +78,6 @@ final class MakeResourceCommand extends \Illuminate\Console\Command
             secondaryField: $secondaryField,
             navigationGroup: $navigationGroup,
             includeDetail: $includeDetail,
-            includeActions: $includeActions,
         ));
 
         info('Flashboard resource created: ' . $this->relativePath($targetPath));
@@ -102,7 +99,6 @@ final class MakeResourceCommand extends \Illuminate\Console\Command
         string $secondaryField,
         string $navigationGroup,
         bool $includeDetail,
-        bool $includeActions,
     ): string {
         $imports = [
             Resource::class,
@@ -110,14 +106,12 @@ final class MakeResourceCommand extends \Illuminate\Console\Command
             Section::class,
             TableContract::class,
             TextInput::class,
+            TextColumn::class,
         ];
+
         if ($includeDetail) {
             $imports[] = DetailContract::class;
             $imports[] = TextEntry::class;
-        }
-        $imports[] = TextColumn::class;
-        if ($includeActions) {
-            $imports[] = Action::class;
         }
 
         sort($imports);
@@ -126,36 +120,29 @@ final class MakeResourceCommand extends \Illuminate\Console\Command
             [
                 '{{ namespace }}',
                 '{{ model }}',
+                '{{ model_basename }}',
                 '{{ imports }}',
                 '{{ class }}',
-                '{{ methods }}',
+                '{{ navigation_group_method }}',
+                '{{ table_columns }}',
+                '{{ form_fields }}',
+                '{{ form_rules }}',
+                '{{ detail_method }}',
             ],
             [
                 'App\\Flashboard',
                 $modelClass,
+                class_basename($modelClass),
                 implode(PHP_EOL, array_map(static fn (string $import): string => 'use ' . $import . ';', $imports)),
                 $className,
-                $this->methods(
-                    $this->modelMethod(class_basename($modelClass)),
-                    $this->navigationGroupMethod($navigationGroup),
-                    $this->tableMethod($titleField, $secondaryField),
-                    $this->formMethod($titleField, $secondaryField),
-                    $this->detailMethod($includeDetail, $titleField, $secondaryField),
-                    $this->actionsMethod($includeActions, $className),
-                ),
+                $this->navigationGroupMethod($navigationGroup),
+                $this->tableColumns($titleField, $secondaryField),
+                $this->formFields($titleField, $secondaryField),
+                $this->formRules($titleField, $secondaryField),
+                $this->detailMethod($includeDetail, $titleField, $secondaryField),
             ],
             $stub,
         );
-    }
-
-    private function modelMethod(string $modelBasename): string
-    {
-        return <<<PHP
-    public static function model(): string
-    {
-        return {$modelBasename}::class;
-    }
-PHP;
     }
 
     private function navigationGroupMethod(string $navigationGroup): string
@@ -167,84 +154,84 @@ PHP;
         return <<<PHP
     public static function navigationGroup(): ?string
     {
-        return '{$navigationGroup}';
+        return '$navigationGroup';
     }
+
 PHP;
     }
 
-    private function secondaryTableColumn(string $secondaryField): string
+    private function tableColumns(string $titleField, string $secondaryField): string
     {
-        if ($secondaryField === '') {
-            return '';
+        $columns = [
+            $this->textColumnExpression('id', label: 'ID', sortable: true, indent: '            ') . ',',
+            $this->textColumnExpression(
+                $titleField,
+                label: str($titleField)->headline()->toString(),
+                sortable: true,
+                searchable: true,
+                indent: '            ',
+            ) . ',',
+        ];
+
+        if ($secondaryField !== '') {
+            $columns[] = $this->textColumnExpression(
+                $secondaryField,
+                label: str($secondaryField)->headline()->toString(),
+                searchable: true,
+                indent: '            ',
+            ) . ',';
         }
 
-        return PHP_EOL . $this->textColumnExpression($secondaryField, searchable: true, indent: '            ') . ',';
+        return implode(PHP_EOL, $columns);
     }
 
-    private function tableMethod(string $titleField, string $secondaryField): string
+    private function formFields(string $titleField, string $secondaryField): string
     {
-        $titleLabel = str($titleField)->headline()->toString();
-        $secondaryTableColumn = $this->secondaryTableColumn($secondaryField);
-
-        return <<<PHP
-    public static function table(TableContract \$table): TableContract
-    {
-        return \$table->columns([
-            {$this->textColumnExpression('id', label: 'ID', sortable: true, indent: '            ')},
-            {$this->textColumnExpression($titleField, label: $titleLabel, sortable: true, searchable: true, indent: '            ')},{$secondaryTableColumn}
-        ]);
-    }
-PHP;
-    }
-
-    private function formMethod(string $titleField, string $secondaryField): string
-    {
-        $fieldRows = [
+        $fields = [
             $this->textInputExpression($titleField, required: true, indent: '                    ') . ',',
         ];
+
+        if ($secondaryField !== '') {
+            $fields[] = $this->textInputExpression($secondaryField, indent: '                    ') . ',';
+        }
+
+        return implode(PHP_EOL, $fields);
+    }
+
+    private function formRules(string $titleField, string $secondaryField): string
+    {
         $rules = [
             "                '$titleField' => ['required', 'string'],",
         ];
 
         if ($secondaryField !== '') {
-            $fieldRows[] = $this->textInputExpression($secondaryField, indent: '                    ') . ',';
             $rules[] = "                '$secondaryField' => ['nullable', 'string'],";
         }
 
-        $fields = implode(PHP_EOL, $fieldRows);
-        $formRules = implode(PHP_EOL, $rules);
-
-        return <<<PHP
-    public static function form(FormContract \$form): FormContract
-    {
-        return \$form
-            ->sections([
-                Section::make('main')
-                    ->label('Main')
-                    ->schema([
-{$fields}
-                    ]),
-            ])
-            ->rules([
-{$formRules}
-            ]);
-    }
-PHP;
+        return implode(PHP_EOL, $rules);
     }
 
-    private function detailMethod(bool $includeDetail, string $titleField, string $secondaryField): ?string
+    private function detailMethod(bool $includeDetail, string $titleField, string $secondaryField): string
     {
         if (!$includeDetail) {
-            return null;
+            return '';
         }
 
         $entries = [
             $this->textEntryExpression('id', label: 'ID', indent: '            ') . ',',
-            $this->textEntryExpression($titleField, label: str($titleField)->headline()->toString(), indent: '            ') . ',',
+            $this->textEntryExpression(
+                $titleField,
+                label: str($titleField)->headline()->toString(),
+                indent: '            ',
+            ) . ',',
         ];
 
         if ($secondaryField !== '') {
-            $entries[] = $this->textEntryExpression($secondaryField, label: str($secondaryField)->headline()->toString(), indent: '            ') . ',';
+            $entries[] = $this->textEntryExpression(
+                $secondaryField,
+                label: str($secondaryField)->headline()->toString(),
+                indent: '            ',
+            ) . ',';
         }
 
         $detailEntries = implode(PHP_EOL, $entries);
@@ -256,37 +243,8 @@ PHP;
 {$detailEntries}
         ]);
     }
+
 PHP;
-    }
-
-    private function actionsMethod(bool $includeActions, string $className): ?string
-    {
-        if (!$includeActions) {
-            return null;
-        }
-
-        $resourceLabel = str(str_replace('Resource', '', $className))->headline()->value();
-
-        return <<<PHP
-    public static function actions(): array
-    {
-        return [
-            Action::make('refresh')
-                ->label('Refresh')
-                ->successMessage('{$resourceLabel} refreshed.'),
-        ];
-    }
-PHP;
-    }
-
-    private function methods(?string ...$methods): string
-    {
-        $methods = array_values(array_filter(
-            $methods,
-            static fn (?string $method): bool => $method !== null && $method !== '',
-        ));
-
-        return implode(PHP_EOL . PHP_EOL, $methods);
     }
 
     private function relativePath(string $path): string

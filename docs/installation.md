@@ -31,6 +31,12 @@ If you are testing the package from a local checkout, add a path repository in t
 php artisan flashboard:install
 ```
 
+The installer will ask for a panel path such as `panel` or `admin` and generate a matching provider class name automatically, for example:
+
+- `panel` → `PanelPanelProvider`
+- `admin` → `AdminPanelProvider`
+- `partner-balance` → `PartnerBalancePanelProvider`
+
 This publishes:
 
 - `resources/views/vendor/flashboard/*`

@@ -15,7 +15,6 @@ final class MakeResourceCommandTest extends TestCase
             titleField: 'name',
             secondaryField: 'email',
             includeDetail: true,
-            includeActions: true,
         );
 
         self::assertStringContainsString(
@@ -53,7 +52,6 @@ final class MakeResourceCommandTest extends TestCase
             titleField: 'name',
             secondaryField: '',
             includeDetail: false,
-            includeActions: false,
         );
 
         self::assertStringNotContainsString('public static function navigationGroup()', $content);
@@ -86,7 +84,6 @@ final class MakeResourceCommandTest extends TestCase
         string $titleField,
         string $secondaryField,
         bool $includeDetail,
-        bool $includeActions,
     ): string {
         $reflection = new \ReflectionClass(MakeResourceCommand::class);
         $method = $reflection->getMethod('renderStub');
@@ -102,7 +99,6 @@ final class MakeResourceCommandTest extends TestCase
             $secondaryField,
             '',
             $includeDetail,
-            $includeActions,
         );
     }
 }

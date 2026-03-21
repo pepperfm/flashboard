@@ -14,6 +14,7 @@ use Illuminate\Filesystem\Filesystem;
 use function Laravel\Prompts\info;
 use function Laravel\Prompts\note;
 use function Laravel\Prompts\table;
+use function Laravel\Prompts\text;
 use function Laravel\Prompts\warning;
 
 #[Signature('flashboard:install {--force : Overwrite publish targets when supported}')]
@@ -23,9 +24,9 @@ final class InstallCommand extends \Illuminate\Console\Command
 
     public function handle(Filesystem $files, AutoDiscoveryScanner $autoDiscoveryScanner): int
     {
-        $panelPath = $this->panelPath();
+        $panelPath = $this->requestedPanelPath();
         $discoveryDirectory = app_path('Flashboard');
-        $providerPath = $this->ensurePanelProvider($files);
+        $providerPath = $this->ensurePanelProvider($files, $panelPath);
 
         info('Installing Flashboard...');
 
@@ -46,8 +47,8 @@ final class InstallCommand extends \Illuminate\Console\Command
             [
                 ['1', sprintf('Review %s', $providerPath)],
                 ['2', 'Generate a resource or page with php artisan flashboard:make-resource / make-page'],
-                ['3', sprintf('Ensure your auth middleware can protect %s', $panelPath)],
-                ['4', sprintf('Visit %s to confirm the package wiring', $panelPath)],
+                ['3', sprintf('Ensure your auth middleware can protect %s', $this->panelPath($panelPath))],
+                ['4', sprintf('Visit %s to confirm the package wiring', $this->panelPath($panelPath))],
             ],
         );
 
@@ -72,9 +73,9 @@ final class InstallCommand extends \Illuminate\Console\Command
         return self::SUCCESS;
     }
 
-    private function panelPath(): string
+    private function panelPath(string $panelPath): string
     {
-        $path = trim((string) config('flashboard.path', 'admin'), '/');
+        $path = trim($panelPath, '/');
 
         if ($path === '') {
             return '/';
@@ -83,9 +84,20 @@ final class InstallCommand extends \Illuminate\Console\Command
         return '/' . $path;
     }
 
-    private function ensurePanelProvider(Filesystem $files): string
+    private function requestedPanelPath(): string
     {
-        $className = 'AdminPanelProvider';
+        $path = trim((string) text(
+            label: 'Panel path',
+            default: 'panel',
+            required: true,
+        ), '/');
+
+        return $path === '' ? 'panel' : $path;
+    }
+
+    private function ensurePanelProvider(Filesystem $files, string $panelPath): string
+    {
+        $className = $this->providerClassNameForPanelPath($panelPath);
         $providerClass = 'App\\Providers\\Flashboard\\' . $className;
         $targetDirectory = app_path('Providers/Flashboard');
         $targetPath = $targetDirectory . '/' . $className . '.php';
@@ -95,7 +107,7 @@ final class InstallCommand extends \Illuminate\Console\Command
             $files->ensureDirectoryExists($targetDirectory);
             $files->put($targetPath, str_replace(
                 ['{{ namespace }}', '{{ class }}', '{{ path }}'],
-                ['App\\Providers\\Flashboard', $className, trim($this->panelPath(), '/')],
+                ['App\\Providers\\Flashboard', $className, trim($panelPath, '/')],
                 $files->get(dirname(__DIR__, 4) . '/stubs/panel-provider.stub'),
             ));
 
@@ -108,6 +120,23 @@ final class InstallCommand extends \Illuminate\Console\Command
         note($registrationMessage);
 
         return $this->relativePath($targetPath);
+    }
+
+    private function providerClassNameForPanelPath(string $panelPath): string
+    {
+        $normalizedPath = trim($panelPath, '/');
+
+        if ($normalizedPath === '') {
+            return 'PanelPanelProvider';
+        }
+
+        $segments = preg_split('/[\/_-]+/', $normalizedPath) ?: [];
+        $studly = collect($segments)
+            ->filter(static fn (string $segment): bool => $segment !== '')
+            ->map(static fn (string $segment): string => str($segment)->studly()->toString())
+            ->implode('');
+
+        return ($studly === '' ? 'Panel' : $studly) . 'PanelProvider';
     }
 
     private function registerProviderInBootstrap(Filesystem $files, string $providersPath, string $providerClass): string

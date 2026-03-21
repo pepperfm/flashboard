@@ -9,5 +9,32 @@ use {{ model }};
 
 final class {{ class }} extends Resource
 {
-{{ methods }}
+    public static function model(): string
+    {
+        return {{ model_basename }}::class;
+    }
+
+{{ navigation_group_method }}    public static function table(TableContract $table): TableContract
+    {
+        return $table->columns([
+{{ table_columns }}
+        ]);
+    }
+
+    public static function form(FormContract $form): FormContract
+    {
+        return $form
+            ->sections([
+                Section::make('main')
+                    ->label('Main')
+                    ->schema([
+{{ form_fields }}
+                    ]),
+            ])
+            ->rules([
+{{ form_rules }}
+            ]);
+    }
+
+{{ detail_method }}}
 }
