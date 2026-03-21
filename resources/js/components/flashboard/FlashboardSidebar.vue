@@ -1,34 +1,14 @@
 <script setup lang="ts">
 import type { DropdownMenuItem, NavigationMenuItem } from '@nuxt/ui'
 import FlashboardDropdownMenu from '@/components/flashboard/FlashboardDropdownMenu.vue'
+import FlashboardThemePanel from '@/components/flashboard/FlashboardThemePanel.vue'
+import { NEUTRAL_OPTIONS, PRIMARY_OPTIONS, RADIUS_OPTIONS } from '@/components/flashboard/themeOptions'
 import { computed, onMounted, ref, watch } from 'vue'
 
 const THEME_STORAGE_KEY = 'flashboard-theme'
 const THEME_PRIMARY_STORAGE_KEY = 'flashboard-theme-primary'
 const THEME_NEUTRAL_STORAGE_KEY = 'flashboard-theme-neutral'
 const THEME_RADIUS_STORAGE_KEY = 'flashboard-theme-radius'
-const PRIMARY_OPTIONS = [
-  'black',
-  'red',
-  'orange',
-  'amber',
-  'yellow',
-  'lime',
-  'green',
-  'emerald',
-  'teal',
-  'cyan',
-  'sky',
-  'blue',
-  'indigo',
-  'violet',
-  'purple',
-  'fuchsia',
-  'pink',
-  'rose',
-] as const
-const NEUTRAL_OPTIONS = ['slate', 'gray', 'zinc', 'neutral', 'stone', 'taupe', 'mauve', 'mist', 'olive'] as const
-const RADIUS_OPTIONS = [0, 0.125, 0.25, 0.375, 0.5] as const
 
 type NavigationItem = {
   href?: string
@@ -50,6 +30,7 @@ const emit = defineEmits<{
 
 const appConfig = useAppConfig()
 const collapsed = ref(false)
+const themePanelOpen = ref(false)
 const userMenuOpen = ref(false)
 const themeMode = ref<ThemeMode>('system')
 const primaryColor = ref<string>(appConfig.ui.colors.primary)
@@ -79,91 +60,6 @@ const navigationItems = computed<NavigationMenuItem[][]>(() => [
 ])
 
 const userMenuItems = computed<DropdownMenuItem[][]>(() => [
-  [
-    {
-      label: 'Theme',
-      icon: 'i-lucide-palette',
-      children: [
-        {
-          label: 'Primary',
-          slot: 'chip',
-          chip: primaryColor.value,
-          content: { align: 'center', collisionPadding: 16 },
-          children: PRIMARY_OPTIONS.map((color) => ({
-            label: color,
-            chip: color,
-            slot: 'chip',
-            type: 'checkbox',
-            checked: primaryColor.value === color,
-            onSelect: closeMenu(() => {
-              primaryColor.value = color
-            }),
-          })),
-        },
-        {
-          label: 'Neutral',
-          slot: 'chip',
-          chip: neutralColor.value,
-          content: { align: 'end', collisionPadding: 16 },
-          children: NEUTRAL_OPTIONS.map((color) => ({
-            label: color,
-            chip: color,
-            slot: 'chip',
-            type: 'checkbox',
-            checked: neutralColor.value === color,
-            onSelect: closeMenu(() => {
-              neutralColor.value = color
-            }),
-          })),
-        },
-        {
-          label: 'Radius',
-          content: { align: 'center', collisionPadding: 16 },
-          children: RADIUS_OPTIONS.map((value) => ({
-            label: String(value),
-            type: 'checkbox',
-            checked: radius.value === value,
-            onSelect: closeMenu(() => {
-              radius.value = value
-            }),
-          })),
-        },
-      ],
-    },
-    {
-      label: 'Appearance',
-      icon: 'i-lucide-sun-moon',
-      children: [
-        {
-          label: 'Light',
-          icon: 'i-lucide-sun-medium',
-          type: 'checkbox',
-          checked: themeMode.value === 'light',
-          onSelect: closeMenu(() => {
-            themeMode.value = 'light'
-          }),
-        },
-        {
-          label: 'Dark',
-          icon: 'i-lucide-moon-star',
-          type: 'checkbox',
-          checked: themeMode.value === 'dark',
-          onSelect: closeMenu(() => {
-            themeMode.value = 'dark'
-          }),
-        },
-        {
-          label: 'System',
-          icon: 'i-lucide-monitor-cog',
-          type: 'checkbox',
-          checked: themeMode.value === 'system',
-          onSelect: closeMenu(() => {
-            themeMode.value = 'system'
-          }),
-        },
-      ],
-    },
-  ],
   [
     {
       label: 'Logout',
@@ -309,6 +205,40 @@ function applyRadius(): void {
 
     <template #footer="{ collapsed: isCollapsed }">
       <div class="sidebar-footer">
+        <UPopover
+          v-model:open="themePanelOpen"
+          mode="hover"
+          :open-delay="80"
+          :close-delay="120"
+          :content="{ side: isCollapsed ? 'right' : 'top', align: isCollapsed ? 'start' : 'end', sideOffset: 10 }"
+        >
+          <UButton
+            variant="ghost"
+            color="neutral"
+            :label="isCollapsed ? undefined : 'Theme'"
+            :block="!isCollapsed"
+            :square="isCollapsed"
+            icon="i-lucide-palette"
+            class="data-[state=open]:bg-elevated"
+          />
+
+          <template #content>
+            <FlashboardThemePanel
+              :primary-options="PRIMARY_OPTIONS"
+              :primary-color="primaryColor"
+              :neutral-options="NEUTRAL_OPTIONS"
+              :neutral-color="neutralColor"
+              :radius-options="RADIUS_OPTIONS"
+              :radius="radius"
+              :theme-mode="themeMode"
+              @update:primary-color="primaryColor = $event"
+              @update:neutral-color="neutralColor = $event"
+              @update:radius="radius = $event"
+              @update:theme-mode="themeMode = $event"
+            />
+          </template>
+        </UPopover>
+
         <FlashboardDropdownMenu
           v-model:open="userMenuOpen"
           :items="userMenuItems"
