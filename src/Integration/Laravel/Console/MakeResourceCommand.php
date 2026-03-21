@@ -186,6 +186,24 @@ final class MakeResourceCommand extends \Illuminate\Console\Command
         return "                '{$secondaryField}' => ['nullable', 'string']," . PHP_EOL;
     }
 
+    private function textInputExpression(string $field, bool $required = false, string $indent = ''): string
+    {
+        $lines = [
+            "{$indent}TextInput::make('$field')",
+            "{$indent}    ->label('" . str($field)->headline()->toString() . "')",
+        ];
+
+        if ($required) {
+            $lines[] = "{$indent}    ->required()";
+        }
+
+        if (str_contains(strtolower($field), 'email')) {
+            $lines[] = "{$indent}    ->email()";
+        }
+
+        return implode(PHP_EOL, $lines);
+    }
+
     private function formFields(string $titleField, string $secondaryField): string
     {
         $fields = [
@@ -235,11 +253,6 @@ final class MakeResourceCommand extends \Illuminate\Console\Command
             "            TextEntry::make('{$secondaryField}')",
             "                ->label('{$label}'),",
         ]) . PHP_EOL;
-    }
-
-    private function inputSuffix(string $field): string
-    {
-        return str_contains(strtolower($field), 'email') ? PHP_EOL . '                            ->email()' : '';
     }
 
     private function relativePath(string $path): string

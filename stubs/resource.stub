@@ -23,7 +23,7 @@ final class {{ class }} extends Resource
             TextColumn::make('{{ title_field }}')
                 ->label('{{ title_label }}')
                 ->sortable()
-                ->searchable(){{ title_table_suffix }},
+                ->searchable(),
 {{ secondary_table_column }}        ]);
     }
 
