@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { DropdownMenuItem, NavigationMenuItem } from '@nuxt/ui'
+import FlashboardThemePanel from '@/components/flashboard/FlashboardThemePanel.vue'
 import { NEUTRAL_OPTIONS, PRIMARY_OPTIONS, RADIUS_OPTIONS } from '@/components/flashboard/themeOptions'
 import { computed, onMounted, ref, watch } from 'vue'
 
@@ -28,7 +29,7 @@ const emit = defineEmits<{
 
 const appConfig = useAppConfig()
 const collapsed = ref(false)
-const themeMenuOpen = ref(false)
+const themePanelOpen = ref(false)
 const userMenuOpen = ref(false)
 const themeMode = ref<ThemeMode>('system')
 const primaryColor = ref<string>(appConfig.ui.colors.primary)
@@ -55,94 +56,6 @@ const navigationItems = computed<NavigationMenuItem[][]>(() => [
     tooltip: item.label,
     value: `navigation-${index}`,
   })),
-])
-
-const themeMenuItems = computed<DropdownMenuItem[][]>(() => [
-  [
-    {
-      label: 'Theme',
-      icon: 'i-lucide-palette',
-      children: [
-        {
-          label: 'Primary',
-          slot: 'chip',
-          chip: primaryColor.value,
-          content: { align: 'center', collisionPadding: 16 },
-          children: PRIMARY_OPTIONS.map((color) => ({
-            label: color,
-            chip: color,
-            slot: 'chip',
-            type: 'checkbox',
-            checked: primaryColor.value === color,
-            onSelect: closeMenu(() => {
-              primaryColor.value = color
-            }),
-          })),
-        },
-        {
-          label: 'Neutral',
-          slot: 'chip',
-          chip: neutralColor.value,
-          content: { align: 'end', collisionPadding: 16 },
-          children: NEUTRAL_OPTIONS.map((color) => ({
-            label: color,
-            chip: color,
-            slot: 'chip',
-            type: 'checkbox',
-            checked: neutralColor.value === color,
-            onSelect: closeMenu(() => {
-              neutralColor.value = color
-            }),
-          })),
-        },
-        {
-          label: 'Radius',
-          content: { align: 'center', collisionPadding: 16 },
-          children: RADIUS_OPTIONS.map((value) => ({
-            label: String(value),
-            type: 'checkbox',
-            checked: radius.value === value,
-            onSelect: closeMenu(() => {
-              radius.value = value
-            }),
-          })),
-        },
-      ],
-    },
-    {
-      label: 'Appearance',
-      icon: 'i-lucide-sun-moon',
-      children: [
-        {
-          label: 'Light',
-          icon: 'i-lucide-sun-medium',
-          type: 'checkbox',
-          checked: themeMode.value === 'light',
-          onSelect: closeMenu(() => {
-            themeMode.value = 'light'
-          }),
-        },
-        {
-          label: 'Dark',
-          icon: 'i-lucide-moon-star',
-          type: 'checkbox',
-          checked: themeMode.value === 'dark',
-          onSelect: closeMenu(() => {
-            themeMode.value = 'dark'
-          }),
-        },
-        {
-          label: 'System',
-          icon: 'i-lucide-monitor-cog',
-          type: 'checkbox',
-          checked: themeMode.value === 'system',
-          onSelect: closeMenu(() => {
-            themeMode.value = 'system'
-          }),
-        },
-      ],
-    },
-  ],
 ])
 
 const userMenuItems = computed<DropdownMenuItem[][]>(() => [
@@ -291,21 +204,34 @@ function applyRadius(): void {
 
     <template #footer="{ collapsed: isCollapsed }">
       <div class="sidebar-footer">
-        <UDropdownMenu
-          v-model:open="themeMenuOpen"
-          :items="themeMenuItems"
-          :content="{ align: 'center', collisionPadding: 12 }"
-          :ui="{
-            content: 'w-56',
-          }"
+        <UPopover
+          v-model:open="themePanelOpen"
+          :content="{ side: isCollapsed ? 'right' : 'top', align: isCollapsed ? 'start' : 'center', sideOffset: 10, collisionPadding: 12 }"
         >
           <UButton
             variant="ghost"
             color="neutral"
             square
             icon="i-lucide-palette"
+            aria-label="Theme settings"
           />
-        </UDropdownMenu>
+
+          <template #content>
+            <FlashboardThemePanel
+              :primary-options="PRIMARY_OPTIONS"
+              :primary-color="primaryColor"
+              :neutral-options="NEUTRAL_OPTIONS"
+              :neutral-color="neutralColor"
+              :radius-options="RADIUS_OPTIONS"
+              :radius="radius"
+              :theme-mode="themeMode"
+              @update:primary-color="primaryColor = $event"
+              @update:neutral-color="neutralColor = $event"
+              @update:radius="radius = $event"
+              @update:theme-mode="themeMode = $event"
+            />
+          </template>
+        </UPopover>
 
         <UDropdownMenu
           v-model:open="userMenuOpen"
