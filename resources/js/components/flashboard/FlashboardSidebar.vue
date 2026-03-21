@@ -64,7 +64,6 @@ const userMenuItems = computed<DropdownMenuItem[][]>(() => [
       label: 'Theme',
       icon: 'i-lucide-palette',
       slot: 'theme',
-      type: 'label',
     },
   ],
   [
