@@ -14,22 +14,29 @@ final class MakeResourceCommandTest extends TestCase
         $content = $this->renderResourceStub(
             titleField: 'name',
             secondaryField: 'email',
-            includeForm: true,
             includeDetail: true,
             includeActions: true,
         );
 
         self::assertStringContainsString(
-            "            TextColumn::make('name')->label('Name')->sortable()->searchable()," . PHP_EOL
-            . "            TextColumn::make('email')->label('Email')->searchable()," . PHP_EOL
+            "            TextColumn::make('name')" . PHP_EOL
+            . "                ->label('Name')" . PHP_EOL
+            . "                ->sortable()" . PHP_EOL
+            . "                ->searchable()," . PHP_EOL
+            . "            TextColumn::make('email')" . PHP_EOL
+            . "                ->label('Email')" . PHP_EOL
+            . "                ->searchable()," . PHP_EOL
             . '        ]);',
             $content,
         );
         self::assertStringContainsString(
             "        return \$detail->entries([" . PHP_EOL
-            . "            TextEntry::make('id')->label('ID')," . PHP_EOL
-            . "            TextEntry::make('name')->label('Name')," . PHP_EOL
-            . "            TextEntry::make('email')->label('Email')," . PHP_EOL
+            . "            TextEntry::make('id')" . PHP_EOL
+            . "                ->label('ID')," . PHP_EOL
+            . "            TextEntry::make('name')" . PHP_EOL
+            . "                ->label('Name')," . PHP_EOL
+            . "            TextEntry::make('email')" . PHP_EOL
+            . "                ->label('Email')," . PHP_EOL
             . '        ]);',
             $content,
         );
@@ -45,24 +52,31 @@ final class MakeResourceCommandTest extends TestCase
         $content = $this->renderResourceStub(
             titleField: 'name',
             secondaryField: '',
-            includeForm: false,
             includeDetail: false,
             includeActions: false,
         );
 
         self::assertStringNotContainsString('public static function navigationGroup()', $content);
-        self::assertStringNotContainsString('public static function form(', $content);
         self::assertStringNotContainsString('public static function detail(', $content);
         self::assertStringNotContainsString('public static function actions()', $content);
+        self::assertStringContainsString('public static function form(FormContract $form): FormContract', $content);
         self::assertStringContainsString(
             '    }' . PHP_EOL . PHP_EOL . '    public static function table(TableContract $table): TableContract',
             $content,
         );
         self::assertStringContainsString(
-            "            TextColumn::make('name')->label('Name')->sortable()->searchable()," . PHP_EOL
-            . '        ]);' . PHP_EOL
-            . '    }' . PHP_EOL
-            . '}',
+            "            TextColumn::make('name')" . PHP_EOL
+            . "                ->label('Name')" . PHP_EOL
+            . "                ->sortable()" . PHP_EOL
+            . "                ->searchable()," . PHP_EOL
+            . '        ]);',
+            $content,
+        );
+        self::assertStringContainsString(
+            "                    TextInput::make('name')" . PHP_EOL
+            . "                        ->label('Name')" . PHP_EOL
+            . "                        ->required()," . PHP_EOL
+            . '                    ]),',
             $content,
         );
         self::assertStringNotContainsString(PHP_EOL . PHP_EOL . PHP_EOL, $content);
@@ -71,7 +85,6 @@ final class MakeResourceCommandTest extends TestCase
     private function renderResourceStub(
         string $titleField,
         string $secondaryField,
-        bool $includeForm,
         bool $includeDetail,
         bool $includeActions,
     ): string {
@@ -88,7 +101,6 @@ final class MakeResourceCommandTest extends TestCase
             $titleField,
             $secondaryField,
             '',
-            $includeForm,
             $includeDetail,
             $includeActions,
         );

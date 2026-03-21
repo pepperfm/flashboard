@@ -28,6 +28,7 @@ const emit = defineEmits<{
 
 const appConfig = useAppConfig()
 const collapsed = ref(false)
+const themeMenuOpen = ref(false)
 const userMenuOpen = ref(false)
 const themeMode = ref<ThemeMode>('system')
 const primaryColor = ref<string>(appConfig.ui.colors.primary)
@@ -56,7 +57,7 @@ const navigationItems = computed<NavigationMenuItem[][]>(() => [
   })),
 ])
 
-const userMenuItems = computed<DropdownMenuItem[][]>(() => [
+const themeMenuItems = computed<DropdownMenuItem[][]>(() => [
   [
     {
       label: 'Theme',
@@ -142,6 +143,9 @@ const userMenuItems = computed<DropdownMenuItem[][]>(() => [
       ],
     },
   ],
+])
+
+const userMenuItems = computed<DropdownMenuItem[][]>(() => [
   [
     {
       label: 'Logout',
@@ -288,19 +292,33 @@ function applyRadius(): void {
     <template #footer="{ collapsed: isCollapsed }">
       <div class="sidebar-footer">
         <UDropdownMenu
-          v-model:open="userMenuOpen"
-          :items="userMenuItems"
+          v-model:open="themeMenuOpen"
+          :items="themeMenuItems"
           :content="{ align: 'center', collisionPadding: 12 }"
           :ui="{
-            content: isCollapsed ? 'w-48' : 'w-(--reka-dropdown-menu-trigger-width)',
+            content: 'w-56',
           }"
         >
           <UButton
             variant="ghost"
             color="neutral"
-            :label="isCollapsed ? undefined : userLabel"
-            :block="!isCollapsed"
-            :square="isCollapsed"
+            square
+            icon="i-lucide-palette"
+          />
+        </UDropdownMenu>
+
+        <UDropdownMenu
+          v-model:open="userMenuOpen"
+          :items="userMenuItems"
+          :content="{ align: 'center', collisionPadding: 12 }"
+          :ui="{
+            content: 'w-48',
+          }"
+        >
+          <UButton
+            variant="ghost"
+            color="neutral"
+            square
             icon="i-lucide-user-round"
           />
         </UDropdownMenu>
@@ -343,7 +361,8 @@ function applyRadius(): void {
 .sidebar-footer {
   display: flex;
   width: 100%;
-  flex-direction: column;
+  align-items: center;
+  justify-content: center;
   gap: 0.5rem;
   padding: 0.75rem;
   border-top: 1px solid rgba(120, 130, 150, 0.16);

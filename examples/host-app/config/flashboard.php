@@ -7,10 +7,10 @@ return [
     'discovery' => [
         'providers' => [],
         'resources' => [
-            App\Flashboard\DemoOrdersResource::class,
+            App\Flashboard\OrdersResource::class,
         ],
         'pages' => [
-            App\Flashboard\DemoReviewQueuePage::class,
+            App\Flashboard\ReviewQueuePage::class,
         ],
     ],
 ];

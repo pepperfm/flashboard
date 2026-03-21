@@ -50,17 +50,15 @@ final class MakeResourceCommand extends \Illuminate\Console\Command
         ));
         $titleField = text(
             label: 'Primary display field',
-            default: 'name',
+            default: 'email',
             required: true,
         );
         $secondaryField = trim(text(
             label: 'Secondary field (optional)',
-            default: 'email',
         ));
         $navigationGroup = trim(text(
             label: 'Navigation group (optional)',
         ));
-        $includeForm = confirm('Include create and edit form?');
         $includeDetail = confirm('Include detail screen?');
         $includeActions = confirm('Include example action?', default: false);
 
@@ -81,7 +79,6 @@ final class MakeResourceCommand extends \Illuminate\Console\Command
             titleField: $titleField,
             secondaryField: $secondaryField,
             navigationGroup: $navigationGroup,
-            includeForm: $includeForm,
             includeDetail: $includeDetail,
             includeActions: $includeActions,
         ));
@@ -104,19 +101,16 @@ final class MakeResourceCommand extends \Illuminate\Console\Command
         string $titleField,
         string $secondaryField,
         string $navigationGroup,
-        bool $includeForm,
         bool $includeDetail,
         bool $includeActions,
     ): string {
         $imports = [
             Resource::class,
+            FormContract::class,
+            Section::class,
             TableContract::class,
+            TextInput::class,
         ];
-        if ($includeForm) {
-            $imports[] = FormContract::class;
-            $imports[] = Section::class;
-            $imports[] = TextInput::class;
-        }
         if ($includeDetail) {
             $imports[] = DetailContract::class;
             $imports[] = TextEntry::class;
@@ -145,7 +139,7 @@ final class MakeResourceCommand extends \Illuminate\Console\Command
                     $this->modelMethod(class_basename($modelClass)),
                     $this->navigationGroupMethod($navigationGroup),
                     $this->tableMethod($titleField, $secondaryField),
-                    $this->formMethod($includeForm, $titleField, $secondaryField),
+                    $this->formMethod($titleField, $secondaryField),
                     $this->detailMethod($includeDetail, $titleField, $secondaryField),
                     $this->actionsMethod($includeActions, $className),
                 ),
@@ -184,7 +178,7 @@ PHP;
             return '';
         }
 
-        return PHP_EOL . "            TextColumn::make('$secondaryField')->label('" . str($secondaryField)->headline()->toString() . "')->searchable(),";
+        return PHP_EOL . $this->textColumnExpression($secondaryField, searchable: true, indent: '            ') . ',';
     }
 
     private function tableMethod(string $titleField, string $secondaryField): string
@@ -196,28 +190,24 @@ PHP;
     public static function table(TableContract \$table): TableContract
     {
         return \$table->columns([
-            TextColumn::make('id')->label('ID')->sortable(),
-            TextColumn::make('$titleField')->label('$titleLabel')->sortable()->searchable(),{$secondaryTableColumn}
+            {$this->textColumnExpression('id', label: 'ID', sortable: true, indent: '            ')},
+            {$this->textColumnExpression($titleField, label: $titleLabel, sortable: true, searchable: true, indent: '            ')},{$secondaryTableColumn}
         ]);
     }
 PHP;
     }
 
-    private function formMethod(bool $includeForm, string $titleField, string $secondaryField): ?string
+    private function formMethod(string $titleField, string $secondaryField): string
     {
-        if (!$includeForm) {
-            return null;
-        }
-
         $fieldRows = [
-            '                ' . $this->textInputExpression($titleField, required: true) . ',',
+            $this->textInputExpression($titleField, required: true, indent: '                    ') . ',',
         ];
         $rules = [
             "                '$titleField' => ['required', 'string'],",
         ];
 
         if ($secondaryField !== '') {
-            $fieldRows[] = '                ' . $this->textInputExpression($secondaryField) . ',';
+            $fieldRows[] = $this->textInputExpression($secondaryField, indent: '                    ') . ',';
             $rules[] = "                '$secondaryField' => ['nullable', 'string'],";
         }
 
@@ -229,9 +219,11 @@ PHP;
     {
         return \$form
             ->sections([
-                Section::make('main')->label('Main')->schema([
+                Section::make('main')
+                    ->label('Main')
+                    ->schema([
 {$fields}
-                ]),
+                    ]),
             ])
             ->rules([
 {$formRules}
@@ -247,12 +239,12 @@ PHP;
         }
 
         $entries = [
-            "            TextEntry::make('id')->label('ID'),",
-            "            TextEntry::make('$titleField')->label('" . str($titleField)->headline()->toString() . "'),",
+            $this->textEntryExpression('id', label: 'ID', indent: '            ') . ',',
+            $this->textEntryExpression($titleField, label: str($titleField)->headline()->toString(), indent: '            ') . ',',
         ];
 
         if ($secondaryField !== '') {
-            $entries[] = "            TextEntry::make('$secondaryField')->label('" . str($secondaryField)->headline()->toString() . "'),";
+            $entries[] = $this->textEntryExpression($secondaryField, label: str($secondaryField)->headline()->toString(), indent: '            ') . ',';
         }
 
         $detailEntries = implode(PHP_EOL, $entries);
@@ -306,18 +298,55 @@ PHP;
             : $path;
     }
 
-    private function textInputExpression(string $field, bool $required = false): string
+    private function textInputExpression(string $field, bool $required = false, string $indent = ''): string
     {
-        $expression = "TextInput::make('$field')->label('" . str($field)->headline()->toString() . "')";
+        $lines = [
+            "{$indent}TextInput::make('$field')",
+            "{$indent}    ->label('" . str($field)->headline()->toString() . "')",
+        ];
 
         if ($required) {
-            $expression .= '->required()';
+            $lines[] = "{$indent}    ->required()";
         }
 
         if (str_contains(strtolower($field), 'email')) {
-            $expression .= '->email()';
+            $lines[] = "{$indent}    ->email()";
         }
 
-        return $expression;
+        return implode(PHP_EOL, $lines);
+    }
+
+    private function textColumnExpression(
+        string $field,
+        ?string $label = null,
+        bool $sortable = false,
+        bool $searchable = false,
+        string $indent = '',
+    ): string {
+        $resolvedLabel = $label ?? str($field)->headline()->toString();
+        $lines = [
+            "{$indent}TextColumn::make('$field')",
+            "{$indent}    ->label('$resolvedLabel')",
+        ];
+
+        if ($sortable) {
+            $lines[] = "{$indent}    ->sortable()";
+        }
+
+        if ($searchable) {
+            $lines[] = "{$indent}    ->searchable()";
+        }
+
+        return implode(PHP_EOL, $lines);
+    }
+
+    private function textEntryExpression(string $field, ?string $label = null, string $indent = ''): string
+    {
+        $resolvedLabel = $label ?? str($field)->headline()->toString();
+
+        return implode(PHP_EOL, [
+            "{$indent}TextEntry::make('$field')",
+            "{$indent}    ->label('$resolvedLabel')",
+        ]);
     }
 }

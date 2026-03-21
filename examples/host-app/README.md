@@ -7,7 +7,7 @@ This folder describes the reference host application integration flow for Flashb
 Validate the package in a Laravel 13 application with:
 
 - session auth
-- one demo resource
+- one reference resource
 - one custom workspace page
 - protected `/admin` routes
 
@@ -22,15 +22,15 @@ Validate the package in a Laravel 13 application with:
 7. Verify:
    - `/panel/login`
    - `/panel`
-   - `/panel/resources/demo_orders`
-   - `/panel/resources/demo_orders/create`
+   - `/panel/resources/orders`
+   - `/panel/resources/orders/create`
    - `/panel/queues/review`
 
 ## Files In This Example
 
 - `app/Providers/Flashboard/AdminPanelProvider.php`
-- `app/Flashboard/DemoOrdersResource.php`
-- `app/Flashboard/DemoReviewQueuePage.php`
+- `app/Flashboard/OrdersResource.php`
+- `app/Flashboard/ReviewQueuePage.php`
 
 If you need to keep helper classes in `app/Flashboard`, exclude them explicitly:
 

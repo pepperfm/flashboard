@@ -5,8 +5,8 @@ Use this playground guide when validating package slices locally.
 ## Flow
 
 1. Install the package in a Laravel host app.
-2. Run `php artisan flashboard:make-demo-resource`.
-3. Add the generated class to `config/flashboard.php` under `discovery.resources`.
+2. Run `php artisan flashboard:make-resource OrdersResource App\\Models\\Order`.
+3. Add the generated class to `config/flashboard.php` under `discovery.resources` when you are not using provider discovery.
 4. Visit `/admin/login`, sign in, then open the generated resource routes.
 
 ## Suggested Checks

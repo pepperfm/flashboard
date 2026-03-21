@@ -7,7 +7,7 @@ namespace App\Flashboard;
 use Pepperfm\Flashboard\Contracts\Pages\PageType;
 use Pepperfm\Flashboard\Core\Pages\CustomPage;
 
-final class DemoReviewQueuePage extends CustomPage
+final class ReviewQueuePage extends CustomPage
 {
     public static function title(): string
     {

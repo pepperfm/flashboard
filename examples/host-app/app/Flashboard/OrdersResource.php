@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Pepperfm\Flashboard\Examples\Resources;
+namespace App\Flashboard;
 
 use App\Models\Order;
 use Pepperfm\Flashboard\Contracts\Detail\DetailContract;
@@ -17,9 +17,8 @@ use Pepperfm\Flashboard\Core\Forms\Layout\Section;
 use Pepperfm\Flashboard\Core\Relations\RelationDefinition;
 use Pepperfm\Flashboard\Core\Tables\Columns\BadgeColumn;
 use Pepperfm\Flashboard\Core\Tables\Columns\TextColumn;
-use Pepperfm\Flashboard\Core\Tables\Filters\SelectFilter;
 
-final class DemoOrdersResource extends Resource
+final class OrdersResource extends Resource
 {
     public static function model(): string
     {
@@ -28,15 +27,10 @@ final class DemoOrdersResource extends Resource
 
     public static function table(TableContract $table): TableContract
     {
-        return $table
-            ->columns([
-                TextColumn::make('id')->label('ID')->sortable(),
-                BadgeColumn::make('status')->label('Status')->sortable()->searchable(),
-                TextColumn::make('created_at')->label('Created'),
-            ])
-            ->filters([
-                SelectFilter::make('status')->label('Status'),
-            ]);
+        return $table->columns([
+            TextColumn::make('id')->label('ID')->sortable(),
+            BadgeColumn::make('status')->label('Status')->searchable()->sortable(),
+        ]);
     }
 
     public static function form(FormContract $form): FormContract
@@ -58,26 +52,20 @@ final class DemoOrdersResource extends Resource
         return $detail->entries([
             TextEntry::make('id')->label('ID'),
             TextEntry::make('status')->label('Status'),
-            TextEntry::make('notes')->label('Notes'),
         ]);
     }
 
     public static function actions(): array
     {
         return [
-            Action::make('archive')
-                ->label('Archive')
-                ->requiresConfirmation()
-                ->successMessage('Order archived.'),
+            Action::make('archive')->label('Archive'),
         ];
     }
 
     public static function relations(): array
     {
         return [
-            RelationDefinition::make('items')
-                ->label('Items')
-                ->titleAttribute('name'),
+            RelationDefinition::make('items')->label('Items'),
         ];
     }
 }

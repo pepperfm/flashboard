@@ -5,7 +5,7 @@
 - add a typed public resource schema DSL for tables, forms, and detail/infolist screens
 - normalize typed nodes and legacy arrays through shared runtime schema normalizers
 - expose unified resource surface metadata, including access-filtered resource-owned pages
-- update `flashboard:make-resource` and demo resources to generate the typed DSL by default
+- update `flashboard:make-resource` and example resources to generate the typed DSL by default
 - expand Inertia + Nuxt UI screen rendering to use richer schema metadata for tables, forms, sections, tabs, toggles, selects, and detail entries
 
 ## 0.1.0-beta.1

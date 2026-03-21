@@ -129,9 +129,9 @@ If provider config, inline `Flashboard::configure()`, and fallback config all co
 
 For the fastest first run:
 
-1. Copy `examples/host-app/app/Flashboard/DemoReviewQueuePage.php` into the host app at `app/Flashboard/DemoReviewQueuePage.php`
+1. Copy `examples/host-app/app/Flashboard/ReviewQueuePage.php` into the host app at `app/Flashboard/ReviewQueuePage.php`
 2. Run `php artisan flashboard:make-provider`
-3. Run `php artisan flashboard:make-resource DemoOrdersResource App\\Models\\Order`
+3. Run `php artisan flashboard:make-resource OrdersResource App\\Models\\Order`
 4. Enable `$this->panelConfig()->path('panel')->discover()` inside the generated provider
 5. Visit your configured panel login path, for example `/panel/login`
 

@@ -28,7 +28,6 @@ use Pepperfm\Flashboard\Flashboard;
 use Pepperfm\Flashboard\Integration\Laravel\Auth\PanelAuthenticator;
 use Pepperfm\Flashboard\Integration\Laravel\Auth\PolicyBridge;
 use Pepperfm\Flashboard\Integration\Laravel\Console\InstallCommand;
-use Pepperfm\Flashboard\Integration\Laravel\Console\MakeDemoResourceCommand;
 use Pepperfm\Flashboard\Integration\Laravel\Console\PlaygroundInfoCommand;
 use Pepperfm\Flashboard\Integration\Laravel\DataSources\ResourceDetailDataSource;
 use Pepperfm\Flashboard\Integration\Laravel\DataSources\ResourceFormDataSource;
@@ -121,7 +120,6 @@ final class FlashboardServiceProvider extends \Illuminate\Support\ServiceProvide
                 \Pepperfm\Flashboard\Integration\Laravel\Console\MakePageCommand::class,
                 \Pepperfm\Flashboard\Integration\Laravel\Console\MakeProviderCommand::class,
                 \Pepperfm\Flashboard\Integration\Laravel\Console\MakeResourceCommand::class,
-                MakeDemoResourceCommand::class,
                 PlaygroundInfoCommand::class,
             ]);
         }
