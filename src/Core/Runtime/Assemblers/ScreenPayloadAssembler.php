@@ -43,7 +43,7 @@ final readonly class ScreenPayloadAssembler
     public function assemble(RuntimeRequestContext $context): ScreenPayload
     {
         $screen = $context->screen();
-        if ($screen->kind() === ScreenKind::Page) {
+        if ($screen->isPage()) {
             $pageClass = $screen->pageClass();
             if (!is_string($pageClass) || $pageClass === '') {
                 throw new \InvalidArgumentException('Resolved page screen is missing a page class.');

@@ -52,4 +52,14 @@ final readonly class ResolvedScreen
     {
         return $this->resourceClass;
     }
+
+    public function isPage(): bool
+    {
+        return $this->kind() === ScreenKind::Page;
+    }
+
+    public function isResource(): bool
+    {
+        return $this->kind() === ScreenKind::Resource;
+    }
 }
