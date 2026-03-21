@@ -51,6 +51,20 @@ final readonly class ResourceSurfaceResolver
 
     /**
      * @param class-string<Resource> $resourceClass
+     */
+    public function findAction(string $resourceClass, string $actionKey): ?ActionContract
+    {
+        foreach ($this->actions($resourceClass) as $action) {
+            if ($action->key() === $actionKey) {
+                return $action;
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * @param class-string<Resource> $resourceClass
      *
      * @return list<class-string<PageDefinitionContract>>
      */

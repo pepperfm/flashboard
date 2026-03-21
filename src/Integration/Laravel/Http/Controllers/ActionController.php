@@ -5,8 +5,8 @@ declare(strict_types=1);
 namespace Pepperfm\Flashboard\Integration\Laravel\Http\Controllers;
 
 use Pepperfm\Flashboard\Contracts\Actions\ActionContract;
-use Pepperfm\Flashboard\Contracts\Resources\Resource;
 use Pepperfm\Flashboard\Core\Authorization\Visibility\ScreenAccessResolver;
+use Pepperfm\Flashboard\Core\Resources\ResourceSurfaceResolver;
 use Pepperfm\Flashboard\Core\Runtime\Actions\ActionExecutor;
 use Pepperfm\Flashboard\Integration\Laravel\Auth\PanelAuthenticator;
 
@@ -16,6 +16,7 @@ final readonly class ActionController
         private ActionExecutor $actionExecutor,
         private PanelAuthenticator $authenticator,
         private ScreenAccessResolver $screenAccessResolver,
+        private ResourceSurfaceResolver $resourceSurfaceResolver,
     ) {
     }
 
@@ -36,16 +37,16 @@ final readonly class ActionController
             abort(403);
         }
 
-        if (!$this->screenAccessResolver->canViewAction($resourceClass, $action, $user)) {
+        $resolvedAction = $this->resourceSurfaceResolver->findAction($resourceClass, $action);
+        abort_unless($resolvedAction instanceof ActionContract, 404);
+
+        if (!$this->screenAccessResolver->canViewAction($resourceClass, $resolvedAction->key(), $user)) {
             logger()->warning('[FIX] Denied resource action by action visibility rule.', [
-                'action' => $action,
+                'action' => $resolvedAction->key(),
                 'resource' => $resourceClass,
             ]);
             abort(403);
         }
-
-        $resolvedAction = $this->resolveAction($resourceClass, $action);
-        abort_unless($resolvedAction instanceof ActionContract, 404);
 
         $result = $this->actionExecutor->execute($resolvedAction, [
             'record' => $request->route('record'),
@@ -61,19 +62,5 @@ final readonly class ActionController
         }
 
         return redirect()->back();
-    }
-
-    /**
-     * @param class-string<Resource> $resourceClass
-     */
-    private function resolveAction(string $resourceClass, string $actionKey): ?ActionContract
-    {
-        foreach ($resourceClass::actions() as $action) {
-            if ($action->key() === $actionKey) {
-                return $action;
-            }
-        }
-
-        return null;
     }
 }

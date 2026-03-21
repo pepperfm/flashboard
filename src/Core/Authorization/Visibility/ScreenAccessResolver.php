@@ -88,7 +88,7 @@ final readonly class ScreenAccessResolver
         string $fieldKey,
         ?\Illuminate\Contracts\Auth\Authenticatable $user
     ): bool {
-        $ability = $resourceClass::fieldAbilityMap()[$fieldKey] ?? null;
+        $ability = $this->abilityForKey($resourceClass::fieldAbilityMap(), $fieldKey);
 
         return $ability === null || $this->policyBridge->allows($resourceClass, $ability, $user);
     }
@@ -101,7 +101,7 @@ final readonly class ScreenAccessResolver
         string $actionKey,
         ?\Illuminate\Contracts\Auth\Authenticatable $user
     ): bool {
-        $ability = $resourceClass::actionAbilityMap()[$actionKey] ?? null;
+        $ability = $this->abilityForKey($resourceClass::actionAbilityMap(), $actionKey);
 
         return $ability === null || $this->policyBridge->allows($resourceClass, $ability, $user);
     }
@@ -114,8 +114,22 @@ final readonly class ScreenAccessResolver
         string $relationKey,
         ?\Illuminate\Contracts\Auth\Authenticatable $user
     ): bool {
-        $ability = $resourceClass::relationAbilityMap()[$relationKey] ?? null;
+        $ability = $this->abilityForKey($resourceClass::relationAbilityMap(), $relationKey);
 
         return $ability === null || $this->policyBridge->allows($resourceClass, $ability, $user);
+    }
+
+    /**
+     * @param array<string, string> $map
+     */
+    private function abilityForKey(array $map, string $key): ?string
+    {
+        $normalizedMap = [];
+
+        foreach ($map as $mapKey => $ability) {
+            $normalizedMap[trim((string) $mapKey)] = $ability;
+        }
+
+        return $normalizedMap[trim($key)] ?? null;
     }
 }

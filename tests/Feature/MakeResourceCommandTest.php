@@ -20,16 +20,16 @@ final class MakeResourceCommandTest extends TestCase
         );
 
         self::assertStringContainsString(
-            "            ['key' => 'name', 'label' => 'Name', 'sortable' => true, 'searchable' => true]," . PHP_EOL
-            . "            ['key' => 'email', 'label' => 'Email', 'searchable' => true]," . PHP_EOL
+            "            TextColumn::make('name')->label('Name')->sortable()->searchable()," . PHP_EOL
+            . "            TextColumn::make('email')->label('Email')->searchable()," . PHP_EOL
             . '        ]);',
             $content,
         );
         self::assertStringContainsString(
             "        return \$detail->entries([" . PHP_EOL
-            . "            ['key' => 'id', 'label' => 'ID']," . PHP_EOL
-            . "            ['key' => 'name', 'label' => 'Name']," . PHP_EOL
-            . "            ['key' => 'email', 'label' => 'Email']," . PHP_EOL
+            . "            TextEntry::make('id')->label('ID')," . PHP_EOL
+            . "            TextEntry::make('name')->label('Name')," . PHP_EOL
+            . "            TextEntry::make('email')->label('Email')," . PHP_EOL
             . '        ]);',
             $content,
         );
@@ -59,7 +59,7 @@ final class MakeResourceCommandTest extends TestCase
             $content,
         );
         self::assertStringContainsString(
-            "            ['key' => 'name', 'label' => 'Name', 'sortable' => true, 'searchable' => true]," . PHP_EOL
+            "            TextColumn::make('name')->label('Name')->sortable()->searchable()," . PHP_EOL
             . '        ]);' . PHP_EOL
             . '    }' . PHP_EOL
             . '}',

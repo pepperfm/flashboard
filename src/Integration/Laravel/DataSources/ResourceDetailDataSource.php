@@ -9,6 +9,7 @@ use Illuminate\Support\Arr;
 use Pepperfm\Flashboard\Contracts\Resources\Resource;
 use Pepperfm\Flashboard\Core\Authorization\Visibility\ScreenAccessResolver;
 use Pepperfm\Flashboard\Core\Extensions\ExtensionRegistry;
+use Pepperfm\Flashboard\Core\Runtime\Assemblers\DetailPayloadAssembler;
 use Pepperfm\Flashboard\Core\Detail\Builders\Detail;
 use Pepperfm\Flashboard\Core\Relations\RelationPayloadFactory;
 use Pepperfm\Flashboard\Integration\Laravel\Auth\PanelAuthenticator;
@@ -16,6 +17,7 @@ use Pepperfm\Flashboard\Integration\Laravel\Auth\PanelAuthenticator;
 final readonly class ResourceDetailDataSource
 {
     public function __construct(
+        private DetailPayloadAssembler $detailPayloadAssembler,
         private ScreenAccessResolver $screenAccessResolver,
         private PanelAuthenticator $authenticator,
         private RelationPayloadFactory $relationPayloadFactory,
@@ -31,13 +33,13 @@ final readonly class ResourceDetailDataSource
     public function resolve(string $resourceClass, ?Model $record): array
     {
         $detail = $resourceClass::detail(Detail::make());
-        $schema = $detail->toArray();
+        $schema = $this->detailPayloadAssembler->assemble($resourceClass);
         $entries = [];
         $user = $this->authenticator->user();
 
         if ($record !== null) {
-            foreach ($detail->entrySchema() as $entry) {
-                $key = (string) Arr::get($entry, 'key', Arr::get($entry, 'name', ''));
+            foreach ($schema->entries() as $entry) {
+                $key = (string) $entry['key'];
                 if ($key === '') {
                     continue;
                 }
@@ -60,7 +62,7 @@ final readonly class ResourceDetailDataSource
             ),
         ));
 
-        $payload = array_merge($schema, [
+        $payload = array_merge($schema->toArray(), [
             'entries' => $entries,
             'record' => $record?->attributesToArray(),
             'relations' => $relations,

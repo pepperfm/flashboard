@@ -5,12 +5,19 @@ declare(strict_types=1);
 namespace Pepperfm\Flashboard\Examples\Resources;
 
 use App\Models\Order;
+use Pepperfm\Flashboard\Contracts\Detail\DetailContract;
+use Pepperfm\Flashboard\Contracts\Forms\FormContract;
 use Pepperfm\Flashboard\Contracts\Resources\Resource;
+use Pepperfm\Flashboard\Contracts\Tables\TableContract;
 use Pepperfm\Flashboard\Core\Actions\Builders\Action;
-use Pepperfm\Flashboard\Core\Detail\Builders\Detail;
-use Pepperfm\Flashboard\Core\Forms\Builders\Form;
+use Pepperfm\Flashboard\Core\Detail\Entries\TextEntry;
+use Pepperfm\Flashboard\Core\Forms\Fields\Select;
+use Pepperfm\Flashboard\Core\Forms\Fields\TextInput;
+use Pepperfm\Flashboard\Core\Forms\Layout\Section;
 use Pepperfm\Flashboard\Core\Relations\RelationDefinition;
-use Pepperfm\Flashboard\Core\Tables\Builders\Table;
+use Pepperfm\Flashboard\Core\Tables\Columns\BadgeColumn;
+use Pepperfm\Flashboard\Core\Tables\Columns\TextColumn;
+use Pepperfm\Flashboard\Core\Tables\Filters\SelectFilter;
 
 final class DemoOrdersResource extends Resource
 {
@@ -19,37 +26,39 @@ final class DemoOrdersResource extends Resource
         return Order::class;
     }
 
-    public static function table(\Pepperfm\Flashboard\Contracts\Tables\TableContract $table): \Pepperfm\Flashboard\Contracts\Tables\TableContract
+    public static function table(TableContract $table): TableContract
     {
         return $table
             ->columns([
-                ['key' => 'id', 'label' => 'ID', 'sortable' => true],
-                ['key' => 'status', 'label' => 'Status', 'sortable' => true, 'searchable' => true],
-                ['key' => 'created_at', 'label' => 'Created'],
+                TextColumn::make('id')->label('ID')->sortable(),
+                BadgeColumn::make('status')->label('Status')->sortable()->searchable(),
+                TextColumn::make('created_at')->label('Created'),
             ])
             ->filters([
-                ['key' => 'status', 'label' => 'Status'],
+                SelectFilter::make('status')->label('Status'),
             ]);
     }
 
-    public static function form(\Pepperfm\Flashboard\Contracts\Forms\FormContract $form): \Pepperfm\Flashboard\Contracts\Forms\FormContract
+    public static function form(FormContract $form): FormContract
     {
         return $form
-            ->fields([
-                ['key' => 'status', 'label' => 'Status'],
-                ['key' => 'notes', 'label' => 'Notes'],
+            ->sections([
+                Section::make('main')->label('Main')->schema([
+                    Select::make('status')->label('Status')->required(),
+                    TextInput::make('notes')->label('Notes'),
+                ]),
             ])
             ->rules([
                 'status' => ['required', 'string'],
             ]);
     }
 
-    public static function detail(\Pepperfm\Flashboard\Contracts\Detail\DetailContract $detail): \Pepperfm\Flashboard\Contracts\Detail\DetailContract
+    public static function infolist(DetailContract $detail): DetailContract
     {
         return $detail->entries([
-            ['key' => 'id', 'label' => 'ID'],
-            ['key' => 'status', 'label' => 'Status'],
-            ['key' => 'notes', 'label' => 'Notes'],
+            TextEntry::make('id')->label('ID'),
+            TextEntry::make('status')->label('Status'),
+            TextEntry::make('notes')->label('Notes'),
         ]);
     }
 

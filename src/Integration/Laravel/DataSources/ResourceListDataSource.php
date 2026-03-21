@@ -9,12 +9,13 @@ use Pepperfm\Flashboard\Contracts\Resources\Resource;
 use Pepperfm\Flashboard\Core\Authorization\Visibility\ScreenAccessResolver;
 use Pepperfm\Flashboard\Core\Extensions\ExtensionRegistry;
 use Pepperfm\Flashboard\Core\Hooks\RuntimeHookDispatcher;
-use Pepperfm\Flashboard\Core\Tables\Builders\Table;
+use Pepperfm\Flashboard\Core\Runtime\Assemblers\TablePayloadAssembler;
 use Pepperfm\Flashboard\Integration\Laravel\Auth\PanelAuthenticator;
 
 final readonly class ResourceListDataSource
 {
     public function __construct(
+        private TablePayloadAssembler $tablePayloadAssembler,
         private ScreenAccessResolver $screenAccessResolver,
         private PanelAuthenticator $authenticator,
         private ExtensionRegistry $extensionRegistry,
@@ -29,7 +30,7 @@ final readonly class ResourceListDataSource
      */
     public function resolve(string $resourceClass, \Illuminate\Http\Request $request): array
     {
-        $table = $resourceClass::table(Table::make())->toArray();
+        $table = $this->tablePayloadAssembler->assemble($resourceClass);
         $query = $this->extensionRegistry->extendQuery($resourceClass, $resourceClass::query());
         $this->runtimeHookDispatcher->dispatch($resourceClass, 'resource.index.query', [
             'search' => $request->query('search'),
@@ -38,11 +39,11 @@ final readonly class ResourceListDataSource
         $search = trim((string) $request->query('search', ''));
         $sort = (string) $request->query('sort', '');
         $direction = strtolower((string) $request->query('direction', 'asc')) === 'desc' ? 'desc' : 'asc';
-        $perPage = max(1, (int) $request->query('per_page', (string) Arr::get($table, 'pagination', 15)));
+        $perPage = max(1, (int) $request->query('per_page', (string) $table->pagination()));
         $filters = $request->query('filters', []);
 
-        $searchableColumns = $this->searchableColumns($table);
-        $sortableColumns = $this->sortableColumns($table);
+        $searchableColumns = $table->searchableColumns();
+        $sortableColumns = $table->sortableColumns();
 
         if ($search !== '' && $searchableColumns !== []) {
             $query->where(function (\Illuminate\Database\Eloquent\Builder $builder) use (
@@ -78,18 +79,18 @@ final readonly class ResourceListDataSource
         $user = $this->authenticator->user();
         $columns = array_values(array_map(
             fn(array $column): array => array_merge($column, [
-                'key' => (string) Arr::get($column, 'key', Arr::get($column, 'name', 'value')),
-                'label' => (string) Arr::get($column, 'label', str($this->getColumnKey($column))->headline()->value()),
-                'sortable' => (bool) Arr::get($column, 'sortable', false),
-                'searchable' => (bool) Arr::get($column, 'searchable', false),
+                'key' => (string) $column['key'],
+                'label' => (string) ($column['label'] ?? str($this->getColumnKey($column))->headline()->value()),
+                'sortable' => (bool) ($column['sortable'] ?? false),
+                'searchable' => (bool) ($column['searchable'] ?? false),
             ]),
-            (array) Arr::get($table, 'columns', []),
+            $table->columns(),
         ));
         $columns = array_values(array_filter(
             $columns,
             fn(array $column): bool => $this->screenAccessResolver->canViewField(
                 $resourceClass,
-                (string) Arr::get($column, 'key', 'value'),
+                (string) $column['key'],
                 $user,
             ),
         ));
@@ -119,7 +120,7 @@ final readonly class ResourceListDataSource
             ];
 
             foreach ($columns as $column) {
-                $key = (string) Arr::get($column, 'key', 'value');
+                $key = (string) $column['key'];
                 $row['attributes'][$key] = data_get($record, $key);
             }
 
@@ -135,8 +136,8 @@ final readonly class ResourceListDataSource
                     . 'resources.' . $resourceClass::key() . '.create',
                 ),
             ],
-            'filters' => (array) Arr::get($table, 'filters', []),
-            'scopes' => (array) Arr::get($table, 'scopes', []),
+            'filters' => $table->filters(),
+            'scopes' => $table->scopes(),
             'search' => $search,
             'sort' => $sort,
             'direction' => $direction,
@@ -151,43 +152,8 @@ final readonly class ResourceListDataSource
         return $this->extensionRegistry->extendPayload($resourceClass, 'index', $payload);
     }
 
-    /**
-     * @param array<string, mixed> $table
-     *
-     * @return list<string>
-     */
-    private function searchableColumns(array $table): array
-    {
-        return array_values(array_filter(array_map(
-            static fn(array $column): ?string => Arr::get($column, 'searchable', false)
-                ? (string) Arr::get($column, 'key', Arr::get($column, 'name'))
-                : null,
-            (array) Arr::get($table, 'columns', []),
-        )));
-    }
-
-    /**
-     * @param array<string, mixed> $table
-     *
-     * @return list<string>
-     */
-    private function sortableColumns(array $table): array
-    {
-        return array_values(array_filter(array_map(
-            static fn(array $column): ?string => Arr::get($column, 'sortable', false)
-                ? (string) Arr::get($column, 'key', Arr::get($column, 'name'))
-                : null,
-            (array) Arr::get($table, 'columns', []),
-        )));
-    }
-
     private function getColumnKey(?array $column = null): string
     {
-        return (string) Arr::get($column, 'key', $this->getColumnName($column));
-    }
-
-    private function getColumnName(?array $column = null)
-    {
-        return Arr::get($column, 'name', 'value');
+        return (string) Arr::get($column, 'key', 'value');
     }
 }

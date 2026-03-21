@@ -7,10 +7,14 @@ namespace Pepperfm\Flashboard\Integration\Laravel\Console;
 use Illuminate\Console\Attributes\Signature;
 use Illuminate\Filesystem\Filesystem;
 use Pepperfm\Flashboard\Contracts\Resources\Resource;
-use Pepperfm\Flashboard\Contracts\Tables\TableContract;
-use Pepperfm\Flashboard\Contracts\Forms\FormContract;
 use Pepperfm\Flashboard\Contracts\Detail\DetailContract;
+use Pepperfm\Flashboard\Contracts\Forms\FormContract;
+use Pepperfm\Flashboard\Contracts\Tables\TableContract;
 use Pepperfm\Flashboard\Core\Actions\Builders\Action;
+use Pepperfm\Flashboard\Core\Detail\Entries\TextEntry;
+use Pepperfm\Flashboard\Core\Forms\Fields\TextInput;
+use Pepperfm\Flashboard\Core\Forms\Layout\Section;
+use Pepperfm\Flashboard\Core\Tables\Columns\TextColumn;
 
 use function Laravel\Prompts\confirm;
 use function Laravel\Prompts\info;
@@ -110,10 +114,14 @@ final class MakeResourceCommand extends \Illuminate\Console\Command
         ];
         if ($includeForm) {
             $imports[] = FormContract::class;
+            $imports[] = Section::class;
+            $imports[] = TextInput::class;
         }
         if ($includeDetail) {
             $imports[] = DetailContract::class;
+            $imports[] = TextEntry::class;
         }
+        $imports[] = TextColumn::class;
         if ($includeActions) {
             $imports[] = Action::class;
         }
@@ -176,7 +184,7 @@ PHP;
             return '';
         }
 
-        return PHP_EOL . "            ['key' => '$secondaryField', 'label' => '" . str($secondaryField)->headline()->toString() . "', 'searchable' => true],";
+        return PHP_EOL . "            TextColumn::make('$secondaryField')->label('" . str($secondaryField)->headline()->toString() . "')->searchable(),";
     }
 
     private function tableMethod(string $titleField, string $secondaryField): string
@@ -188,8 +196,8 @@ PHP;
     public static function table(TableContract \$table): TableContract
     {
         return \$table->columns([
-            ['key' => 'id', 'label' => 'ID', 'sortable' => true],
-            ['key' => '$titleField', 'label' => '$titleLabel', 'sortable' => true, 'searchable' => true],{$secondaryTableColumn}
+            TextColumn::make('id')->label('ID')->sortable(),
+            TextColumn::make('$titleField')->label('$titleLabel')->sortable()->searchable(),{$secondaryTableColumn}
         ]);
     }
 PHP;
@@ -202,15 +210,14 @@ PHP;
         }
 
         $fieldRows = [
-            "                ['key' => '$titleField', 'label' => '" . str($titleField)->headline()->toString() . "'],",
+            '                ' . $this->textInputExpression($titleField, required: true) . ',',
         ];
         $rules = [
             "                '$titleField' => ['required', 'string'],",
         ];
 
         if ($secondaryField !== '') {
-            $label = str($secondaryField)->headline()->toString();
-            $fieldRows[] = "                ['key' => '$secondaryField', 'label' => '{$label}'],";
+            $fieldRows[] = '                ' . $this->textInputExpression($secondaryField) . ',';
             $rules[] = "                '$secondaryField' => ['nullable', 'string'],";
         }
 
@@ -221,8 +228,10 @@ PHP;
     public static function form(FormContract \$form): FormContract
     {
         return \$form
-            ->fields([
+            ->sections([
+                Section::make('main')->label('Main')->schema([
 {$fields}
+                ]),
             ])
             ->rules([
 {$formRules}
@@ -238,18 +247,18 @@ PHP;
         }
 
         $entries = [
-            "            ['key' => 'id', 'label' => 'ID'],",
-            "            ['key' => '$titleField', 'label' => '" . str($titleField)->headline()->toString() . "'],",
+            "            TextEntry::make('id')->label('ID'),",
+            "            TextEntry::make('$titleField')->label('" . str($titleField)->headline()->toString() . "'),",
         ];
 
         if ($secondaryField !== '') {
-            $entries[] = "            ['key' => '$secondaryField', 'label' => '" . str($secondaryField)->headline()->toString() . "'],";
+            $entries[] = "            TextEntry::make('$secondaryField')->label('" . str($secondaryField)->headline()->toString() . "'),";
         }
 
         $detailEntries = implode(PHP_EOL, $entries);
 
         return <<<PHP
-    public static function detail(DetailContract \$detail): DetailContract
+    public static function infolist(DetailContract \$detail): DetailContract
     {
         return \$detail->entries([
 {$detailEntries}
@@ -295,5 +304,20 @@ PHP;
         return str_starts_with($path, $basePath)
             ? substr($path, strlen($basePath))
             : $path;
+    }
+
+    private function textInputExpression(string $field, bool $required = false): string
+    {
+        $expression = "TextInput::make('$field')->label('" . str($field)->headline()->toString() . "')";
+
+        if ($required) {
+            $expression .= '->required()';
+        }
+
+        if (str_contains(strtolower($field), 'email')) {
+            $expression .= '->email()';
+        }
+
+        return $expression;
     }
 }

@@ -1,6 +1,63 @@
 <script setup lang="ts">
 import { router, useForm } from '@inertiajs/vue3'
-import { computed, h, resolveComponent, watch } from 'vue'
+import { computed, h, ref, resolveComponent, watch } from 'vue'
+
+type ActionShape = {
+  key: string
+  label?: string
+  method?: string
+  requires_confirmation?: boolean
+  success_message?: string | null
+  url?: string
+}
+
+type TableColumnShape = {
+  key: string
+  label: string
+  searchable?: boolean
+  sortable?: boolean
+  type?: string
+}
+
+type FormOptionShape = {
+  label?: string
+  value?: string | number | boolean
+}
+
+type FormFieldShape = {
+  key: string
+  label?: string
+  type?: string
+  input_type?: string
+  placeholder?: string
+  hint?: string
+  help?: string
+  required?: boolean
+  options?: FormOptionShape[] | Record<string, string | number | boolean>
+}
+
+type FormGroupShape = {
+  key: string
+  label?: string
+  description?: string
+  icon?: string
+  schema?: FormFieldShape[]
+}
+
+type DetailEntryShape = {
+  key: string
+  label?: string
+  type?: string
+  help?: string
+  value?: unknown
+}
+
+type DetailGroupShape = {
+  key: string
+  label?: string
+  description?: string
+  schema?: DetailEntryShape[]
+}
 
 type PayloadShape = {
   page?: { title: string }
@@ -15,17 +72,10 @@ type PayloadShape = {
       index?: string | null
     }
   }
-  actions?: Array<{
-    key: string
-    label?: string
-    method?: string
-    requires_confirmation?: boolean
-    success_message?: string | null
-    url?: string
-  }>
+  actions?: ActionShape[]
   table?: {
     dataset?: {
-      columns?: Array<{ key: string; label: string }>
+      columns?: TableColumnShape[]
       rows?: Array<{
         id: string | number
         attributes: Record<string, unknown>
@@ -45,7 +95,9 @@ type PayloadShape = {
   form?: {
     mode?: string
     state?: Record<string, unknown>
-    fields?: Array<{ key?: string; label?: string }>
+    fields?: FormFieldShape[]
+    sections?: FormGroupShape[]
+    tabs?: FormGroupShape[]
     submit?: {
       method?: 'post' | 'put'
       url?: string
@@ -55,7 +107,8 @@ type PayloadShape = {
     }
   } | null
   detail?: {
-    entries?: Array<{ label?: string; value?: unknown }>
+    entries?: DetailEntryShape[]
+    sections?: DetailGroupShape[]
     relations?: Array<{ key?: string; label?: string; records?: Array<{ key: string | number; title: string }> }>
     routes?: {
       edit?: string | null
@@ -64,19 +117,113 @@ type PayloadShape = {
   } | null
 }
 
-const props = defineProps<{
-  breadcrumbs?: Array<{ href: string; label: string }>
-  payload: PayloadShape
-}>()
-
 type RowActionConfig = {
   ariaLabel: string
   href: string
   icon: string
 }
 
+const props = defineProps<{
+  breadcrumbs?: Array<{ href: string; label: string }>
+  payload: PayloadShape
+}>()
+
+const form = useForm<Record<string, unknown>>({})
+const activeTab = ref<string | number>('')
+
 const pagination = computed(() => props.payload.table?.dataset?.pagination)
 const hasPagination = computed(() => (pagination.value?.last_page ?? 1) > 1)
+
+const allowedFormFields = computed(() => props.payload.form?.fields ?? [])
+const allowedFormFieldMap = computed(() => new Map(
+  allowedFormFields.value.map((field) => [field.key, field]),
+))
+const formFieldKeysInGroups = computed(() => new Set(
+  [...(props.payload.form?.sections ?? []), ...(props.payload.form?.tabs ?? [])].flatMap(
+    (group) => (group.schema ?? []).map((field) => field.key),
+  ),
+))
+const standaloneFormFields = computed(() =>
+  allowedFormFields.value.filter((field) => !formFieldKeysInGroups.value.has(field.key)),
+)
+const visibleFormSections = computed(() =>
+  (props.payload.form?.sections ?? [])
+    .map((section) => ({
+      ...section,
+      schema: (section.schema ?? [])
+        .map((field) => allowedFormFieldMap.value.get(field.key))
+        .filter((field): field is FormFieldShape => Boolean(field)),
+    }))
+    .filter((section) => (section.schema?.length ?? 0) > 0),
+)
+const visibleFormTabs = computed(() =>
+  (props.payload.form?.tabs ?? [])
+    .map((tab) => ({
+      ...tab,
+      schema: (tab.schema ?? [])
+        .map((field) => allowedFormFieldMap.value.get(field.key))
+        .filter((field): field is FormFieldShape => Boolean(field)),
+    }))
+    .filter((tab) => (tab.schema?.length ?? 0) > 0),
+)
+const tabItems = computed(() =>
+  visibleFormTabs.value.map((tab) => ({
+    label: tab.label ?? tab.key,
+    icon: tab.icon,
+    value: tab.key,
+  })),
+)
+const activeTabSchema = computed(() =>
+  visibleFormTabs.value.find((tab) => tab.key === activeTab.value)?.schema ?? [],
+)
+
+const detailEntries = computed(() => props.payload.detail?.entries ?? [])
+const detailEntryMap = computed(() => new Map(
+  detailEntries.value.map((entry) => [entry.key, entry]),
+))
+const detailKeysInSections = computed(() => new Set(
+  (props.payload.detail?.sections ?? []).flatMap((section) => (section.schema ?? []).map((entry) => entry.key)),
+))
+const standaloneDetailEntries = computed(() =>
+  detailEntries.value.filter((entry) => !detailKeysInSections.value.has(entry.key)),
+)
+const visibleDetailSections = computed(() =>
+  (props.payload.detail?.sections ?? [])
+    .map((section) => ({
+      ...section,
+      schema: (section.schema ?? [])
+        .map((entry) => detailEntryMap.value.get(entry.key))
+        .filter((entry): entry is DetailEntryShape => Boolean(entry)),
+    }))
+    .filter((section) => (section.schema?.length ?? 0) > 0),
+)
+
+watch(
+  () => props.payload.form?.state,
+  (state) => {
+    form.defaults((state ?? {}) as Record<string, unknown>)
+    form.reset()
+
+    if (!state) {
+      return
+    }
+
+    Object.assign(form, state)
+  },
+  { immediate: true },
+)
+
+watch(
+  () => tabItems.value,
+  (items) => {
+    const hasActive = items.some((item) => item.value === activeTab.value)
+
+    if (!hasActive) {
+      activeTab.value = items[0]?.value ?? ''
+    }
+  },
+  { immediate: true },
+)
 
 function rowActionButton(action: RowActionConfig) {
   const UButton = resolveComponent('UButton')
@@ -92,11 +239,26 @@ function rowActionButton(action: RowActionConfig) {
   })
 }
 
+function renderTableValue(column: TableColumnShape, value: unknown) {
+  if (column.type === 'badge') {
+    const UBadge = resolveComponent('UBadge')
+
+    return h(UBadge, {
+      color: 'neutral',
+      variant: 'subtle',
+    }, () => formatValue(value))
+  }
+
+  return formatValue(value)
+}
+
 const tableColumns = computed(() =>
   [
     ...(props.payload.table?.dataset?.columns ?? []).map((column) => ({
       accessorKey: column.key,
       header: column.label,
+      cell: ({ row }: { row: { original: Record<string, unknown> } }) =>
+        renderTableValue(column, row.original[column.key]),
     })),
     {
       id: '__actions',
@@ -132,22 +294,6 @@ const tableRows = computed(() =>
     __links: row.links ?? {},
   })),
 )
-const form = useForm<Record<string, unknown>>({})
-
-watch(
-  () => props.payload.form?.state,
-  (state) => {
-    form.defaults((state ?? {}) as Record<string, unknown>)
-    form.reset()
-
-    if (!state) {
-      return
-    }
-
-    Object.assign(form, state)
-  },
-  { immediate: true },
-)
 
 function visit(href?: string) {
   if (!href) {
@@ -181,12 +327,93 @@ function visitPage(page: number) {
   )
 }
 
-function fieldComponent(key?: string) {
-  if (!key) {
-    return 'UInput'
+function fieldComponent(field: FormFieldShape): 'UInput' | 'UTextarea' | 'USelect' | 'USwitch' {
+  if (field.type === 'select') {
+    return 'USelect'
   }
 
-  return /(description|notes|content|body)/i.test(key) ? 'UTextarea' : 'UInput'
+  if (field.type === 'toggle') {
+    return 'USwitch'
+  }
+
+  if (/(description|notes|content|body)/i.test(field.key)) {
+    return 'UTextarea'
+  }
+
+  return 'UInput'
+}
+
+function isToggleField(field: FormFieldShape): boolean {
+  return fieldComponent(field) === 'USwitch'
+}
+
+function fieldModelValue(fieldKey: string): unknown {
+  return form[fieldKey]
+}
+
+function updateFieldValue(fieldKey: string, value: unknown) {
+  form[fieldKey] = value
+}
+
+function fieldError(fieldKey?: string): string | undefined {
+  if (!fieldKey) {
+    return undefined
+  }
+
+  const error = form.errors[fieldKey]
+
+  return typeof error === 'string' ? error : undefined
+}
+
+function normalizeSelectItems(field: FormFieldShape): FormOptionShape[] {
+  const options = field.options ?? []
+
+  if (Array.isArray(options)) {
+    return options
+  }
+
+  return Object.entries(options).map(([value, label]) => ({
+    label: String(label),
+    value,
+  }))
+}
+
+function fieldComponentProps(field: FormFieldShape): Record<string, unknown> {
+  const placeholder = field.placeholder ?? field.label ?? field.key
+  const component = fieldComponent(field)
+
+  if (component === 'USelect') {
+    return {
+      items: normalizeSelectItems(field),
+      name: field.key,
+      placeholder,
+      required: field.required,
+    }
+  }
+
+  if (component === 'USwitch') {
+    return {
+      description: field.help ?? field.hint,
+      label: field.label ?? field.key,
+      name: field.key,
+    }
+  }
+
+  if (component === 'UTextarea') {
+    return {
+      autoresize: true,
+      name: field.key,
+      placeholder,
+      rows: 4,
+    }
+  }
+
+  return {
+    name: field.key,
+    placeholder,
+    required: field.required,
+    type: field.input_type ?? 'text',
+  }
 }
 
 function submitForm() {
@@ -204,7 +431,7 @@ function submitForm() {
   form.post(submit.url)
 }
 
-function runAction(action: { url?: string; method?: string; requires_confirmation?: boolean }) {
+function runAction(action: ActionShape) {
   if (!action.url) {
     return
   }
@@ -231,6 +458,26 @@ function runAction(action: { url?: string; method?: string; requires_confirmatio
   }
 
   router.post(action.url, {}, { preserveScroll: true })
+}
+
+function formatValue(value: unknown): string {
+  if (value === null || value === undefined || value === '') {
+    return '—'
+  }
+
+  if (typeof value === 'boolean') {
+    return value ? 'Yes' : 'No'
+  }
+
+  if (Array.isArray(value)) {
+    return value.map((item) => formatValue(item)).join(', ')
+  }
+
+  if (typeof value === 'object') {
+    return JSON.stringify(value)
+  }
+
+  return String(value)
 }
 </script>
 
@@ -351,27 +598,160 @@ function runAction(action: { url?: string; method?: string; requires_confirmatio
           Form payload prepared with {{ payload.form?.fields?.length ?? 0 }} field definitions.
         </p>
 
-        <div class="form-stack">
-          <UFormField
-            v-for="field in payload.form?.fields ?? []"
-            :key="field.key ?? field.label"
-            :name="field.key"
-            :label="field.label ?? field.key"
+        <UForm :state="form" class="form-stack" @submit.prevent="submitForm">
+          <UTabs
+            v-if="tabItems.length"
+            v-model="activeTab"
+            :items="tabItems"
+            :content="false"
+            color="neutral"
+            variant="pill"
+            class="tabs-shell"
+          />
+
+          <div v-if="activeTabSchema.length" class="section-stack">
+            <UCard
+              v-for="field in activeTabSchema"
+              :key="field.key"
+              variant="soft"
+            >
+              <UFormField
+                v-if="!isToggleField(field)"
+                :name="field.key"
+                :label="field.label ?? field.key"
+                :hint="field.hint"
+                :help="field.help"
+                :error="fieldError(field.key)"
+                :required="field.required"
+              >
+                <component
+                  :is="fieldComponent(field)"
+                  :model-value="fieldModelValue(field.key)"
+                  v-bind="fieldComponentProps(field)"
+                  @update:model-value="updateFieldValue(field.key, $event)"
+                />
+              </UFormField>
+
+              <UFormField
+                v-else
+                :name="field.key"
+                :error="fieldError(field.key)"
+              >
+                <component
+                  :is="fieldComponent(field)"
+                  :model-value="fieldModelValue(field.key)"
+                  v-bind="fieldComponentProps(field)"
+                  @update:model-value="updateFieldValue(field.key, $event)"
+                />
+              </UFormField>
+            </UCard>
+          </div>
+
+          <div
+            v-for="section in visibleFormSections"
+            :key="section.key"
+            class="section-stack"
           >
-            <component
-              :is="fieldComponent(field.key)"
-              v-model="form[field.key ?? '']"
-              :name="field.key"
-              :placeholder="field.label ?? field.key"
-              :rows="fieldComponent(field.key) === 'UTextarea' ? 4 : undefined"
-            />
-          </UFormField>
-        </div>
+            <UCard variant="soft">
+              <template #header>
+                <div>
+                  <h4 class="subsection-title">{{ section.label ?? section.key }}</h4>
+                  <p v-if="section.description" class="subsection-description">
+                    {{ section.description }}
+                  </p>
+                </div>
+              </template>
+
+              <div class="field-grid">
+                <div
+                  v-for="field in section.schema ?? []"
+                  :key="field.key"
+                >
+                  <UFormField
+                    v-if="!isToggleField(field)"
+                    :name="field.key"
+                    :label="field.label ?? field.key"
+                    :hint="field.hint"
+                    :help="field.help"
+                    :error="fieldError(field.key)"
+                    :required="field.required"
+                  >
+                    <component
+                      :is="fieldComponent(field)"
+                      :model-value="fieldModelValue(field.key)"
+                      v-bind="fieldComponentProps(field)"
+                      @update:model-value="updateFieldValue(field.key, $event)"
+                    />
+                  </UFormField>
+
+                  <UFormField
+                    v-else
+                    :name="field.key"
+                    :error="fieldError(field.key)"
+                  >
+                    <component
+                      :is="fieldComponent(field)"
+                      :model-value="fieldModelValue(field.key)"
+                      v-bind="fieldComponentProps(field)"
+                      @update:model-value="updateFieldValue(field.key, $event)"
+                    />
+                  </UFormField>
+                </div>
+              </div>
+            </UCard>
+          </div>
+
+          <div v-if="standaloneFormFields.length" class="field-grid">
+            <div
+              v-for="field in standaloneFormFields"
+              :key="field.key"
+            >
+              <UFormField
+                v-if="!isToggleField(field)"
+                :name="field.key"
+                :label="field.label ?? field.key"
+                :hint="field.hint"
+                :help="field.help"
+                :error="fieldError(field.key)"
+                :required="field.required"
+              >
+                <component
+                  :is="fieldComponent(field)"
+                  :model-value="fieldModelValue(field.key)"
+                  v-bind="fieldComponentProps(field)"
+                  @update:model-value="updateFieldValue(field.key, $event)"
+                />
+              </UFormField>
+
+              <UFormField
+                v-else
+                :name="field.key"
+                :error="fieldError(field.key)"
+              >
+                <component
+                  :is="fieldComponent(field)"
+                  :model-value="fieldModelValue(field.key)"
+                  v-bind="fieldComponentProps(field)"
+                  @update:model-value="updateFieldValue(field.key, $event)"
+                />
+              </UFormField>
+            </div>
+          </div>
+        </UForm>
 
         <template #footer>
           <div class="action-row">
             <UButton color="primary" :loading="form.processing" @click="submitForm">
               {{ payload.form?.mode === 'edit' ? 'Save changes' : 'Create record' }}
+            </UButton>
+
+            <UButton
+              v-if="payload.form?.cancel?.url"
+              color="neutral"
+              variant="ghost"
+              @click="visit(payload.form.cancel.url)"
+            >
+              Cancel
             </UButton>
           </div>
         </template>
@@ -395,14 +775,52 @@ function runAction(action: { url?: string; method?: string; requires_confirmatio
         and {{ payload.detail?.relations?.length ?? 0 }} relation groups.
       </p>
 
-      <div class="detail-stack">
+      <div v-if="visibleDetailSections.length" class="relations-stack">
+        <UCard
+          v-for="section in visibleDetailSections"
+          :key="section.key"
+          variant="soft"
+        >
+          <template #header>
+            <div>
+              {{ section.label ?? section.key }}
+              <p v-if="section.description" class="subsection-description">
+                {{ section.description }}
+              </p>
+            </div>
+          </template>
+
+          <div class="detail-stack">
+            <div
+              v-for="entry in section.schema ?? []"
+              :key="entry.key"
+              class="detail-row"
+            >
+              <div>
+                <span class="detail-label">{{ entry.label ?? entry.key }}</span>
+                <p v-if="entry.help" class="detail-help">
+                  {{ entry.help }}
+                </p>
+              </div>
+              <span class="detail-value">{{ formatValue(entry.value) }}</span>
+            </div>
+          </div>
+        </UCard>
+      </div>
+
+      <div v-if="standaloneDetailEntries.length" class="detail-stack">
         <div
-          v-for="entry in payload.detail?.entries ?? []"
-          :key="entry.label"
+          v-for="entry in standaloneDetailEntries"
+          :key="entry.key"
           class="detail-row"
         >
-          <span class="detail-label">{{ entry.label }}</span>
-          <span class="detail-value">{{ entry.value ?? '—' }}</span>
+          <div>
+            <span class="detail-label">{{ entry.label ?? entry.key }}</span>
+            <p v-if="entry.help" class="detail-help">
+              {{ entry.help }}
+            </p>
+          </div>
+          <span class="detail-value">{{ formatValue(entry.value) }}</span>
         </div>
       </div>
 
@@ -416,7 +834,7 @@ function runAction(action: { url?: string; method?: string; requires_confirmatio
             {{ relation.label ?? relation.key }}
           </template>
 
-          <div class="badge-row" v-if="relation.records?.length">
+          <div v-if="relation.records?.length" class="badge-row">
             <UBadge
               v-for="record in relation.records"
               :key="`${relation.key}-${record.key}`"
@@ -495,6 +913,20 @@ function runAction(action: { url?: string; method?: string; requires_confirmatio
   margin-top: 1rem;
 }
 
+.tabs-shell {
+  margin-bottom: 0.5rem;
+}
+
+.field-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.section-stack {
+  display: grid;
+  gap: 1rem;
+}
+
 .section-header {
   display: flex;
   align-items: flex-start;
@@ -517,8 +949,16 @@ function runAction(action: { url?: string; method?: string; requires_confirmatio
   font-weight: 700;
 }
 
-.section-description {
-  margin: 0 0 1rem;
+.subsection-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 700;
+}
+
+.section-description,
+.subsection-description,
+.detail-help {
+  margin: 0.35rem 0 0;
   color: color-mix(in srgb, var(--ui-text-muted) 92%, transparent);
 }
 
@@ -573,5 +1013,11 @@ function runAction(action: { url?: string; method?: string; requires_confirmatio
   display: flex;
   flex-wrap: wrap;
   gap: 0.5rem;
+}
+
+@media (min-width: 720px) {
+  .field-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 </style>

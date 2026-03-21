@@ -9,12 +9,14 @@ use Illuminate\Support\Arr;
 use Pepperfm\Flashboard\Contracts\Resources\Resource;
 use Pepperfm\Flashboard\Core\Authorization\Visibility\ScreenAccessResolver;
 use Pepperfm\Flashboard\Core\Extensions\ExtensionRegistry;
+use Pepperfm\Flashboard\Core\Runtime\Assemblers\FormPayloadAssembler;
 use Pepperfm\Flashboard\Core\Forms\Builders\Form;
 use Pepperfm\Flashboard\Integration\Laravel\Auth\PanelAuthenticator;
 
 final readonly class ResourceFormDataSource
 {
     public function __construct(
+        private FormPayloadAssembler $formPayloadAssembler,
         private ScreenAccessResolver $screenAccessResolver,
         private PanelAuthenticator $authenticator,
         private ExtensionRegistry $extensionRegistry,
@@ -29,13 +31,13 @@ final readonly class ResourceFormDataSource
     public function resolve(string $resourceClass, ?Model $record = null): array
     {
         $form = $resourceClass::form(Form::make());
-        $schema = $form->toArray();
+        $schema = $this->formPayloadAssembler->assemble($resourceClass);
         $state = $form->defaultState();
         $user = $this->authenticator->user();
 
         if ($record !== null) {
-            foreach ($form->fieldSchema() as $field) {
-                $key = (string) Arr::get($field, 'key', Arr::get($field, 'name', ''));
+            foreach ($schema->fields() as $field) {
+                $key = (string) $field['key'];
                 if ($key === '') {
                     continue;
                 }
@@ -48,15 +50,15 @@ final readonly class ResourceFormDataSource
         }
 
         $fields = array_values(array_filter(
-            $form->fieldSchema(),
+            $schema->fields(),
             fn(array $field): bool => $this->screenAccessResolver->canViewField(
                 $resourceClass,
-                (string) Arr::get($field, 'key', Arr::get($field, 'name', '')),
+                (string) $field['key'],
                 $user,
             ),
         ));
 
-        $payload = array_merge($schema, [
+        $payload = array_merge($schema->toArray(), [
             'fields' => $fields,
             'state' => $form->mutateData($state),
             'mode' => $record === null ? 'create' : 'edit',

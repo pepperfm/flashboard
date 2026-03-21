@@ -127,6 +127,13 @@ declare(strict_types=1);
 namespace Pepperfm\Flashboard\Demo;
 
 use App\Models\User;
+use Pepperfm\Flashboard\Core\Forms\Fields\Select;
+use Pepperfm\Flashboard\Core\Forms\Fields\TextInput;
+use Pepperfm\Flashboard\Core\Forms\Fields\Toggle;
+use Pepperfm\Flashboard\Core\Forms\Layout\Section;
+use Pepperfm\Flashboard\Core\Tables\Columns\BadgeColumn;
+use Pepperfm\Flashboard\Core\Tables\Columns\TextColumn;
+use Pepperfm\Flashboard\Core\Tables\Filters\SelectFilter;
 use Pepperfm\Flashboard\Contracts\Forms\FormContract;
 use Pepperfm\Flashboard\Contracts\Resources\Resource;
 use Pepperfm\Flashboard\Contracts\Tables\TableContract;
@@ -142,13 +149,12 @@ final class UserResource extends Resource
     {
         return $table
             ->columns([
-                ['key' => 'id', 'label' => 'ID'],
-                ['key' => 'email', 'label' => 'Email'],
-                ['key' => 'status', 'label' => 'Status'],
+                TextColumn::make('id')->label('ID')->sortable(),
+                TextColumn::make('email')->label('Email')->searchable(),
+                BadgeColumn::make('status')->label('Status'),
             ])
-            ->actions([
-                \Pepperfm\Flashboard\Core\Actions\Builders\Action::make('edit')->label('Edit'),
-                \Pepperfm\Flashboard\Core\Actions\Builders\Action::make('delete')->label('Delete'),
+            ->filters([
+                SelectFilter::make('status')->label('Status'),
             ]);
     }
 
@@ -156,12 +162,13 @@ final class UserResource extends Resource
     {
         return $form
             ->sections([
-                ['key' => 'main', 'label' => 'Main'],
-                ['key' => 'access', 'label' => 'Access'],
-            ])
-            ->fields([
-                ['key' => 'email', 'label' => 'Email'],
-                ['key' => 'status', 'label' => 'Status'],
+                Section::make('main')->label('Main')->schema([
+                    TextInput::make('email')->label('Email')->email()->required(),
+                ]),
+                Section::make('access')->label('Access')->schema([
+                    Select::make('status')->label('Status'),
+                    Toggle::make('is_active')->label('Is active'),
+                ]),
             ]);
     }
 }

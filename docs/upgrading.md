@@ -10,9 +10,10 @@
 
 1. Review whether your host app should move from explicit registration to `Flashboard::configure()->discover()`
 2. Keep explicit `resource()` / `page()` registration only for overrides or non-standard directories
-3. Re-run host-app validation from `examples/host-app/README.md`
-4. Verify custom extensions against new contracts
-5. Re-test protected panel routes and JSON payload consumers
+3. Review whether legacy resource arrays should move to the typed resource DSL (`TextColumn`, `TextInput`, `TextEntry`, `Section`, `Tab`)
+4. Re-run host-app validation from `examples/host-app/README.md`
+5. Verify custom extensions against new contracts
+6. Re-test protected panel routes and JSON payload consumers
 
 ## Discovery Coexistence
 
@@ -56,6 +57,40 @@ php artisan flashboard:make-provider
 ```
 
 Use inline `Flashboard::configure()` only when you need a transitional or compatibility path in an existing host app.
+
+## Typed Resource DSL Migration
+
+The preferred public API for resources is now the typed DSL:
+
+```php
+public static function table(TableContract $table): TableContract
+{
+    return $table->columns([
+        TextColumn::make('id')->label('ID')->sortable(),
+        BadgeColumn::make('status')->label('Status')->searchable(),
+    ]);
+}
+```
+
+Legacy arrays still work:
+
+```php
+public static function table(TableContract $table): TableContract
+{
+    return $table->columns([
+        ['key' => 'id', 'label' => 'ID', 'sortable' => true],
+        ['key' => 'status', 'label' => 'Status', 'searchable' => true],
+    ]);
+}
+```
+
+Migration rules:
+
+- typed schema nodes are the recommended authoring style for new resources
+- legacy arrays remain valid as compatibility input
+- runtime payloads are normalized from both styles into the same schema contract
+- `detail()` remains supported and `infolist()` is the concept-aligned alias for new resource classes
+- `php artisan flashboard:make-resource` now generates typed table/form/infolist definitions by default
 
 ## Breaking-Change Classes
 
