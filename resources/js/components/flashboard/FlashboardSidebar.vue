@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { DropdownMenuItem, NavigationMenuItem } from '@nuxt/ui'
+import FlashboardDropdownMenu from '@/components/flashboard/FlashboardDropdownMenu.vue'
 import { computed, onMounted, ref, watch } from 'vue'
 
 const THEME_STORAGE_KEY = 'flashboard-theme'
@@ -225,6 +226,7 @@ function applyUiColors(): void {
   appConfig.ui.colors.primary = primaryColor.value
   appConfig.ui.colors.neutral = neutralColor.value
 }
+
 </script>
 
 <template>
@@ -272,7 +274,7 @@ function applyUiColors(): void {
 
     <template #footer="{ collapsed: isCollapsed }">
       <div class="sidebar-footer">
-        <UDropdownMenu
+        <FlashboardDropdownMenu
           v-model:open="userMenuOpen"
           :items="userMenuItems"
           :content="{ align: 'center', collisionPadding: 12 }"
@@ -288,7 +290,7 @@ function applyUiColors(): void {
             :square="isCollapsed"
             icon="i-lucide-user-round"
           />
-        </UDropdownMenu>
+        </FlashboardDropdownMenu>
       </div>
     </template>
   </UDashboardSidebar>
