@@ -2,6 +2,30 @@
 import type { DropdownMenuItem, NavigationMenuItem } from '@nuxt/ui'
 import { computed, onMounted, ref, watch } from 'vue'
 
+const THEME_STORAGE_KEY = 'flashboard-theme'
+const THEME_PRIMARY_STORAGE_KEY = 'flashboard-theme-primary'
+const THEME_NEUTRAL_STORAGE_KEY = 'flashboard-theme-neutral'
+const PRIMARY_OPTIONS = [
+  'red',
+  'orange',
+  'amber',
+  'yellow',
+  'lime',
+  'green',
+  'emerald',
+  'teal',
+  'cyan',
+  'sky',
+  'blue',
+  'indigo',
+  'violet',
+  'purple',
+  'fuchsia',
+  'pink',
+  'rose',
+] as const
+const NEUTRAL_OPTIONS = ['slate', 'gray', 'zinc', 'neutral', 'stone'] as const
+
 type NavigationItem = {
   href?: string
   label: string
@@ -20,9 +44,12 @@ const emit = defineEmits<{
   logout: []
 }>()
 
+const appConfig = useAppConfig()
 const collapsed = ref(false)
 const userMenuOpen = ref(false)
 const themeMode = ref<ThemeMode>('system')
+const primaryColor = ref<string>(appConfig.ui.colors.primary)
+const neutralColor = ref<string>(appConfig.ui.colors.neutral)
 
 const userLabel = computed(() => {
   if (props.user === null) {
@@ -50,7 +77,45 @@ const userMenuItems = computed<DropdownMenuItem[][]>(() => [
   [
     {
       label: 'Theme',
-      icon: 'i-lucide-swatch-book',
+      icon: 'i-lucide-palette',
+      children: [
+        {
+          label: 'Primary',
+          slot: 'chip',
+          chip: primaryColor.value,
+          content: { align: 'center', collisionPadding: 16 },
+          children: PRIMARY_OPTIONS.map((color) => ({
+            label: color,
+            chip: color,
+            slot: 'chip',
+            type: 'checkbox',
+            checked: primaryColor.value === color,
+            onSelect: closeMenu(() => {
+              primaryColor.value = color
+            }),
+          })),
+        },
+        {
+          label: 'Neutral',
+          slot: 'chip',
+          chip: neutralColor.value,
+          content: { align: 'end', collisionPadding: 16 },
+          children: NEUTRAL_OPTIONS.map((color) => ({
+            label: color,
+            chip: color,
+            slot: 'chip',
+            type: 'checkbox',
+            checked: neutralColor.value === color,
+            onSelect: closeMenu(() => {
+              neutralColor.value = color
+            }),
+          })),
+        },
+      ],
+    },
+    {
+      label: 'Appearance',
+      icon: 'i-lucide-sun-moon',
       children: [
         {
           label: 'Light',
@@ -95,18 +160,39 @@ const userMenuItems = computed<DropdownMenuItem[][]>(() => [
 ])
 
 onMounted(() => {
-  const storedMode = window.localStorage.getItem('flashboard-theme')
+  const storedMode = window.localStorage.getItem(THEME_STORAGE_KEY)
+  const storedPrimary = window.localStorage.getItem(THEME_PRIMARY_STORAGE_KEY)
+  const storedNeutral = window.localStorage.getItem(THEME_NEUTRAL_STORAGE_KEY)
 
   if (storedMode === 'light' || storedMode === 'dark' || storedMode === 'system') {
     themeMode.value = storedMode
   }
 
+  if (storedPrimary && PRIMARY_OPTIONS.includes(storedPrimary as (typeof PRIMARY_OPTIONS)[number])) {
+    primaryColor.value = storedPrimary
+  }
+
+  if (storedNeutral && NEUTRAL_OPTIONS.includes(storedNeutral as (typeof NEUTRAL_OPTIONS)[number])) {
+    neutralColor.value = storedNeutral
+  }
+
   applyTheme(themeMode.value)
+  applyUiColors()
 })
 
 watch(themeMode, (value) => {
-  window.localStorage.setItem('flashboard-theme', value)
+  window.localStorage.setItem(THEME_STORAGE_KEY, value)
   applyTheme(value)
+})
+
+watch(primaryColor, (value) => {
+  window.localStorage.setItem(THEME_PRIMARY_STORAGE_KEY, value)
+  applyUiColors()
+})
+
+watch(neutralColor, (value) => {
+  window.localStorage.setItem(THEME_NEUTRAL_STORAGE_KEY, value)
+  applyUiColors()
 })
 
 function closeMenu(handler: () => void): (event: Event) => void {
@@ -132,6 +218,12 @@ function applyTheme(mode: ThemeMode): void {
     || (mode === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)
 
   document.documentElement.classList.toggle('dark', shouldUseDark)
+  document.documentElement.style.colorScheme = shouldUseDark ? 'dark' : 'light'
+}
+
+function applyUiColors(): void {
+  appConfig.ui.colors.primary = primaryColor.value
+  appConfig.ui.colors.neutral = neutralColor.value
 }
 </script>
 
