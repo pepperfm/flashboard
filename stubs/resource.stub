@@ -30,13 +30,11 @@ final class {{ class }} extends Resource
     public static function form(FormContract $form): FormContract
     {
         return $form
-            ->sections([
-                Section::make('main')
-                    ->label('Main')
-                    ->schema([
-{{ form_fields }}
-                    ]),
-            ])
+            ->schema([
+                TextInput::make('{{ title_field }}')
+                    ->label('{{ title_label }}')
+                    ->required(){{ title_input_suffix }},
+{{ secondary_form_field }}            ])
             ->rules([
                 '{{ title_field }}' => ['required', 'string'],
 {{ secondary_form_rule }}            ]);

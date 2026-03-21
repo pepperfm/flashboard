@@ -12,7 +12,6 @@ use Pepperfm\Flashboard\Contracts\Resources\Resource;
 use Pepperfm\Flashboard\Contracts\Tables\TableContract;
 use Pepperfm\Flashboard\Core\Detail\Entries\TextEntry;
 use Pepperfm\Flashboard\Core\Forms\Fields\TextInput;
-use Pepperfm\Flashboard\Core\Forms\Layout\Section;
 use Pepperfm\Flashboard\Core\Tables\Columns\TextColumn;
 
 use function Laravel\Prompts\confirm;
@@ -103,7 +102,6 @@ final class MakeResourceCommand extends \Illuminate\Console\Command
         $imports = [
             Resource::class,
             FormContract::class,
-            Section::class,
             TableContract::class,
             TextInput::class,
             TextColumn::class,
@@ -126,7 +124,8 @@ final class MakeResourceCommand extends \Illuminate\Console\Command
                 '{{ navigation_group_method }}',
                 '{{ title_field }}',
                 '{{ title_label }}',
-                '{{ form_fields }}',
+                '{{ title_input_suffix }}',
+                '{{ secondary_form_field }}',
                 '{{ secondary_table_column }}',
                 '{{ secondary_form_rule }}',
                 '{{ detail_method }}',
@@ -140,7 +139,8 @@ final class MakeResourceCommand extends \Illuminate\Console\Command
                 $this->renderNavigationGroupMethod($navigationGroup),
                 $titleField,
                 str($titleField)->headline()->toString(),
-                $this->formFields($titleField, $secondaryField),
+                str_contains(strtolower($titleField), 'email') ? PHP_EOL . '                    ->email()' : '',
+                $this->secondaryFormField($secondaryField),
                 $this->secondaryTableColumn($secondaryField),
                 $this->secondaryFormRule($secondaryField),
                 $this->renderDetailMethod($titleField, $secondaryField, $includeDetail),
@@ -186,35 +186,16 @@ final class MakeResourceCommand extends \Illuminate\Console\Command
         return "                '{$secondaryField}' => ['nullable', 'string']," . PHP_EOL;
     }
 
-    private function textInputExpression(string $field, bool $required = false, string $indent = ''): string
+    private function secondaryFormField(string $secondaryField): string
     {
-        $lines = [
-            "{$indent}TextInput::make('$field')",
-            "{$indent}    ->label('" . str($field)->headline()->toString() . "')",
-        ];
-
-        if ($required) {
-            $lines[] = "{$indent}    ->required()";
-        }
-
-        if (str_contains(strtolower($field), 'email')) {
-            $lines[] = "{$indent}    ->email()";
-        }
-
-        return implode(PHP_EOL, $lines);
-    }
-
-    private function formFields(string $titleField, string $secondaryField): string
-    {
-        $fields = [
-            $this->textInputExpression($titleField, required: true, indent: '                        ') . ',',
-        ];
-
         if ($secondaryField !== '') {
-            $fields[] = $this->textInputExpression($secondaryField, indent: '                        ') . ',';
+            return implode(PHP_EOL, [
+                "                TextInput::make('{$secondaryField}')",
+                "                    ->label('" . str($secondaryField)->headline()->toString() . "')" . (str_contains(strtolower($secondaryField), 'email') ? PHP_EOL . '                    ->email()' : '') . ',',
+            ]) . PHP_EOL;
         }
 
-        return implode(PHP_EOL, $fields) . PHP_EOL;
+        return '';
     }
 
     private function renderDetailMethod(
