@@ -6,7 +6,9 @@ import { computed, onMounted, ref, watch } from 'vue'
 const THEME_STORAGE_KEY = 'flashboard-theme'
 const THEME_PRIMARY_STORAGE_KEY = 'flashboard-theme-primary'
 const THEME_NEUTRAL_STORAGE_KEY = 'flashboard-theme-neutral'
+const THEME_RADIUS_STORAGE_KEY = 'flashboard-theme-radius'
 const PRIMARY_OPTIONS = [
+  'black',
   'red',
   'orange',
   'amber',
@@ -25,7 +27,8 @@ const PRIMARY_OPTIONS = [
   'pink',
   'rose',
 ] as const
-const NEUTRAL_OPTIONS = ['slate', 'gray', 'zinc', 'neutral', 'stone'] as const
+const NEUTRAL_OPTIONS = ['slate', 'gray', 'zinc', 'neutral', 'stone', 'taupe', 'mauve', 'mist', 'olive'] as const
+const RADIUS_OPTIONS = [0, 0.125, 0.25, 0.375, 0.5] as const
 
 type NavigationItem = {
   href?: string
@@ -51,6 +54,7 @@ const userMenuOpen = ref(false)
 const themeMode = ref<ThemeMode>('system')
 const primaryColor = ref<string>(appConfig.ui.colors.primary)
 const neutralColor = ref<string>(appConfig.ui.colors.neutral)
+const radius = ref<number>(0.25)
 
 const userLabel = computed(() => {
   if (props.user === null) {
@@ -112,6 +116,18 @@ const userMenuItems = computed<DropdownMenuItem[][]>(() => [
             }),
           })),
         },
+        {
+          label: 'Radius',
+          content: { align: 'center', collisionPadding: 16 },
+          children: RADIUS_OPTIONS.map((value) => ({
+            label: String(value),
+            type: 'checkbox',
+            checked: radius.value === value,
+            onSelect: closeMenu(() => {
+              radius.value = value
+            }),
+          })),
+        },
       ],
     },
     {
@@ -164,6 +180,7 @@ onMounted(() => {
   const storedMode = window.localStorage.getItem(THEME_STORAGE_KEY)
   const storedPrimary = window.localStorage.getItem(THEME_PRIMARY_STORAGE_KEY)
   const storedNeutral = window.localStorage.getItem(THEME_NEUTRAL_STORAGE_KEY)
+  const storedRadius = window.localStorage.getItem(THEME_RADIUS_STORAGE_KEY)
 
   if (storedMode === 'light' || storedMode === 'dark' || storedMode === 'system') {
     themeMode.value = storedMode
@@ -177,8 +194,17 @@ onMounted(() => {
     neutralColor.value = storedNeutral
   }
 
+  if (storedRadius) {
+    const parsedRadius = Number(storedRadius)
+
+    if (RADIUS_OPTIONS.includes(parsedRadius as (typeof RADIUS_OPTIONS)[number])) {
+      radius.value = parsedRadius
+    }
+  }
+
   applyTheme(themeMode.value)
   applyUiColors()
+  applyRadius()
 })
 
 watch(themeMode, (value) => {
@@ -194,6 +220,11 @@ watch(primaryColor, (value) => {
 watch(neutralColor, (value) => {
   window.localStorage.setItem(THEME_NEUTRAL_STORAGE_KEY, value)
   applyUiColors()
+})
+
+watch(radius, (value) => {
+  window.localStorage.setItem(THEME_RADIUS_STORAGE_KEY, String(value))
+  applyRadius()
 })
 
 function closeMenu(handler: () => void): (event: Event) => void {
@@ -225,6 +256,10 @@ function applyTheme(mode: ThemeMode): void {
 function applyUiColors(): void {
   appConfig.ui.colors.primary = primaryColor.value
   appConfig.ui.colors.neutral = neutralColor.value
+}
+
+function applyRadius(): void {
+  document.documentElement.style.setProperty('--ui-radius', `${radius.value}rem`)
 }
 
 </script>

@@ -2,6 +2,10 @@
 import type { DropdownMenuItem } from '@nuxt/ui'
 
 const chipColorMap = {
+  black: {
+    '--chip-light': 'var(--color-black, #000)',
+    '--chip-dark': 'var(--color-black, #000)',
+  },
   red: {
     '--chip-light': 'var(--color-red-500, oklch(63.7% 0.237 25.331))',
     '--chip-dark': 'var(--color-red-400, oklch(70.4% 0.191 22.216))',
@@ -89,6 +93,22 @@ const chipColorMap = {
   stone: {
     '--chip-light': 'var(--color-stone-500, oklch(55.3% 0.013 58.071))',
     '--chip-dark': 'var(--color-stone-400, oklch(70.9% 0.01 56.259))',
+  },
+  taupe: {
+    '--chip-light': 'var(--color-taupe-500, oklch(55.7% 0.023 34.45))',
+    '--chip-dark': 'var(--color-taupe-400, oklch(70.8% 0.02 34.85))',
+  },
+  mauve: {
+    '--chip-light': 'var(--color-mauve-500, oklch(56.2% 0.033 307.17))',
+    '--chip-dark': 'var(--color-mauve-400, oklch(71.4% 0.028 307.09))',
+  },
+  mist: {
+    '--chip-light': 'var(--color-mist-500, oklch(60.1% 0.024 219.12))',
+    '--chip-dark': 'var(--color-mist-400, oklch(74.5% 0.021 219.74))',
+  },
+  olive: {
+    '--chip-light': 'var(--color-olive-500, oklch(57.4% 0.043 125.11))',
+    '--chip-dark': 'var(--color-olive-400, oklch(72.6% 0.039 125.42))',
   },
 } as const satisfies Record<string, Record<'--chip-light' | '--chip-dark', string>>
 
