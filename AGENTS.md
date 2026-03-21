@@ -38,7 +38,7 @@ It is currently in early implementation: the product direction is documented, pa
 ├── playground/                  # Manual validation notes for local package development
 ├── resources/                   # Package views and frontend source assets
 ├── routes/                      # Package route definitions loaded by the service provider
-├── src/                         # Package source code grouped by contracts, core, UI, and Laravel integration
+├── src/                         # Package source code grouped by contracts, schema foundations, core runtime, UI, and Laravel integration
 ├── stubs/                       # Generator stubs for demo and future package scaffolds
 ├── tests/                       # Package tests using Orchestra Testbench
 ├── tsconfig.json                # TypeScript baseline for package UI assets
@@ -60,6 +60,8 @@ It is currently in early implementation: the product direction is documented, pa
 | `src/Core/Runtime/Resolvers/ScreenResolver.php` | Resolves the current route into a page or resource screen |
 | `src/Integration/Laravel/Routing/PanelRouteRegistrar.php` | Registers auth, page, and resource panel routes from runtime registries |
 | `src/Integration/Laravel/DataSources/ResourceListDataSource.php` | Executes Eloquent-backed list resource queries for table screens |
+| `src/Core/Resources/ResourceSurfaceResolver.php` | Resolves resource surface availability, accessible resource-owned pages, and shared surface metadata |
+| `src/Support/Schema/SchemaNodeNormalizer.php` | Normalizes typed schema nodes and legacy array definitions into deterministic runtime payload input |
 | `src/Integration/Laravel/Persistence/ResourceFormPersister.php` | Handles create and update persistence flow for resource forms |
 | `src/Core/Relations/RelationPayloadFactory.php` | Builds relation payloads for detail and nested resource contexts |
 | `src/Core/Runtime/Workspaces/WorkspacePayloadAssembler.php` | Assembles workspace payloads for custom operator pages |

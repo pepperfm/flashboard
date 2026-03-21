@@ -5,22 +5,24 @@ declare(strict_types=1);
 namespace Pepperfm\Flashboard\Core\Tables\Builders;
 
 use Pepperfm\Flashboard\Contracts\Actions\ActionContract;
+use Pepperfm\Flashboard\Contracts\Schema\KeyedSchemaNodeContract;
 use Pepperfm\Flashboard\Contracts\Tables\TableContract;
+use Pepperfm\Flashboard\Core\Tables\Normalization\TableSchemaNormalizer;
 
 final class Table implements TableContract
 {
     /**
-     * @var list<array<string, mixed>>
+     * @var list<array<string, mixed>|KeyedSchemaNodeContract>
      */
     private array $columns = [];
 
     /**
-     * @var list<array<string, mixed>>
+     * @var list<array<string, mixed>|KeyedSchemaNodeContract>
      */
     private array $filters = [];
 
     /**
-     * @var list<array<string, mixed>>
+     * @var list<array<string, mixed>|KeyedSchemaNodeContract>
      */
     private array $scopes = [];
 
@@ -85,14 +87,14 @@ final class Table implements TableContract
 
     public function toArray(): array
     {
-        return [
+        return (new TableSchemaNormalizer())->normalize([
             'columns' => $this->columns,
             'filters' => $this->filters,
             'scopes' => $this->scopes,
             'actions' => $this->normalizeActions($this->actions),
             'bulk_actions' => $this->normalizeActions($this->bulkActions),
             'pagination' => $this->pagination,
-        ];
+        ]);
     }
 
     /**

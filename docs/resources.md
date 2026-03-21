@@ -13,6 +13,13 @@ namespace App\Flashboard;
 
 use App\Models\Order;
 use Pepperfm\Flashboard\Contracts\Resources\Resource;
+use Pepperfm\Flashboard\Core\Forms\Fields\Select;
+use Pepperfm\Flashboard\Core\Forms\Fields\TextInput;
+use Pepperfm\Flashboard\Core\Forms\Fields\Toggle;
+use Pepperfm\Flashboard\Core\Forms\Layout\Section;
+use Pepperfm\Flashboard\Core\Tables\Columns\BadgeColumn;
+use Pepperfm\Flashboard\Core\Tables\Columns\TextColumn;
+use Pepperfm\Flashboard\Core\Tables\Filters\SelectFilter;
 use Pepperfm\Flashboard\Core\Tables\Builders\Table;
 use Pepperfm\Flashboard\Integration\Laravel\FlashboardPanelProvider;
 
@@ -25,9 +32,27 @@ final class OrdersResource extends Resource
 
     public static function table(\Pepperfm\Flashboard\Contracts\Tables\TableContract $table): \Pepperfm\Flashboard\Contracts\Tables\TableContract
     {
-        return $table->columns([
-            ['key' => 'id', 'label' => 'ID', 'sortable' => true],
-            ['key' => 'status', 'label' => 'Status', 'searchable' => true],
+        return $table
+            ->columns([
+                TextColumn::make('id')->label('ID')->sortable(),
+                BadgeColumn::make('status')->label('Status')->searchable(),
+            ])
+            ->filters([
+                SelectFilter::make('status')->label('Status'),
+            ]);
+    }
+
+    public static function form(\Pepperfm\Flashboard\Contracts\Forms\FormContract $form): \Pepperfm\Flashboard\Contracts\Forms\FormContract
+    {
+        return $form->sections([
+            Section::make('main')->label('Main')->schema([
+                TextInput::make('name')->label('Name')->required(),
+                TextInput::make('email')->label('Email')->email(),
+            ]),
+            Section::make('access')->label('Access')->schema([
+                Select::make('role')->label('Role'),
+                Toggle::make('is_active')->label('Is active'),
+            ]),
         ]);
     }
 }
@@ -72,9 +97,22 @@ Use:
 - `table()` for list/index behavior
 - `form()` for create/edit behavior
 - `detail()` for read-only detail screens
+- `infolist()` as a concept-aligned alias for `detail()`
 - `actions()` for page or record actions
 - `relations()` for nested relation payloads
 - `pages()` for resource-owned page declarations
+
+Actions and pages are still declared through their dedicated methods, but they now participate in the same package-owned resource surface model as `table()`, `form()`, and `infolist()`. That keeps custom resource pages and resource-level actions from becoming a separate ad hoc subsystem.
+
+## Configuration Styles
+
+Flashboard currently supports both configuration styles:
+
+- typed schema nodes such as `Column::make('status')->label('Status')`
+- concept-aligned nodes such as `TextColumn::make('email')`, `Section::make('main')->schema([...])`, and `TextInput::make('name')`
+- legacy compatibility arrays such as `['key' => 'status', 'label' => 'Status']`
+
+Typed nodes are the preferred public API going forward. Arrays remain supported while the package migrates the rest of the DSL toward the concept-first object style.
 
 ## Common Overrides
 

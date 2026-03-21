@@ -8,15 +8,19 @@ Flashboard form payloads are generated from `form()` definitions on a resource.
 public static function form(\Pepperfm\Flashboard\Contracts\Forms\FormContract $form): \Pepperfm\Flashboard\Contracts\Forms\FormContract
 {
     return $form
-        ->fields([
-            ['key' => 'status', 'label' => 'Status'],
-            ['key' => 'notes', 'label' => 'Notes'],
+        ->sections([
+            \Pepperfm\Flashboard\Core\Forms\Layout\Section::make('main')->label('Main')->schema([
+                \Pepperfm\Flashboard\Core\Forms\Fields\TextInput::make('status')->label('Status')->required(),
+                \Pepperfm\Flashboard\Core\Forms\Fields\TextInput::make('notes')->label('Notes'),
+            ]),
         ])
         ->rules([
             'status' => ['required', 'string'],
         ]);
 }
 ```
+
+Typed fields, sections, and tabs are the preferred public API. Legacy array definitions remain supported as a migration bridge.
 
 ## Runtime Flow
 

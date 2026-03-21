@@ -13,10 +13,12 @@ use Pepperfm\Flashboard\Core\Authorization\Visibility\ScreenAccessResolver;
 use Pepperfm\Flashboard\Core\Extensions\ExtensionRegistry;
 use Pepperfm\Flashboard\Core\Hooks\RuntimeHookDispatcher;
 use Pepperfm\Flashboard\Core\Navigation\Builders\NavigationItem;
+use Pepperfm\Flashboard\Core\Resources\ResourceSurfaceResolver;
 use Pepperfm\Flashboard\Core\Runtime\Context\RuntimeRequestContext;
 use Pepperfm\Flashboard\Core\Runtime\Payloads\ScreenPayload;
 use Pepperfm\Flashboard\Core\Runtime\Screens\ScreenKind;
 use Pepperfm\Flashboard\Core\Runtime\Workspaces\WorkspacePayloadAssembler;
+use Pepperfm\Flashboard\Integration\Laravel\Auth\PanelAuthenticator;
 use Pepperfm\Flashboard\Integration\Laravel\DataSources\ResourceDetailDataSource;
 use Pepperfm\Flashboard\Integration\Laravel\DataSources\ResourceListDataSource;
 use Pepperfm\Flashboard\Integration\Laravel\DataSources\ResourceFormDataSource;
@@ -31,7 +33,8 @@ final readonly class ScreenPayloadAssembler
         private ResourceDetailDataSource $resourceDetailDataSource,
         private WorkspacePayloadAssembler $workspacePayloadAssembler,
         private ScreenAccessResolver $screenAccessResolver,
-        private \Pepperfm\Flashboard\Integration\Laravel\Auth\PanelAuthenticator $panelAuthenticator,
+        private ResourceSurfaceResolver $resourceSurfaceResolver,
+        private PanelAuthenticator $panelAuthenticator,
         private ExtensionRegistry $extensionRegistry,
         private RuntimeHookDispatcher $runtimeHookDispatcher,
     ) {
@@ -80,6 +83,8 @@ final readonly class ScreenPayloadAssembler
                 'key' => $resourceClass::key(),
                 'name' => $resourceClass::name(),
                 'page' => $resourcePage,
+                'surfaces' => $this->resourceSurfaceResolver->availability($resourceClass, $user),
+                'pages' => $this->resourceSurfaceResolver->pagePayloads($resourceClass, $user),
                 'routes' => $this->resourceRoutes($resourceClass, $record),
             ],
             'table' => $resourcePage === 'index'
@@ -98,7 +103,7 @@ final readonly class ScreenPayloadAssembler
                 $resourceClass,
                 $this->assembleActions(
                     array_values(array_filter(
-                        $resourceClass::actions(),
+                        $this->resourceSurfaceResolver->actions($resourceClass),
                         fn(ActionContract $action): bool => $this->screenAccessResolver->canViewAction(
                             $resourceClass,
                             $action->key(),

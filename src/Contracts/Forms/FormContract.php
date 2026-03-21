@@ -4,20 +4,22 @@ declare(strict_types=1);
 
 namespace Pepperfm\Flashboard\Contracts\Forms;
 
+use Pepperfm\Flashboard\Contracts\Schema\KeyedSchemaNodeContract;
+
 interface FormContract
 {
     /**
-     * @param list<array<string, mixed>> $sections
+     * @param list<array<string, mixed>|KeyedSchemaNodeContract> $sections
      */
     public function sections(array $sections): static;
 
     /**
-     * @param list<array<string, mixed>> $tabs
+     * @param list<array<string, mixed>|KeyedSchemaNodeContract> $tabs
      */
     public function tabs(array $tabs): static;
 
     /**
-     * @param list<array<string, mixed>> $fields
+     * @param list<array<string, mixed>|KeyedSchemaNodeContract> $fields
      */
     public function fields(array $fields): static;
 

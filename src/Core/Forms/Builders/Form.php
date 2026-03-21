@@ -6,22 +6,24 @@ namespace Pepperfm\Flashboard\Core\Forms\Builders;
 
 use Closure;
 use Illuminate\Database\Eloquent\Model;
+use Pepperfm\Flashboard\Contracts\Schema\KeyedSchemaNodeContract;
 use Pepperfm\Flashboard\Contracts\Forms\FormContract;
+use Pepperfm\Flashboard\Core\Forms\Normalization\FormSchemaNormalizer;
 
 final class Form implements FormContract
 {
     /**
-     * @var list<array<string, mixed>>
+     * @var list<array<string, mixed>|KeyedSchemaNodeContract>
      */
     private array $sections = [];
 
     /**
-     * @var list<array<string, mixed>>
+     * @var list<array<string, mixed>|KeyedSchemaNodeContract>
      */
     private array $tabs = [];
 
     /**
-     * @var list<array<string, mixed>>
+     * @var list<array<string, mixed>|KeyedSchemaNodeContract>
      */
     private array $fields = [];
 
@@ -95,7 +97,7 @@ final class Form implements FormContract
 
     public function toArray(): array
     {
-        return [
+        return (new FormSchemaNormalizer())->normalize([
             'sections' => $this->sections,
             'tabs' => $this->tabs,
             'fields' => $this->fields,
@@ -103,7 +105,7 @@ final class Form implements FormContract
             'defaults' => $this->defaults,
             'has_mutate_data_using' => $this->mutateDataUsing !== null,
             'has_after_save' => $this->afterSave !== null,
-        ];
+        ]);
     }
 
     /**
@@ -111,7 +113,7 @@ final class Form implements FormContract
      */
     public function fieldSchema(): array
     {
-        return $this->fields;
+        return (array) $this->toArray()['fields'];
     }
 
     /**

@@ -5,17 +5,19 @@ declare(strict_types=1);
 namespace Pepperfm\Flashboard\Core\Detail\Builders;
 
 use Pepperfm\Flashboard\Contracts\Actions\ActionContract;
+use Pepperfm\Flashboard\Contracts\Schema\KeyedSchemaNodeContract;
 use Pepperfm\Flashboard\Contracts\Detail\DetailContract;
+use Pepperfm\Flashboard\Core\Detail\Normalization\DetailSchemaNormalizer;
 
 final class Detail implements DetailContract
 {
     /**
-     * @var list<array<string, mixed>>
+     * @var list<array<string, mixed>|KeyedSchemaNodeContract>
      */
     private array $sections = [];
 
     /**
-     * @var list<array<string, mixed>>
+     * @var list<array<string, mixed>|KeyedSchemaNodeContract>
      */
     private array $entries = [];
 
@@ -64,12 +66,12 @@ final class Detail implements DetailContract
 
     public function toArray(): array
     {
-        return [
+        return (new DetailSchemaNormalizer())->normalize([
             'sections' => $this->sections,
             'entries' => $this->entries,
             'actions' => $this->normalizeActions($this->actions),
             'header_actions' => $this->normalizeActions($this->headerActions),
-        ];
+        ]);
     }
 
     /**
@@ -77,7 +79,7 @@ final class Detail implements DetailContract
      */
     public function entrySchema(): array
     {
-        return $this->entries;
+        return (array) $this->toArray()['entries'];
     }
 
     /**

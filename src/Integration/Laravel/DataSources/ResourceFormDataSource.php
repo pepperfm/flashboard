@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Pepperfm\Flashboard\Integration\Laravel\DataSources;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Arr;
 use Pepperfm\Flashboard\Contracts\Resources\Resource;
 use Pepperfm\Flashboard\Core\Authorization\Visibility\ScreenAccessResolver;
 use Pepperfm\Flashboard\Core\Extensions\ExtensionRegistry;
@@ -34,7 +35,7 @@ final readonly class ResourceFormDataSource
 
         if ($record !== null) {
             foreach ($form->fieldSchema() as $field) {
-                $key = (string) ($field['key'] ?? $field['name'] ?? '');
+                $key = (string) Arr::get($field, 'key', Arr::get($field, 'name', ''));
                 if ($key === '') {
                     continue;
                 }
@@ -50,7 +51,7 @@ final readonly class ResourceFormDataSource
             $form->fieldSchema(),
             fn(array $field): bool => $this->screenAccessResolver->canViewField(
                 $resourceClass,
-                (string) ($field['key'] ?? $field['name'] ?? ''),
+                (string) Arr::get($field, 'key', Arr::get($field, 'name', '')),
                 $user,
             ),
         ));

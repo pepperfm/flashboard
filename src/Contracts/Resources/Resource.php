@@ -70,6 +70,11 @@ abstract class Resource
 
     public static function detail(DetailContract $detail): DetailContract
     {
+        return static::infolist($detail);
+    }
+
+    public static function infolist(DetailContract $detail): DetailContract
+    {
         return $detail;
     }
 

@@ -28,6 +28,15 @@ Flashboard currently exposes a beta contract surface.
 - JSON consumers should read `schema_version`
 - Blade consumers should treat layout state, overlays, and notifications as public payloads
 
+## Public Resource API
+
+- resource configuration is split into dedicated surfaces: `table()`, `form()`, `detail()`, `infolist()`, `actions()`, and `pages()`
+- `detail()` remains supported and `infolist()` is its friendly alias for concept-aligned resource APIs
+- typed schema nodes are the preferred package-facing API for columns, fields, sections, tabs, filters, scopes, and entries
+- legacy array definitions remain supported as a compatibility bridge during the DSL migration
+- runtime consumers should depend on normalized payload output, not on ad hoc legacy array keys such as `name`
+- resource-level `actions()` and `pages()` are part of the same surface family and can be resolved through a shared package-owned surface model
+
 ## Authorization Contract
 
 - `policy()` opt-in on resources

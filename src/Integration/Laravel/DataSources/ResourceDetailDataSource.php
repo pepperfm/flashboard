@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Pepperfm\Flashboard\Integration\Laravel\DataSources;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Arr;
 use Pepperfm\Flashboard\Contracts\Resources\Resource;
 use Pepperfm\Flashboard\Core\Authorization\Visibility\ScreenAccessResolver;
 use Pepperfm\Flashboard\Core\Extensions\ExtensionRegistry;
@@ -36,7 +37,7 @@ final readonly class ResourceDetailDataSource
 
         if ($record !== null) {
             foreach ($detail->entrySchema() as $entry) {
-                $key = (string) ($entry['key'] ?? $entry['name'] ?? '');
+                $key = (string) Arr::get($entry, 'key', Arr::get($entry, 'name', ''));
                 if ($key === '') {
                     continue;
                 }
@@ -54,7 +55,7 @@ final readonly class ResourceDetailDataSource
             $this->relationPayloadFactory->make($resourceClass, $record),
             fn(array $relation): bool => $this->screenAccessResolver->canViewRelation(
                 $resourceClass,
-                (string) ($relation['key'] ?? ''),
+                (string) Arr::get($relation, 'key', ''),
                 $user,
             ),
         ));

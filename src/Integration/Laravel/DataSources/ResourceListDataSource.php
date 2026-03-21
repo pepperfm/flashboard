@@ -77,12 +77,12 @@ final readonly class ResourceListDataSource
         $paginator = $query->paginate($perPage);
         $user = $this->authenticator->user();
         $columns = array_values(array_map(
-            fn(array $column): array => [
+            fn(array $column): array => array_merge($column, [
                 'key' => (string) Arr::get($column, 'key', Arr::get($column, 'name', 'value')),
                 'label' => (string) Arr::get($column, 'label', str($this->getColumnKey($column))->headline()->value()),
                 'sortable' => (bool) Arr::get($column, 'sortable', false),
                 'searchable' => (bool) Arr::get($column, 'searchable', false),
-            ],
+            ]),
             (array) Arr::get($table, 'columns', []),
         ));
         $columns = array_values(array_filter(

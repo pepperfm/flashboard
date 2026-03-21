@@ -28,12 +28,15 @@ Using a modular monolith lets us preserve that layering without introducing depl
 │   │   ├── Actions/
 │   │   ├── Forms/
 │   │   ├── Pages/
+│   │   ├── Schema/
 │   │   ├── Resources/
 │   │   └── Tables/
 │   ├── Core/                   # Package runtime and business-neutral admin orchestration
 │   │   ├── Actions/
 │   │   ├── Authorization/
+│   │   ├── Detail/
 │   │   ├── Extensions/
+│   │   ├── Forms/
 │   │   ├── Hooks/
 │   │   ├── Navigation/
 │   │   ├── Panel/
@@ -42,7 +45,8 @@ Using a modular monolith lets us preserve that layering without introducing depl
 │   │   ├── Registry/
 │   │   ├── Resources/
 │   │   ├── Runtime/
-│   │   └── Routing/
+│   │   ├── Routing/
+│   │   └── Tables/
 │   ├── UI/                     # Normalized view payloads and rendering-oriented structures
 │   │   ├── Contracts/
 │   │   ├── Detail/
@@ -64,6 +68,7 @@ Using a modular monolith lets us preserve that layering without introducing depl
 │   │       ├── Persistence/
 │   │       └── Routing/
 │   └── Support/                # Shared utility code with no framework or product leakage
+│       └── Schema/
 ├── package.json                # Frontend tooling entrypoint for package assets
 ├── phpstan.neon.dist           # Static analysis baseline for package code
 ├── phpunit.xml                 # Package test suite definition
@@ -85,6 +90,7 @@ Using a modular monolith lets us preserve that layering without introducing depl
 - `Core` may depend on `Contracts` and `Support`, but not on Laravel HTTP adapters or UI implementation details.
 - `UI` may depend on `Contracts` and `Core` output models, but must not own domain or routing decisions.
 - `Integration/Laravel` may depend on `Contracts`, `Core`, `UI`, and Laravel framework APIs.
+- `Support/Schema` may provide framework-light schema utilities shared by `Core`, but must not depend on Laravel HTTP or panel runtime adapters.
 - Host applications should plug in model classes, policies, queries, and workflow logic through contracts and configuration, not through direct edits of package internals.
 
 - ✅ `Integration/Laravel -> Core -> Contracts`
@@ -97,17 +103,18 @@ Using a modular monolith lets us preserve that layering without introducing depl
 
 ## Layer/Module Communication
 - Host applications register panels, resources, pages, and policies through package-facing contracts.
-- `Core` turns resource definitions into normalized runtime state and payload-ready structures.
+- `Core` turns resource definitions into normalized runtime state and payload-ready structures, including schema-node normalization and resource-surface resolution.
 - `UI` consumes normalized contracts and payload objects to render consistent admin screens through Inertia + Vue + Nuxt UI.
 - `Integration/Laravel` adapts framework routing, middleware, auth, requests, and responses to the package runtime.
 - Extension points should use interfaces, explicit hooks, and configuration objects instead of deep inheritance chains.
 
 ## Key Principles
 1. Keep the public API surface declarative and split by concern: `table()`, `form()`, `detail()`, `actions()`, `pages()`.
-2. Design contracts for the 80 percent path, then provide escape hatches for the remaining 20 percent.
-3. Keep admin runtime logic package-owned and business logic host-owned.
-4. Make payloads backend-driven and deterministic so the UI layer stays consistent across resources.
-5. Prefer explicit contracts and composition over magic configuration and overloaded DSLs.
+2. Keep typed schema nodes and schema normalization package-owned, with legacy arrays treated as a compatibility input rather than the canonical runtime contract.
+3. Design contracts for the 80 percent path, then provide escape hatches for the remaining 20 percent.
+4. Keep admin runtime logic package-owned and business logic host-owned.
+5. Make payloads backend-driven and deterministic so the UI layer stays consistent across resources.
+6. Prefer explicit contracts and composition over magic configuration and overloaded DSLs.
 
 ## Code Examples
 
