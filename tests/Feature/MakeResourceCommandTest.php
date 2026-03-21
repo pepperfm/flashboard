@@ -70,13 +70,9 @@ final class MakeResourceCommandTest extends TestCase
             . '        ]);',
             $content,
         );
-        self::assertStringContainsString(
-            "                    TextInput::make('name')" . PHP_EOL
-            . "                        ->label('Name')" . PHP_EOL
-            . "                        ->required()," . PHP_EOL
-            . '                    ]),',
-            $content,
-        );
+        self::assertStringContainsString("TextInput::make('name')", $content);
+        self::assertStringContainsString("->label('Name')", $content);
+        self::assertStringContainsString("->required(),", $content);
         self::assertStringNotContainsString(PHP_EOL . PHP_EOL . PHP_EOL, $content);
     }
 

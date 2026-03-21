@@ -1,0 +1,5 @@
+    public static function navigationGroup(): ?string
+    {
+        return '{{ navigation_group }}';
+    }
+

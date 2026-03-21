@@ -17,8 +17,14 @@ final class {{ class }} extends Resource
 {{ navigation_group_method }}    public static function table(TableContract $table): TableContract
     {
         return $table->columns([
-{{ table_columns }}
-        ]);
+            TextColumn::make('id')
+                ->label('ID')
+                ->sortable(),
+            TextColumn::make('{{ title_field }}')
+                ->label('{{ title_label }}')
+                ->sortable()
+                ->searchable(){{ title_table_suffix }},
+{{ secondary_table_column }}        ]);
     }
 
     public static function form(FormContract $form): FormContract
@@ -28,13 +34,14 @@ final class {{ class }} extends Resource
                 Section::make('main')
                     ->label('Main')
                     ->schema([
-{{ form_fields }}
-                    ]),
+                        TextInput::make('{{ title_field }}')
+                            ->label('{{ title_label }}')
+                            ->required(){{ title_input_suffix }},
+{{ secondary_form_field }}                    ]),
             ])
             ->rules([
-{{ form_rules }}
-            ]);
+                '{{ title_field }}' => ['required', 'string'],
+{{ secondary_form_rule }}            ]);
     }
 
 {{ detail_method }}}
-}

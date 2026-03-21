@@ -1,0 +1,10 @@
+    public static function infolist(DetailContract $detail): DetailContract
+    {
+        return $detail->entries([
+            TextEntry::make('id')
+                ->label('ID'),
+            TextEntry::make('{{ title_field }}')
+                ->label('{{ title_label }}'),
+{{ secondary_detail_entry }}        ]);
+    }
+

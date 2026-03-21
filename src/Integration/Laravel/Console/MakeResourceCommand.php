@@ -124,9 +124,13 @@ final class MakeResourceCommand extends \Illuminate\Console\Command
                 '{{ imports }}',
                 '{{ class }}',
                 '{{ navigation_group_method }}',
-                '{{ table_columns }}',
-                '{{ form_fields }}',
-                '{{ form_rules }}',
+                '{{ title_field }}',
+                '{{ title_label }}',
+                '{{ title_table_suffix }}',
+                '{{ title_input_suffix }}',
+                '{{ secondary_table_column }}',
+                '{{ secondary_form_field }}',
+                '{{ secondary_form_rule }}',
                 '{{ detail_method }}',
             ],
             [
@@ -135,116 +139,112 @@ final class MakeResourceCommand extends \Illuminate\Console\Command
                 class_basename($modelClass),
                 implode(PHP_EOL, array_map(static fn (string $import): string => 'use ' . $import . ';', $imports)),
                 $className,
-                $this->navigationGroupMethod($navigationGroup),
-                $this->tableColumns($titleField, $secondaryField),
-                $this->formFields($titleField, $secondaryField),
-                $this->formRules($titleField, $secondaryField),
-                $this->detailMethod($includeDetail, $titleField, $secondaryField),
+                $this->renderNavigationGroupMethod($navigationGroup),
+                $titleField,
+                str($titleField)->headline()->toString(),
+                '',
+                $this->inputSuffix($titleField),
+                $this->secondaryTableColumn($secondaryField),
+                $this->secondaryFormField($secondaryField),
+                $this->secondaryFormRule($secondaryField),
+                $this->renderDetailMethod($titleField, $secondaryField, $includeDetail),
             ],
             $stub,
         );
     }
 
-    private function navigationGroupMethod(string $navigationGroup): string
+    private function renderNavigationGroupMethod(string $navigationGroup): string
     {
         if ($navigationGroup === '') {
             return '';
         }
 
-        return <<<PHP
-    public static function navigationGroup(): ?string
-    {
-        return '$navigationGroup';
+        return str_replace(
+            '{{ navigation_group }}',
+            $navigationGroup,
+            $this->stubContents('resource-navigation-group.stub'),
+        );
     }
 
-PHP;
-    }
-
-    private function tableColumns(string $titleField, string $secondaryField): string
+    private function secondaryTableColumn(string $secondaryField): string
     {
-        $columns = [
-            $this->textColumnExpression('id', label: 'ID', sortable: true, indent: '            ') . ',',
-            $this->textColumnExpression(
-                $titleField,
-                label: str($titleField)->headline()->toString(),
-                sortable: true,
-                searchable: true,
-                indent: '            ',
-            ) . ',',
-        ];
-
-        if ($secondaryField !== '') {
-            $columns[] = $this->textColumnExpression(
-                $secondaryField,
-                label: str($secondaryField)->headline()->toString(),
-                searchable: true,
-                indent: '            ',
-            ) . ',';
+        if ($secondaryField === '') {
+            return '';
         }
 
-        return implode(PHP_EOL, $columns);
+        $label = str($secondaryField)->headline()->toString();
+
+        return implode(PHP_EOL, [
+            "            TextColumn::make('{$secondaryField}')",
+            "                ->label('{$label}')",
+            '                ->searchable(),',
+        ]) . PHP_EOL;
     }
 
-    private function formFields(string $titleField, string $secondaryField): string
+    private function secondaryFormField(string $secondaryField): string
     {
-        $fields = [
-            $this->textInputExpression($titleField, required: true, indent: '                    ') . ',',
-        ];
-
-        if ($secondaryField !== '') {
-            $fields[] = $this->textInputExpression($secondaryField, indent: '                    ') . ',';
+        if ($secondaryField === '') {
+            return '';
         }
 
-        return implode(PHP_EOL, $fields);
+        $label = str($secondaryField)->headline()->toString();
+
+        return implode(PHP_EOL, [
+            "                        TextInput::make('{$secondaryField}')",
+            "                            ->label('{$label}'){$this->inputSuffix($secondaryField)},",
+        ]) . PHP_EOL;
     }
 
-    private function formRules(string $titleField, string $secondaryField): string
+    private function secondaryFormRule(string $secondaryField): string
     {
-        $rules = [
-            "                '$titleField' => ['required', 'string'],",
-        ];
-
-        if ($secondaryField !== '') {
-            $rules[] = "                '$secondaryField' => ['nullable', 'string'],";
+        if ($secondaryField === '') {
+            return '';
         }
 
-        return implode(PHP_EOL, $rules);
+        return "                '{$secondaryField}' => ['nullable', 'string']," . PHP_EOL;
     }
 
-    private function detailMethod(bool $includeDetail, string $titleField, string $secondaryField): string
-    {
+    private function renderDetailMethod(
+        string $titleField,
+        string $secondaryField,
+        bool $includeDetail,
+    ): string {
         if (!$includeDetail) {
             return '';
         }
 
-        $entries = [
-            $this->textEntryExpression('id', label: 'ID', indent: '            ') . ',',
-            $this->textEntryExpression(
+        return str_replace(
+            [
+                '{{ title_field }}',
+                '{{ title_label }}',
+                '{{ secondary_detail_entry }}',
+            ],
+            [
                 $titleField,
-                label: str($titleField)->headline()->toString(),
-                indent: '            ',
-            ) . ',',
-        ];
-
-        if ($secondaryField !== '') {
-            $entries[] = $this->textEntryExpression(
-                $secondaryField,
-                label: str($secondaryField)->headline()->toString(),
-                indent: '            ',
-            ) . ',';
-        }
-
-        $detailEntries = implode(PHP_EOL, $entries);
-
-        return <<<PHP
-    public static function infolist(DetailContract \$detail): DetailContract
-    {
-        return \$detail->entries([
-{$detailEntries}
-        ]);
+                str($titleField)->headline()->toString(),
+                $this->secondaryDetailEntry($secondaryField),
+            ],
+            $this->stubContents('resource-detail-method.stub'),
+        );
     }
 
-PHP;
+    private function secondaryDetailEntry(string $secondaryField): string
+    {
+        if ($secondaryField === '') {
+            return '';
+        }
+
+        $label = str($secondaryField)->headline()->toString();
+
+        return implode(PHP_EOL, [
+            "            TextEntry::make('{$secondaryField}')",
+            "                ->label('{$label}'),",
+        ]) . PHP_EOL;
+    }
+
+    private function inputSuffix(string $field): string
+    {
+        return str_contains(strtolower($field), 'email') ? PHP_EOL . '                            ->email()' : '';
     }
 
     private function relativePath(string $path): string
@@ -256,55 +256,8 @@ PHP;
             : $path;
     }
 
-    private function textInputExpression(string $field, bool $required = false, string $indent = ''): string
+    private function stubContents(string $stub): string
     {
-        $lines = [
-            "{$indent}TextInput::make('$field')",
-            "{$indent}    ->label('" . str($field)->headline()->toString() . "')",
-        ];
-
-        if ($required) {
-            $lines[] = "{$indent}    ->required()";
-        }
-
-        if (str_contains(strtolower($field), 'email')) {
-            $lines[] = "{$indent}    ->email()";
-        }
-
-        return implode(PHP_EOL, $lines);
-    }
-
-    private function textColumnExpression(
-        string $field,
-        ?string $label = null,
-        bool $sortable = false,
-        bool $searchable = false,
-        string $indent = '',
-    ): string {
-        $resolvedLabel = $label ?? str($field)->headline()->toString();
-        $lines = [
-            "{$indent}TextColumn::make('$field')",
-            "{$indent}    ->label('$resolvedLabel')",
-        ];
-
-        if ($sortable) {
-            $lines[] = "{$indent}    ->sortable()";
-        }
-
-        if ($searchable) {
-            $lines[] = "{$indent}    ->searchable()";
-        }
-
-        return implode(PHP_EOL, $lines);
-    }
-
-    private function textEntryExpression(string $field, ?string $label = null, string $indent = ''): string
-    {
-        $resolvedLabel = $label ?? str($field)->headline()->toString();
-
-        return implode(PHP_EOL, [
-            "{$indent}TextEntry::make('$field')",
-            "{$indent}    ->label('$resolvedLabel')",
-        ]);
+        return (string) file_get_contents(dirname(__DIR__, 4) . '/stubs/' . $stub);
     }
 }
