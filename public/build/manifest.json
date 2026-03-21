@@ -1,18 +1,18 @@
 {
-  "__plugin-vue_export-helper-D8t-dNGC.js": {
-    "file": "assets/_plugin-vue_export-helper-D8t-dNGC.js",
+  "__plugin-vue_export-helper-Derv9Chu.js": {
+    "file": "assets/_plugin-vue_export-helper-Derv9Chu.js",
     "name": "_plugin-vue_export-helper",
     "imports": [
       "resources/js/flashboard.ts"
     ]
   },
   "resources/js/Pages/Flashboard/Auth/Login.vue": {
-    "file": "assets/Login-CCtLFXlU.js",
+    "file": "assets/Login-DV5wXyaM.js",
     "name": "Login",
     "src": "resources/js/Pages/Flashboard/Auth/Login.vue",
     "isDynamicEntry": true,
     "imports": [
-      "__plugin-vue_export-helper-D8t-dNGC.js",
+      "__plugin-vue_export-helper-Derv9Chu.js",
       "resources/js/flashboard.ts"
     ],
     "css": [
@@ -20,20 +20,20 @@
     ]
   },
   "resources/js/Pages/Flashboard/Screen.vue": {
-    "file": "assets/Screen-CQCJySvk.js",
+    "file": "assets/Screen-BfCfGQai.js",
     "name": "Screen",
     "src": "resources/js/Pages/Flashboard/Screen.vue",
     "isDynamicEntry": true,
     "imports": [
-      "__plugin-vue_export-helper-D8t-dNGC.js",
+      "__plugin-vue_export-helper-Derv9Chu.js",
       "resources/js/flashboard.ts"
     ],
     "css": [
-      "assets/Screen-xWKXh76a.css"
+      "assets/Screen-DKgl1xo0.css"
     ]
   },
   "resources/js/flashboard.ts": {
-    "file": "assets/flashboard-wJWH6r13.js",
+    "file": "assets/flashboard-BZEaSgzc.js",
     "name": "flashboard",
     "src": "resources/js/flashboard.ts",
     "isEntry": true,
@@ -42,7 +42,7 @@
       "resources/js/Pages/Flashboard/Screen.vue"
     ],
     "css": [
-      "assets/flashboard-oWQGmpPs.css"
+      "assets/flashboard-Bll9IV3l.css"
     ]
   }
 }

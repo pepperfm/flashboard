@@ -29,8 +29,8 @@ function chipStyle(color: string) {
   <UCard
     variant="outline"
     :ui="{
-      root: 'w-[28.5rem] max-w-[calc(100vw-1rem)] shadow-lg',
-      body: 'p-4',
+      root: 'w-[24rem] max-w-[calc(100vw-0.75rem)] shadow-lg',
+      body: 'p-3',
     }"
   >
     <div class="theme-panel">
@@ -44,7 +44,7 @@ function chipStyle(color: string) {
             v-for="color in primaryOptions"
             :key="`primary-${color}`"
             color="neutral"
-            size="md"
+            size="sm"
             :variant="primaryColor === color ? 'subtle' : 'outline'"
             class="theme-option"
             @click="emit('update:primaryColor', color)"
@@ -68,7 +68,7 @@ function chipStyle(color: string) {
             v-for="color in neutralOptions"
             :key="`neutral-${color}`"
             color="neutral"
-            size="md"
+            size="sm"
             :variant="neutralColor === color ? 'subtle' : 'outline'"
             class="theme-option"
             @click="emit('update:neutralColor', color)"
@@ -92,7 +92,7 @@ function chipStyle(color: string) {
             v-for="value in radiusOptions"
             :key="`radius-${value}`"
             color="neutral"
-            size="md"
+            size="sm"
             :variant="radius === value ? 'subtle' : 'outline'"
             class="radius-option"
             @click="emit('update:radius', value)"
@@ -110,7 +110,7 @@ function chipStyle(color: string) {
         <div class="appearance-grid">
           <UButton
             color="neutral"
-            size="md"
+            size="sm"
             :variant="themeMode === 'light' ? 'subtle' : 'outline'"
             icon="i-lucide-sun-medium"
             class="appearance-option"
@@ -121,7 +121,7 @@ function chipStyle(color: string) {
 
           <UButton
             color="neutral"
-            size="md"
+            size="sm"
             :variant="themeMode === 'dark' ? 'subtle' : 'outline'"
             icon="i-lucide-moon-star"
             class="appearance-option"
@@ -132,7 +132,7 @@ function chipStyle(color: string) {
 
           <UButton
             color="neutral"
-            size="md"
+            size="sm"
             :variant="themeMode === 'system' ? 'subtle' : 'outline'"
             icon="i-lucide-monitor-cog"
             class="appearance-option"
@@ -149,36 +149,36 @@ function chipStyle(color: string) {
 <style scoped>
 .theme-panel {
   display: grid;
-  gap: 1rem;
+  gap: 0.875rem;
 }
 
 .theme-section {
   display: grid;
-  gap: 0.625rem;
+  gap: 0.5rem;
 }
 
 .theme-heading h3 {
   margin: 0;
-  font-size: 0.95rem;
+  font-size: 0.9rem;
   font-weight: 700;
 }
 
 .theme-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.5rem;
+  gap: 0.375rem;
 }
 
 .theme-option {
   justify-content: flex-start;
-  min-height: 2.75rem;
-  padding-inline: 0.75rem;
-  font-size: 0.88rem;
+  min-height: 2.35rem;
+  padding-inline: 0.625rem;
+  font-size: 0.82rem;
 }
 
 .theme-dot {
-  width: 0.75rem;
-  height: 0.75rem;
+  width: 0.68rem;
+  height: 0.68rem;
   border-radius: 999px;
   flex-shrink: 0;
   background: var(--chip-light);
@@ -192,20 +192,20 @@ function chipStyle(color: string) {
 .radius-grid {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 0.5rem;
+  gap: 0.375rem;
 }
 
 .radius-option,
 .appearance-option {
   justify-content: center;
-  min-height: 2.75rem;
-  font-size: 0.88rem;
+  min-height: 2.35rem;
+  font-size: 0.82rem;
 }
 
 .appearance-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.5rem;
+  gap: 0.375rem;
 }
 
 @media (max-width: 720px) {

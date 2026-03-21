@@ -243,7 +243,7 @@ function applyRadius(): void {
                     <span
                       data-slot="itemLabel"
                       :class="ui.itemLabel()"
-                    >
+                  >
                       {{ item.label }}
                     </span>
                   </span>
@@ -337,10 +337,5 @@ function applyRadius(): void {
   min-width: 0;
   align-items: center;
   gap: 0.625rem;
-}
-
-.theme-trigger-label {
-  font-size: 0.875rem;
-  font-weight: 500;
 }
 </style>
