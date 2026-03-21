@@ -218,7 +218,7 @@ function applyRadius(): void {
             content: isCollapsed ? 'w-48' : 'w-(--reka-dropdown-menu-trigger-width)',
           }"
         >
-          <template #theme="{ item }">
+          <template #theme="{ item, ui }">
             <UPopover
               mode="hover"
               :open-delay="80"
@@ -227,13 +227,37 @@ function applyRadius(): void {
             >
               <button
                 type="button"
-                class="theme-trigger"
+                data-slot="item"
+                :class="ui.item({ color: item?.color })"
               >
                 <span class="theme-trigger-main">
-                  <UIcon :name="item.icon" class="size-5 shrink-0 text-default" />
-                  <span class="theme-trigger-label">{{ item.label }}</span>
+                  <UIcon
+                    :name="item.icon"
+                    data-slot="itemLeadingIcon"
+                    :class="ui.itemLeadingIcon({ color: item?.color })"
+                  />
+                  <span
+                    data-slot="itemWrapper"
+                    :class="ui.itemWrapper()"
+                  >
+                    <span
+                      data-slot="itemLabel"
+                      :class="ui.itemLabel()"
+                    >
+                      {{ item.label }}
+                    </span>
+                  </span>
                 </span>
-                <UIcon name="i-lucide-chevron-right" class="size-4 shrink-0 text-muted" />
+                <span
+                  data-slot="itemTrailing"
+                  :class="ui.itemTrailing()"
+                >
+                  <UIcon
+                    name="i-lucide-chevron-right"
+                    data-slot="itemTrailingIcon"
+                    :class="ui.itemTrailingIcon({ color: item?.color })"
+                  />
+                </span>
               </button>
 
               <template #content>
@@ -306,22 +330,6 @@ function applyRadius(): void {
   gap: 0.5rem;
   padding: 0.75rem;
   border-top: 1px solid rgba(120, 130, 150, 0.16);
-}
-
-.theme-trigger {
-  display: flex;
-  width: 100%;
-  align-items: center;
-  justify-content: space-between;
-  gap: 0.75rem;
-  padding: 0.625rem 0.75rem;
-  border-radius: 0.5rem;
-  color: inherit;
-  background: transparent;
-}
-
-.theme-trigger:hover {
-  background: color-mix(in srgb, var(--ui-bg-elevated) 78%, transparent);
 }
 
 .theme-trigger-main {

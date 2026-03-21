@@ -29,8 +29,8 @@ function chipStyle(color: string) {
   <UCard
     variant="outline"
     :ui="{
-      root: 'w-[34rem] max-w-[calc(100vw-1rem)] shadow-lg',
-      body: 'p-5',
+      root: 'w-[28.5rem] max-w-[calc(100vw-1rem)] shadow-lg',
+      body: 'p-4',
     }"
   >
     <div class="theme-panel">
@@ -149,36 +149,36 @@ function chipStyle(color: string) {
 <style scoped>
 .theme-panel {
   display: grid;
-  gap: 1.25rem;
+  gap: 1rem;
 }
 
 .theme-section {
   display: grid;
-  gap: 0.75rem;
+  gap: 0.625rem;
 }
 
 .theme-heading h3 {
   margin: 0;
-  font-size: 1rem;
+  font-size: 0.95rem;
   font-weight: 700;
 }
 
 .theme-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.625rem;
+  gap: 0.5rem;
 }
 
 .theme-option {
   justify-content: flex-start;
-  min-height: 3rem;
-  padding-inline: 0.85rem;
-  font-size: 0.95rem;
+  min-height: 2.75rem;
+  padding-inline: 0.75rem;
+  font-size: 0.88rem;
 }
 
 .theme-dot {
-  width: 0.82rem;
-  height: 0.82rem;
+  width: 0.75rem;
+  height: 0.75rem;
   border-radius: 999px;
   flex-shrink: 0;
   background: var(--chip-light);
@@ -192,20 +192,20 @@ function chipStyle(color: string) {
 .radius-grid {
   display: grid;
   grid-template-columns: repeat(5, minmax(0, 1fr));
-  gap: 0.625rem;
+  gap: 0.5rem;
 }
 
 .radius-option,
 .appearance-option {
   justify-content: center;
-  min-height: 3rem;
-  font-size: 0.95rem;
+  min-height: 2.75rem;
+  font-size: 0.88rem;
 }
 
 .appearance-grid {
   display: grid;
   grid-template-columns: repeat(3, minmax(0, 1fr));
-  gap: 0.625rem;
+  gap: 0.5rem;
 }
 
 @media (max-width: 720px) {
