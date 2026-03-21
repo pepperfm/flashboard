@@ -24,6 +24,11 @@ interface FormContract
     public function fields(array $fields): static;
 
     /**
+     * @param list<array<string, mixed>|KeyedSchemaNodeContract> $schema
+     */
+    public function schema(array $schema): static;
+
+    /**
      * @param array<string, mixed> $rules
      */
     public function rules(array $rules): static;

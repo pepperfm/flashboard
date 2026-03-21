@@ -34,10 +34,8 @@ final class {{ class }} extends Resource
                 Section::make('main')
                     ->label('Main')
                     ->schema([
-                        TextInput::make('{{ title_field }}')
-                            ->label('{{ title_label }}')
-                            ->required(){{ title_input_suffix }},
-{{ secondary_form_field }}                    ]),
+{{ form_fields }}
+                    ]),
             ])
             ->rules([
                 '{{ title_field }}' => ['required', 'string'],

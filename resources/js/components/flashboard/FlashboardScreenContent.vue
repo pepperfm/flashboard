@@ -176,6 +176,9 @@ const tabItems = computed(() =>
 const activeTabSchema = computed(() =>
   visibleFormTabs.value.find((tab) => tab.key === activeTab.value)?.schema ?? [],
 )
+const hasStructuredFormLayout = computed(() =>
+  visibleFormSections.value.length > 0 || visibleFormTabs.value.length > 0,
+)
 
 const detailEntries = computed(() => props.payload.detail?.entries ?? [])
 const detailEntryMap = computed(() => new Map(
@@ -584,7 +587,7 @@ function formatValue(value: unknown): string {
 
   <template v-else-if="payload.resource?.page === 'create' || payload.resource?.page === 'edit'">
     <div class="form-page-shell">
-      <UCard class="form-card" variant="outline">
+      <UPageCard class="form-card">
         <template #header>
           <div class="section-header">
             <div>
@@ -593,10 +596,6 @@ function formatValue(value: unknown): string {
             </div>
           </div>
         </template>
-
-        <p class="section-description">
-          Form payload prepared with {{ payload.form?.fields?.length ?? 0 }} field definitions.
-        </p>
 
         <UForm :state="form" class="form-stack" @submit.prevent="submitForm">
           <UTabs
@@ -701,10 +700,14 @@ function formatValue(value: unknown): string {
             </UCard>
           </div>
 
-          <div v-if="standaloneFormFields.length" class="field-grid">
+          <div
+            v-if="standaloneFormFields.length"
+            :class="hasStructuredFormLayout ? 'field-grid' : 'simple-field-stack'"
+          >
             <div
               v-for="field in standaloneFormFields"
               :key="field.key"
+              :class="{ 'simple-field-row': !hasStructuredFormLayout }"
             >
               <UFormField
                 v-if="!isToggleField(field)"
@@ -755,7 +758,7 @@ function formatValue(value: unknown): string {
             </UButton>
           </div>
         </template>
-      </UCard>
+      </UPageCard>
     </div>
   </template>
 
@@ -899,6 +902,7 @@ function formatValue(value: unknown): string {
 
 .form-card {
   width: 100%;
+  padding: 1.5rem;
 }
 
 .row-actions {
@@ -910,7 +914,6 @@ function formatValue(value: unknown): string {
 .form-stack {
   display: grid;
   gap: 1rem;
-  margin-top: 1rem;
 }
 
 .tabs-shell {
@@ -920,6 +923,16 @@ function formatValue(value: unknown): string {
 .field-grid {
   display: grid;
   gap: 1rem;
+}
+
+.simple-field-stack {
+  display: grid;
+  gap: 1.25rem;
+}
+
+.simple-field-row {
+  display: grid;
+  gap: 0.5rem;
 }
 
 .section-stack {

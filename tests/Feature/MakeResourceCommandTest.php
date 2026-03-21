@@ -58,6 +58,8 @@ final class MakeResourceCommandTest extends TestCase
         self::assertStringNotContainsString('public static function detail(', $content);
         self::assertStringNotContainsString('public static function actions()', $content);
         self::assertStringContainsString('public static function form(FormContract $form): FormContract', $content);
+        self::assertStringContainsString('->schema([', $content);
+        self::assertStringNotContainsString('Section::make(', $content);
         self::assertStringContainsString(
             '    }' . PHP_EOL . PHP_EOL . '    public static function table(TableContract $table): TableContract',
             $content,

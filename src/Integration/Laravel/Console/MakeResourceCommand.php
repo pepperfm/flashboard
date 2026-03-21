@@ -126,10 +126,8 @@ final class MakeResourceCommand extends \Illuminate\Console\Command
                 '{{ navigation_group_method }}',
                 '{{ title_field }}',
                 '{{ title_label }}',
-                '{{ title_table_suffix }}',
-                '{{ title_input_suffix }}',
+                '{{ form_fields }}',
                 '{{ secondary_table_column }}',
-                '{{ secondary_form_field }}',
                 '{{ secondary_form_rule }}',
                 '{{ detail_method }}',
             ],
@@ -142,10 +140,8 @@ final class MakeResourceCommand extends \Illuminate\Console\Command
                 $this->renderNavigationGroupMethod($navigationGroup),
                 $titleField,
                 str($titleField)->headline()->toString(),
-                '',
-                $this->inputSuffix($titleField),
+                $this->formFields($titleField, $secondaryField),
                 $this->secondaryTableColumn($secondaryField),
-                $this->secondaryFormField($secondaryField),
                 $this->secondaryFormRule($secondaryField),
                 $this->renderDetailMethod($titleField, $secondaryField, $includeDetail),
             ],
@@ -181,20 +177,6 @@ final class MakeResourceCommand extends \Illuminate\Console\Command
         ]) . PHP_EOL;
     }
 
-    private function secondaryFormField(string $secondaryField): string
-    {
-        if ($secondaryField === '') {
-            return '';
-        }
-
-        $label = str($secondaryField)->headline()->toString();
-
-        return implode(PHP_EOL, [
-            "                        TextInput::make('{$secondaryField}')",
-            "                            ->label('{$label}'){$this->inputSuffix($secondaryField)},",
-        ]) . PHP_EOL;
-    }
-
     private function secondaryFormRule(string $secondaryField): string
     {
         if ($secondaryField === '') {
@@ -202,6 +184,19 @@ final class MakeResourceCommand extends \Illuminate\Console\Command
         }
 
         return "                '{$secondaryField}' => ['nullable', 'string']," . PHP_EOL;
+    }
+
+    private function formFields(string $titleField, string $secondaryField): string
+    {
+        $fields = [
+            $this->textInputExpression($titleField, required: true, indent: '                        ') . ',',
+        ];
+
+        if ($secondaryField !== '') {
+            $fields[] = $this->textInputExpression($secondaryField, indent: '                        ') . ',';
+        }
+
+        return implode(PHP_EOL, $fields) . PHP_EOL;
     }
 
     private function renderDetailMethod(

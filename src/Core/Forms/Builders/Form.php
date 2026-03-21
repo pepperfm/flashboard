@@ -67,6 +67,11 @@ final class Form implements FormContract
         return $this;
     }
 
+    public function schema(array $schema): static
+    {
+        return $this->fields($schema);
+    }
+
     public function rules(array $rules): static
     {
         $this->rules = $rules;
