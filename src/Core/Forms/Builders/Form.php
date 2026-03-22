@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Pepperfm\Flashboard\Core\Forms\Builders;
 
-use Closure;
 use Illuminate\Database\Eloquent\Model;
 use Pepperfm\Flashboard\Contracts\Schema\KeyedSchemaNodeContract;
 use Pepperfm\Flashboard\Contracts\Forms\FormContract;
@@ -37,9 +36,9 @@ final class Form implements FormContract
      */
     private array $defaults = [];
 
-    private ?Closure $mutateDataUsing = null;
+    private ?\Closure $mutateDataUsing = null;
 
-    private ?Closure $afterSave = null;
+    private ?\Closure $afterSave = null;
 
     public static function make(): self
     {
@@ -88,21 +87,21 @@ final class Form implements FormContract
 
     public function mutateDataUsing(?callable $callback): static
     {
-        $this->mutateDataUsing = $callback === null ? null : Closure::fromCallable($callback);
+        $this->mutateDataUsing = $callback === null ? null : $callback(...);
 
         return $this;
     }
 
     public function afterSave(?callable $callback): static
     {
-        $this->afterSave = $callback === null ? null : Closure::fromCallable($callback);
+        $this->afterSave = $callback === null ? null : $callback(...);
 
         return $this;
     }
 
     public function toArray(): array
     {
-        return (new FormSchemaNormalizer())->normalize([
+        return new FormSchemaNormalizer()->normalize([
             'sections' => $this->sections,
             'tabs' => $this->tabs,
             'fields' => $this->fields,

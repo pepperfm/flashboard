@@ -171,8 +171,8 @@ final class MakeResourceCommand extends \Illuminate\Console\Command
         $label = str($secondaryField)->headline()->toString();
 
         return implode(PHP_EOL, [
-            "            TextColumn::make('{$secondaryField}')",
-            "                ->label('{$label}')",
+            "            TextColumn::make('$secondaryField')",
+            "                ->label('$label')",
             '                ->searchable(),',
         ]) . PHP_EOL;
     }
@@ -183,15 +183,15 @@ final class MakeResourceCommand extends \Illuminate\Console\Command
             return '';
         }
 
-        return "                '{$secondaryField}' => ['nullable', 'string']," . PHP_EOL;
+        return "                '$secondaryField' => ['nullable', 'string']," . PHP_EOL;
     }
 
     private function secondaryFormField(string $secondaryField): string
     {
         if ($secondaryField !== '') {
             return implode(PHP_EOL, [
-                "                TextInput::make('{$secondaryField}')",
-                "                    ->label('" . str($secondaryField)->headline()->toString() . "')" . (str_contains(strtolower($secondaryField), 'email') ? PHP_EOL . '                    ->email()' : '') . ',',
+                "                TextInput::make('$secondaryField')",
+                "                    ->label('" . str($secondaryField)->headline()->value() . "')" . (str_contains(strtolower($secondaryField), 'email') ? PHP_EOL . '                    ->email()' : '') . ',',
             ]) . PHP_EOL;
         }
 
@@ -215,7 +215,7 @@ final class MakeResourceCommand extends \Illuminate\Console\Command
             ],
             [
                 $titleField,
-                str($titleField)->headline()->toString(),
+                str($titleField)->headline()->value(),
                 $this->secondaryDetailEntry($secondaryField),
             ],
             $this->stubContents('resource-detail-method.stub'),
@@ -228,10 +228,10 @@ final class MakeResourceCommand extends \Illuminate\Console\Command
             return '';
         }
 
-        $label = str($secondaryField)->headline()->toString();
+        $label = str($secondaryField)->headline()->value();
 
         return implode(PHP_EOL, [
-            "            TextEntry::make('{$secondaryField}')",
+            "            TextEntry::make('$secondaryField')",
             "                ->label('{$label}'),",
         ]) . PHP_EOL;
     }
@@ -247,6 +247,6 @@ final class MakeResourceCommand extends \Illuminate\Console\Command
 
     private function stubContents(string $stub): string
     {
-        return (string) file_get_contents(dirname(__DIR__, 4) . '/stubs/' . $stub);
+        return (string) file_get_contents(dirname(__DIR__, 4) . "/stubs/$stub");
     }
 }

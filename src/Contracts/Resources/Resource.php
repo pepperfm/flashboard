@@ -15,6 +15,7 @@ use Pepperfm\Flashboard\Contracts\Navigation\NavigationItemContract;
 use Pepperfm\Flashboard\Contracts\Pages\PageDefinitionContract;
 use Pepperfm\Flashboard\Contracts\Resources\Relations\RelationDefinitionContract;
 use Pepperfm\Flashboard\Contracts\Tables\TableContract;
+use Pepperfm\Flashboard\Core\Forms\Builders\Form;
 
 abstract class Resource
 {
@@ -186,7 +187,7 @@ abstract class Resource
      */
     public static function creationRules(): array
     {
-        return static::formRules();
+        return static::resolvedFormRules();
     }
 
     /**
@@ -194,7 +195,7 @@ abstract class Resource
      */
     public static function updateRules(\Illuminate\Database\Eloquent\Model $record): array
     {
-        return static::formRules($record);
+        return static::resolvedFormRules($record);
     }
 
     /**
@@ -203,6 +204,19 @@ abstract class Resource
     public static function formRules(?\Illuminate\Database\Eloquent\Model $record = null): array
     {
         return [];
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    protected static function resolvedFormRules(?\Illuminate\Database\Eloquent\Model $record = null): array
+    {
+        $rules = static::formRules($record);
+        if ($rules !== []) {
+            return $rules;
+        }
+
+        return (array) (static::form(Form::make())->toArray()['rules'] ?? []);
     }
 
     /**
