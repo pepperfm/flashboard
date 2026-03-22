@@ -135,11 +135,11 @@ final class Form implements FormContract
      */
     public function mutateData(array $data, ?Model $record = null): array
     {
-        if (!is_callable($this->mutateDataUsing)) {
+        if ($this->mutateDataUsing === null) {
             return $data;
         }
 
-        return (array) ($this->mutateDataUsing)($data, $record);
+        return (array) value($this->mutateDataUsing, $data, $record);
     }
 
     /**
@@ -147,10 +147,10 @@ final class Form implements FormContract
      */
     public function runAfterSave(Model $record, array $data): void
     {
-        if (!is_callable($this->afterSave)) {
+        if ($this->afterSave === null) {
             return;
         }
 
-        ($this->afterSave)($record, $data);
+        value($this->afterSave, $record, $data);
     }
 }
