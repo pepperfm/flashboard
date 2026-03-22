@@ -111,10 +111,11 @@ Using a modular monolith lets us preserve that layering without introducing depl
 ## Key Principles
 1. Keep the public API surface declarative and split by concern: `table()`, `form()`, `detail()`, `actions()`, `pages()`.
 2. Keep typed schema nodes and schema normalization package-owned, with legacy arrays treated as a compatibility input rather than the canonical runtime contract.
-3. Design contracts for the 80 percent path, then provide escape hatches for the remaining 20 percent.
-4. Keep admin runtime logic package-owned and business logic host-owned.
-5. Make payloads backend-driven and deterministic so the UI layer stays consistent across resources.
-6. Prefer explicit contracts and composition over magic configuration and overloaded DSLs.
+3. Prefer `$form->schema([...])` for simple CRUD forms; reserve `sections()` and `tabs()` for forms that genuinely need grouped layout.
+4. Design contracts for the 80 percent path, then provide escape hatches for the remaining 20 percent.
+5. Keep admin runtime logic package-owned and business logic host-owned.
+6. Make payloads backend-driven and deterministic so the UI layer stays consistent across resources.
+7. Prefer explicit contracts and composition over magic configuration and overloaded DSLs.
 
 ## Code Examples
 
@@ -161,14 +162,10 @@ final class UserResource extends Resource
     public static function form(FormContract $form): FormContract
     {
         return $form
-            ->sections([
-                Section::make('main')->label('Main')->schema([
-                    TextInput::make('email')->label('Email')->email()->required(),
-                ]),
-                Section::make('access')->label('Access')->schema([
-                    Select::make('status')->label('Status'),
-                    Toggle::make('is_active')->label('Is active'),
-                ]),
+            ->schema([
+                TextInput::make('email')->label('Email')->email()->required(),
+                Select::make('status')->label('Status'),
+                Toggle::make('is_active')->label('Is active'),
             ]);
     }
 }
