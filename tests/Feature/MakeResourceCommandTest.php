@@ -78,6 +78,23 @@ final class MakeResourceCommandTest extends TestCase
         self::assertStringNotContainsString(PHP_EOL . PHP_EOL . PHP_EOL, $content);
     }
 
+    public function test_render_stub_marks_notes_like_secondary_fields_with_explicit_textarea_renderer(): void
+    {
+        $content = $this->renderResourceStub(
+            titleField: 'name',
+            secondaryField: 'notes',
+            includeDetail: false,
+        );
+
+        self::assertStringContainsString('use Pepperfm\\Flashboard\\Contracts\\Forms\\FieldRenderer;', $content);
+        self::assertStringContainsString(
+            "                TextInput::make('notes')" . PHP_EOL
+            . "                    ->label('Notes')" . PHP_EOL
+            . '                    ->renderer(FieldRenderer::Textarea),',
+            $content,
+        );
+    }
+
     private function renderResourceStub(
         string $titleField,
         string $secondaryField,

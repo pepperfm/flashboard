@@ -5,10 +5,19 @@ declare(strict_types=1);
 namespace Pepperfm\Flashboard\Core\Forms\Normalization;
 
 use Illuminate\Support\Arr;
+use Pepperfm\Flashboard\Contracts\Forms\FieldRenderer;
+use Pepperfm\Flashboard\Core\Forms\Fields\Field;
 use Pepperfm\Flashboard\Support\Schema\SchemaNodeNormalizer;
 
 final class FormSchemaNormalizer
 {
+    private const string KEY_DEFAULTS = 'defaults';
+    private const string KEY_FIELDS = 'fields';
+    private const string KEY_RULES = 'rules';
+    private const string KEY_SCHEMA = 'schema';
+    private const string KEY_SECTIONS = 'sections';
+    private const string KEY_TABS = 'tabs';
+
     /**
      * @param array<string, mixed> $definition
      *
@@ -16,14 +25,14 @@ final class FormSchemaNormalizer
      */
     public function normalize(array $definition): array
     {
-        $sections = SchemaNodeNormalizer::normalizeSchemaGroups(
-            (array) Arr::get($definition, 'sections', []),
+        $sections = $this->normalizeGroups(
+            (array) Arr::get($definition, self::KEY_SECTIONS, []),
         );
-        $tabs = SchemaNodeNormalizer::normalizeSchemaGroups(
-            (array) Arr::get($definition, 'tabs', []),
+        $tabs = $this->normalizeGroups(
+            (array) Arr::get($definition, self::KEY_TABS, []),
         );
-        $fields = SchemaNodeNormalizer::normalizeKeyedNodes(
-            (array) Arr::get($definition, 'fields', []),
+        $fields = $this->normalizeFields(
+            (array) Arr::get($definition, self::KEY_FIELDS, []),
         );
         $flattenedFields = array_merge(
             $fields,
@@ -31,20 +40,56 @@ final class FormSchemaNormalizer
             $this->flattenGroupSchema($tabs),
         );
         $deduplicatedFields = $this->deduplicateKeyedNodes($flattenedFields);
-        $explicitRules = (array) Arr::get($definition, 'rules', []);
+        $explicitRules = (array) Arr::get($definition, self::KEY_RULES, []);
 
         return [
-            'sections' => $sections,
-            'tabs' => $tabs,
-            'fields' => $deduplicatedFields,
-            'rules' => $this->mergeRules(
+            self::KEY_SECTIONS => $sections,
+            self::KEY_TABS => $tabs,
+            self::KEY_FIELDS => $deduplicatedFields,
+            self::KEY_RULES => $this->mergeRules(
                 $this->inferRulesFromFields($deduplicatedFields),
                 $explicitRules,
             ),
-            'defaults' => (array) Arr::get($definition, 'defaults', []),
+            self::KEY_DEFAULTS => (array) Arr::get($definition, self::KEY_DEFAULTS, []),
             'has_mutate_data_using' => (bool) Arr::get($definition, 'has_mutate_data_using', false),
             'has_after_save' => (bool) Arr::get($definition, 'has_after_save', false),
         ];
+    }
+
+    /**
+     * @param list<array<string, mixed>> $groups
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function normalizeGroups(array $groups): array
+    {
+        return array_values(array_map(
+            function (array $group): array {
+                $schema = Arr::get($group, self::KEY_SCHEMA, []);
+
+                if (! is_array($schema)) {
+                    return $group;
+                }
+
+                $group[self::KEY_SCHEMA] = $this->normalizeFields($schema);
+
+                return $group;
+            },
+            SchemaNodeNormalizer::normalizeSchemaGroups($groups),
+        ));
+    }
+
+    /**
+     * @param list<array<string, mixed>> $fields
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function normalizeFields(array $fields): array
+    {
+        return array_values(array_map(
+            fn (array $field): array => $this->normalizeFieldRenderer($field),
+            SchemaNodeNormalizer::normalizeKeyedNodes($fields),
+        ));
     }
 
     /**
@@ -57,7 +102,7 @@ final class FormSchemaNormalizer
         $fields = [];
 
         foreach ($groups as $group) {
-            $schema = Arr::get($group, 'schema', []);
+            $schema = Arr::get($group, self::KEY_SCHEMA, []);
 
             if (!is_array($schema)) {
                 continue;
@@ -113,13 +158,14 @@ final class FormSchemaNormalizer
             }
 
             $fieldRules = [];
-            $isRequired = (bool) Arr::get($field, 'required', false);
-            $type = (string) Arr::get($field, 'type', '');
-            $inputType = (string) Arr::get($field, 'input_type', '');
+            $isRequired = (bool) Arr::get($field, Field::ATTRIBUTE_REQUIRED, false);
+            $type = (string) Arr::get($field, Field::ATTRIBUTE_TYPE, '');
+            $inputType = (string) Arr::get($field, Field::ATTRIBUTE_INPUT_TYPE, '');
+            $renderer = $this->resolveFieldRenderer($field);
 
             $fieldRules[] = $isRequired ? 'required' : 'nullable';
 
-            if ($type === 'text' || $inputType === 'email') {
+            if ($renderer === FieldRenderer::Input || $renderer === FieldRenderer::Textarea || $inputType === 'email') {
                 $fieldRules[] = 'string';
             }
 
@@ -127,7 +173,7 @@ final class FormSchemaNormalizer
                 $fieldRules[] = 'email';
             }
 
-            if ($type === 'toggle') {
+            if ($renderer === FieldRenderer::Switch || $type === Field::TYPE_TOGGLE) {
                 $fieldRules[] = 'boolean';
             }
 
@@ -162,5 +208,44 @@ final class FormSchemaNormalizer
         }
 
         return $merged;
+    }
+
+    /**
+     * @param array<string, mixed> $field
+     *
+     * @return array<string, mixed>
+     */
+    private function normalizeFieldRenderer(array $field): array
+    {
+        $field[Field::ATTRIBUTE_RENDERER] = $this->resolveFieldRenderer($field)->value;
+
+        return $field;
+    }
+
+    /**
+     * @param array<string, mixed> $field
+     */
+    private function resolveFieldRenderer(array $field): FieldRenderer
+    {
+        if (Arr::has($field, Field::ATTRIBUTE_RENDERER)) {
+            $renderer = FieldRenderer::tryFrom((string) Arr::get($field, Field::ATTRIBUTE_RENDERER, ''));
+
+            if ($renderer !== null) {
+                return $renderer;
+            }
+
+            throw new \InvalidArgumentException(sprintf(
+                'Unknown form field renderer [%s] for field [%s].',
+                (string) Arr::get($field, Field::ATTRIBUTE_RENDERER, ''),
+                trim((string) Arr::get($field, 'key', '')) ?: 'unknown',
+            ));
+        }
+
+        return match ((string) Arr::get($field, Field::ATTRIBUTE_TYPE, '')) {
+            Field::TYPE_SELECT => FieldRenderer::Select,
+            Field::TYPE_TEXTAREA => FieldRenderer::Textarea,
+            Field::TYPE_TOGGLE => FieldRenderer::Switch,
+            default => FieldRenderer::Input,
+        };
     }
 }

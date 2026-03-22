@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace Pepperfm\Flashboard\Core\Forms\Fields;
 
+use Pepperfm\Flashboard\Contracts\Forms\FieldRenderer;
+
 class Select extends Field
 {
     public static function make(string $key): static
     {
-        return parent::make($key)->type('select');
+        return parent::make($key)->type(self::TYPE_SELECT);
     }
 
     /**
@@ -17,5 +19,10 @@ class Select extends Field
     public function options(array $options): static
     {
         return $this->attribute('options', $options);
+    }
+
+    protected function defaultRenderer(): ?FieldRenderer
+    {
+        return FieldRenderer::Select;
     }
 }

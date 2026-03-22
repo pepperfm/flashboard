@@ -1,6 +1,10 @@
 <script setup lang="ts">
 import { router, useForm } from '@inertiajs/vue3'
-import { computed, h, ref, resolveComponent, watch } from 'vue'
+import SectionedFormShell from '@/components/flashboard/forms/layout/SectionedFormShell.vue'
+import SimpleFormShell from '@/components/flashboard/forms/layout/SimpleFormShell.vue'
+import TabbedFormShell from '@/components/flashboard/forms/layout/TabbedFormShell.vue'
+import type { FormFieldShape } from '@/components/flashboard/forms/renderers/resolveFormFieldRenderer'
+import { computed, h, resolveComponent, watch } from 'vue'
 
 type ActionShape = {
   key: string
@@ -17,23 +21,6 @@ type TableColumnShape = {
   searchable?: boolean
   sortable?: boolean
   type?: string
-}
-
-type FormOptionShape = {
-  label?: string
-  value?: string | number | boolean
-}
-
-type FormFieldShape = {
-  key: string
-  label?: string
-  type?: string
-  input_type?: string
-  placeholder?: string
-  hint?: string
-  help?: string
-  required?: boolean
-  options?: FormOptionShape[] | Record<string, string | number | boolean>
 }
 
 type FormGroupShape = {
@@ -129,7 +116,6 @@ const props = defineProps<{
 }>()
 
 const form = useForm<Record<string, unknown>>({})
-const activeTab = ref<string | number>('')
 
 const pagination = computed(() => props.payload.table?.dataset?.pagination)
 const hasPagination = computed(() => (pagination.value?.last_page ?? 1) > 1)
@@ -166,20 +152,8 @@ const visibleFormTabs = computed(() =>
     }))
     .filter((tab) => (tab.schema?.length ?? 0) > 0),
 )
-const tabItems = computed(() =>
-  visibleFormTabs.value.map((tab) => ({
-    label: tab.label ?? tab.key,
-    icon: tab.icon,
-    value: tab.key,
-  })),
-)
-const activeTabSchema = computed(() =>
-  visibleFormTabs.value.find((tab) => tab.key === activeTab.value)?.schema ?? [],
-)
-const hasStructuredFormLayout = computed(() =>
-  visibleFormSections.value.length > 0 || visibleFormTabs.value.length > 0,
-)
-const isSimpleFormLayout = computed(() => !hasStructuredFormLayout.value)
+const hasTabbedFormLayout = computed(() => visibleFormTabs.value.length > 0)
+const hasSectionedFormLayout = computed(() => visibleFormSections.value.length > 0)
 
 const detailEntries = computed(() => props.payload.detail?.entries ?? [])
 const detailEntryMap = computed(() => new Map(
@@ -213,18 +187,6 @@ watch(
     }
 
     Object.assign(form, state)
-  },
-  { immediate: true },
-)
-
-watch(
-  () => tabItems.value,
-  (items) => {
-    const hasActive = items.some((item) => item.value === activeTab.value)
-
-    if (!hasActive) {
-      activeTab.value = items[0]?.value ?? ''
-    }
   },
   { immediate: true },
 )
@@ -331,96 +293,8 @@ function visitPage(page: number) {
   )
 }
 
-function fieldComponent(field: FormFieldShape): 'UInput' | 'UTextarea' | 'USelect' | 'USwitch' {
-  if (field.type === 'select') {
-    return 'USelect'
-  }
-
-  if (field.type === 'toggle') {
-    return 'USwitch'
-  }
-
-  if (/(description|notes|content|body)/i.test(field.key)) {
-    return 'UTextarea'
-  }
-
-  return 'UInput'
-}
-
-function isToggleField(field: FormFieldShape): boolean {
-  return fieldComponent(field) === 'USwitch'
-}
-
-function fieldModelValue(fieldKey: string): unknown {
-  return form[fieldKey]
-}
-
 function updateFieldValue(fieldKey: string, value: unknown) {
   form[fieldKey] = value
-}
-
-function fieldError(fieldKey?: string): string | undefined {
-  if (!fieldKey) {
-    return undefined
-  }
-
-  const error = form.errors[fieldKey]
-
-  return typeof error === 'string' ? error : undefined
-}
-
-function normalizeSelectItems(field: FormFieldShape): FormOptionShape[] {
-  const options = field.options ?? []
-
-  if (Array.isArray(options)) {
-    return options
-  }
-
-  return Object.entries(options).map(([value, label]) => ({
-    label: String(label),
-    value,
-  }))
-}
-
-function fieldComponentProps(field: FormFieldShape): Record<string, unknown> {
-  const placeholder = field.placeholder ?? field.label ?? field.key
-  const component = fieldComponent(field)
-
-  if (component === 'USelect') {
-    return {
-      class: 'w-full',
-      items: normalizeSelectItems(field),
-      name: field.key,
-      placeholder,
-      required: field.required,
-    }
-  }
-
-  if (component === 'USwitch') {
-    return {
-      description: field.help ?? field.hint,
-      label: field.label ?? field.key,
-      name: field.key,
-    }
-  }
-
-  if (component === 'UTextarea') {
-    return {
-      autoresize: true,
-      class: 'w-full',
-      name: field.key,
-      placeholder,
-      rows: 4,
-    }
-  }
-
-  return {
-    class: 'w-full',
-    name: field.key,
-    placeholder,
-    required: field.required,
-    type: field.input_type ?? 'text',
-  }
 }
 
 function submitForm() {
@@ -590,230 +464,50 @@ function formatValue(value: unknown): string {
   </template>
 
   <template v-else-if="payload.resource?.page === 'create' || payload.resource?.page === 'edit'">
-    <UPageSection class="mx-auto w-full max-w-4xl px-2 sm:px-4">
-      <UPageCard class="form-card-shell">
-        <div class="section-header">
-          <div>
-            <p class="section-kicker">{{ payload.form?.mode === 'edit' ? 'Edit' : 'Create' }}</p>
-            <h3 class="section-title">{{ payload.resource?.name ?? 'Resource' }}</h3>
-          </div>
-        </div>
+    <TabbedFormShell
+      v-if="hasTabbedFormLayout"
+      :cancel-url="payload.form?.cancel?.url"
+      :errors="form.errors as Record<string, string>"
+      :mode="payload.form?.mode"
+      :processing="form.processing"
+      :resource-name="payload.resource?.name"
+      :sections="visibleFormSections"
+      :standalone-fields="standaloneFormFields"
+      :state="form"
+      :tabs="visibleFormTabs"
+      @submit="submitForm"
+      @update:field="updateFieldValue"
+      @visit="visit"
+    />
 
-        <UForm :state="form" class="form-stack" @submit.prevent="submitForm">
-          <template v-if="isSimpleFormLayout">
-            <div class="simple-field-stack">
-              <div
-                v-for="field in standaloneFormFields"
-                :key="field.key"
-                class="simple-field-row"
-              >
-                <UFormField
-                  v-if="!isToggleField(field)"
-                  :name="field.key"
-                  :label="field.label ?? field.key"
-                  :hint="field.hint"
-                  :help="field.help"
-                  :error="fieldError(field.key)"
-                  :required="field.required"
-                >
-                  <USelect
-                    v-if="fieldComponent(field) === 'USelect'"
-                    :model-value="fieldModelValue(field.key)"
-                    v-bind="fieldComponentProps(field)"
-                    @update:model-value="updateFieldValue(field.key, $event)"
-                  />
+    <SectionedFormShell
+      v-else-if="hasSectionedFormLayout"
+      :cancel-url="payload.form?.cancel?.url"
+      :errors="form.errors as Record<string, string>"
+      :mode="payload.form?.mode"
+      :processing="form.processing"
+      :resource-name="payload.resource?.name"
+      :sections="visibleFormSections"
+      :standalone-fields="standaloneFormFields"
+      :state="form"
+      @submit="submitForm"
+      @update:field="updateFieldValue"
+      @visit="visit"
+    />
 
-                  <UTextarea
-                    v-else-if="fieldComponent(field) === 'UTextarea'"
-                    :model-value="fieldModelValue(field.key)"
-                    v-bind="fieldComponentProps(field)"
-                    @update:model-value="updateFieldValue(field.key, $event)"
-                  />
-
-                  <UInput
-                    v-else
-                    :model-value="fieldModelValue(field.key)"
-                    v-bind="fieldComponentProps(field)"
-                    @update:model-value="updateFieldValue(field.key, $event)"
-                  />
-                </UFormField>
-
-                <UFormField
-                  v-else
-                  :name="field.key"
-                  :error="fieldError(field.key)"
-                >
-                  <USwitch
-                    :model-value="fieldModelValue(field.key)"
-                    v-bind="fieldComponentProps(field)"
-                    @update:model-value="updateFieldValue(field.key, $event)"
-                  />
-                </UFormField>
-              </div>
-            </div>
-          </template>
-
-          <template v-else>
-            <UTabs
-              v-if="tabItems.length"
-              v-model="activeTab"
-              :items="tabItems"
-              :content="false"
-              color="neutral"
-              variant="pill"
-              class="tabs-shell"
-            />
-
-            <div v-if="activeTabSchema.length" class="section-stack">
-              <UCard
-                v-for="field in activeTabSchema"
-                :key="field.key"
-                variant="soft"
-              >
-                <UFormField
-                  v-if="!isToggleField(field)"
-                  :name="field.key"
-                  :label="field.label ?? field.key"
-                  :hint="field.hint"
-                  :help="field.help"
-                  :error="fieldError(field.key)"
-                  :required="field.required"
-                >
-                  <component
-                    :is="fieldComponent(field)"
-                    :model-value="fieldModelValue(field.key)"
-                    v-bind="fieldComponentProps(field)"
-                    @update:model-value="updateFieldValue(field.key, $event)"
-                  />
-                </UFormField>
-
-                <UFormField
-                  v-else
-                  :name="field.key"
-                  :error="fieldError(field.key)"
-                >
-                  <component
-                    :is="fieldComponent(field)"
-                    :model-value="fieldModelValue(field.key)"
-                    v-bind="fieldComponentProps(field)"
-                    @update:model-value="updateFieldValue(field.key, $event)"
-                  />
-                </UFormField>
-              </UCard>
-            </div>
-
-            <div
-              v-for="section in visibleFormSections"
-              :key="section.key"
-              class="section-stack"
-            >
-              <UCard variant="soft">
-                <template #header>
-                  <div>
-                    <h4 class="subsection-title">{{ section.label ?? section.key }}</h4>
-                    <p v-if="section.description" class="subsection-description">
-                      {{ section.description }}
-                    </p>
-                  </div>
-                </template>
-
-                <div class="field-grid">
-                  <div
-                    v-for="field in section.schema ?? []"
-                    :key="field.key"
-                  >
-                    <UFormField
-                      v-if="!isToggleField(field)"
-                      :name="field.key"
-                      :label="field.label ?? field.key"
-                      :hint="field.hint"
-                      :help="field.help"
-                      :error="fieldError(field.key)"
-                      :required="field.required"
-                    >
-                      <component
-                        :is="fieldComponent(field)"
-                        :model-value="fieldModelValue(field.key)"
-                        v-bind="fieldComponentProps(field)"
-                        @update:model-value="updateFieldValue(field.key, $event)"
-                      />
-                    </UFormField>
-
-                    <UFormField
-                      v-else
-                      :name="field.key"
-                      :error="fieldError(field.key)"
-                    >
-                      <component
-                        :is="fieldComponent(field)"
-                        :model-value="fieldModelValue(field.key)"
-                        v-bind="fieldComponentProps(field)"
-                        @update:model-value="updateFieldValue(field.key, $event)"
-                      />
-                    </UFormField>
-                  </div>
-                </div>
-              </UCard>
-            </div>
-
-            <div
-              v-if="standaloneFormFields.length"
-              class="field-grid"
-            >
-              <div
-                v-for="field in standaloneFormFields"
-                :key="field.key"
-              >
-                <UFormField
-                  v-if="!isToggleField(field)"
-                  :name="field.key"
-                  :label="field.label ?? field.key"
-                  :hint="field.hint"
-                  :help="field.help"
-                  :error="fieldError(field.key)"
-                  :required="field.required"
-                >
-                  <component
-                    :is="fieldComponent(field)"
-                    :model-value="fieldModelValue(field.key)"
-                    v-bind="fieldComponentProps(field)"
-                    @update:model-value="updateFieldValue(field.key, $event)"
-                  />
-                </UFormField>
-
-                <UFormField
-                  v-else
-                  :name="field.key"
-                  :error="fieldError(field.key)"
-                >
-                  <component
-                    :is="fieldComponent(field)"
-                    :model-value="fieldModelValue(field.key)"
-                    v-bind="fieldComponentProps(field)"
-                    @update:model-value="updateFieldValue(field.key, $event)"
-                  />
-                </UFormField>
-              </div>
-            </div>
-          </template>
-
-          <div class="action-row">
-            <UButton color="primary" :loading="form.processing" @click="submitForm">
-              {{ payload.form?.mode === 'edit' ? 'Save changes' : 'Create record' }}
-            </UButton>
-
-            <UButton
-              v-if="payload.form?.cancel?.url"
-              color="neutral"
-              variant="ghost"
-              @click="visit(payload.form.cancel.url)"
-            >
-              Cancel
-            </UButton>
-          </div>
-        </UForm>
-      </UPageCard>
-    </UPageSection>
+    <SimpleFormShell
+      v-else
+      :cancel-url="payload.form?.cancel?.url"
+      :errors="form.errors as Record<string, string>"
+      :fields="standaloneFormFields"
+      :mode="payload.form?.mode"
+      :processing="form.processing"
+      :resource-name="payload.resource?.name"
+      :state="form"
+      @submit="submitForm"
+      @update:field="updateFieldValue"
+      @visit="visit"
+    />
   </template>
 
   <template v-else-if="payload.resource?.page === 'detail'">
@@ -965,35 +659,6 @@ function formatValue(value: unknown): string {
   justify-content: flex-end;
 }
 
-.form-stack {
-  display: grid;
-  gap: 1rem;
-}
-
-.tabs-shell {
-  margin-bottom: 0.5rem;
-}
-
-.field-grid {
-  display: grid;
-  gap: 1rem;
-}
-
-.simple-field-stack {
-  display: grid;
-  gap: 1.25rem;
-}
-
-.simple-field-row {
-  display: grid;
-  gap: 0.5rem;
-}
-
-.section-stack {
-  display: grid;
-  gap: 1rem;
-}
-
 .section-header {
   display: flex;
   align-items: flex-start;
@@ -1013,12 +678,6 @@ function formatValue(value: unknown): string {
 .section-title {
   margin: 0;
   font-size: 1.125rem;
-  font-weight: 700;
-}
-
-.subsection-title {
-  margin: 0;
-  font-size: 1rem;
   font-weight: 700;
 }
 
@@ -1082,9 +741,4 @@ function formatValue(value: unknown): string {
   gap: 0.5rem;
 }
 
-@media (min-width: 720px) {
-  .field-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
 </style>

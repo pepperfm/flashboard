@@ -6,6 +6,7 @@ namespace App\Flashboard;
 
 use App\Models\Order;
 use Pepperfm\Flashboard\Contracts\Detail\DetailContract;
+use Pepperfm\Flashboard\Contracts\Forms\FieldRenderer;
 use Pepperfm\Flashboard\Contracts\Forms\FormContract;
 use Pepperfm\Flashboard\Contracts\Resources\Resource;
 use Pepperfm\Flashboard\Contracts\Tables\TableContract;
@@ -13,7 +14,6 @@ use Pepperfm\Flashboard\Core\Actions\Builders\Action;
 use Pepperfm\Flashboard\Core\Detail\Entries\TextEntry;
 use Pepperfm\Flashboard\Core\Forms\Fields\Select;
 use Pepperfm\Flashboard\Core\Forms\Fields\TextInput;
-use Pepperfm\Flashboard\Core\Forms\Layout\Section;
 use Pepperfm\Flashboard\Core\Relations\RelationDefinition;
 use Pepperfm\Flashboard\Core\Tables\Columns\BadgeColumn;
 use Pepperfm\Flashboard\Core\Tables\Columns\TextColumn;
@@ -36,11 +36,11 @@ final class OrdersResource extends Resource
     public static function form(FormContract $form): FormContract
     {
         return $form
-            ->sections([
-                Section::make('main')->label('Main')->schema([
-                    Select::make('status')->label('Status')->required(),
-                    TextInput::make('notes')->label('Notes'),
-                ]),
+            ->schema([
+                Select::make('status')->label('Status')->required(),
+                TextInput::make('notes')
+                    ->label('Notes')
+                    ->renderer(FieldRenderer::Textarea),
             ])
             ->rules([
                 'status' => ['required', 'string'],

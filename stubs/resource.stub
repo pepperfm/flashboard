@@ -33,7 +33,7 @@ final class {{ class }} extends Resource
             ->schema([
                 TextInput::make('{{ title_field }}')
                     ->label('{{ title_label }}')
-                    ->required(){{ title_input_suffix }},
+                    ->required(){{ title_field_suffix }},
 {{ secondary_form_field }}            ])
             ->rules([
                 '{{ title_field }}' => ['required', 'string'],

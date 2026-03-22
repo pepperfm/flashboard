@@ -4,13 +4,16 @@ declare(strict_types=1);
 
 namespace Pepperfm\Flashboard\Tests\Feature;
 
+use Pepperfm\Flashboard\Contracts\Forms\FieldRenderer;
 use Pepperfm\Flashboard\Contracts\Detail\DetailContract;
 use Pepperfm\Flashboard\Contracts\Forms\FormContract;
 use Pepperfm\Flashboard\Contracts\Resources\Resource;
 use Pepperfm\Flashboard\Contracts\Tables\TableContract;
 use Pepperfm\Flashboard\Core\Detail\Entries\TextEntry;
 use Pepperfm\Flashboard\Core\Detail\Layout\Section as DetailSection;
+use Pepperfm\Flashboard\Core\Forms\Fields\Select;
 use Pepperfm\Flashboard\Core\Forms\Fields\TextInput;
+use Pepperfm\Flashboard\Core\Forms\Fields\Toggle;
 use Pepperfm\Flashboard\Core\Forms\Layout\Section as FormSection;
 use Pepperfm\Flashboard\Core\Runtime\Assemblers\DetailPayloadAssembler;
 use Pepperfm\Flashboard\Core\Runtime\Payloads\DetailPayload;
@@ -48,6 +51,8 @@ final class TypedSchemaNormalizationTest extends TestCase
                 ->sections([
                     FormSection::make('main')->label('Main')->schema([
                         TextInput::make('email')->label('Email')->email()->required(),
+                        Select::make('status')->label('Status')->options(['draft' => 'Draft']),
+                        Toggle::make('is_active')->label('Is active'),
                     ]),
                 ])
                 ->rules([
@@ -58,9 +63,15 @@ final class TypedSchemaNormalizationTest extends TestCase
 
         self::assertCount(1, $payload->sections());
         self::assertSame('main', $payload->sections()[0]['key']);
-        self::assertCount(1, $payload->fields());
+        self::assertCount(3, $payload->fields());
         self::assertSame('email', $payload->fields()[0]['key']);
         self::assertSame('email', $payload->fields()[0]['input_type']);
+        self::assertSame(FieldRenderer::Input->value, $payload->fields()[0]['renderer']);
+        self::assertSame(FieldRenderer::Select->value, $payload->fields()[1]['renderer']);
+        self::assertSame(FieldRenderer::Switch->value, $payload->fields()[2]['renderer']);
+        self::assertSame(FieldRenderer::Input->value, $payload->sections()[0]['schema'][0]['renderer']);
+        self::assertSame(FieldRenderer::Select->value, $payload->sections()[0]['schema'][1]['renderer']);
+        self::assertSame(FieldRenderer::Switch->value, $payload->sections()[0]['schema'][2]['renderer']);
         self::assertArrayHasKey('email', $payload->rules());
     }
 
@@ -129,5 +140,41 @@ final class TypedSchemaNormalizationTest extends TestCase
         self::assertSame(['id', 'status'], array_column($payload->columns(), 'key'));
         self::assertSame(['status'], $payload->searchableColumns());
         self::assertSame(['id'], $payload->sortableColumns());
+    }
+
+    public function test_legacy_array_form_fields_receive_same_renderer_contract_as_typed_fields(): void
+    {
+        $typedPayload = new FormPayload(
+            Form::make()
+                ->sections([
+                    FormSection::make('main')->label('Main')->schema([
+                        TextInput::make('email')->label('Email')->email()->required(),
+                        Select::make('status')->label('Status')->options(['draft' => 'Draft']),
+                        Toggle::make('is_active')->label('Is active'),
+                    ]),
+                ])
+                ->toArray(),
+        );
+
+        $arrayPayload = new FormPayload(
+            Form::make()
+                ->sections([
+                    FormSection::make('main')->label('Main')->schema([
+                        ['key' => 'email', 'label' => 'Email', 'type' => 'text', 'input_type' => 'email', 'required' => true],
+                        ['key' => 'status', 'label' => 'Status', 'type' => 'select', 'options' => ['draft' => 'Draft']],
+                        ['key' => 'is_active', 'label' => 'Is active', 'type' => 'toggle'],
+                    ]),
+                ])
+                ->toArray(),
+        );
+
+        self::assertSame(
+            array_column($typedPayload->fields(), 'renderer', 'key'),
+            array_column($arrayPayload->fields(), 'renderer', 'key'),
+        );
+        self::assertSame(
+            array_column($typedPayload->sections()[0]['schema'], 'renderer', 'key'),
+            array_column($arrayPayload->sections()[0]['schema'], 'renderer', 'key'),
+        );
     }
 }

@@ -36,7 +36,7 @@ It is currently in early implementation: the product direction is documented, pa
 ├── phpstan.neon.dist            # Static analysis configuration
 ├── phpunit.xml                  # Testbench test suite entrypoint
 ├── playground/                  # Manual validation notes for local package development
-├── resources/                   # Package views and frontend source assets
+├── resources/                   # Package views and frontend source assets, including package-owned form wrappers and layout shells
 ├── routes/                      # Package route definitions loaded by the service provider
 ├── src/                         # Package source code grouped by contracts, schema foundations, core runtime, UI, and Laravel integration
 ├── stubs/                       # Generator stubs for demo and future package scaffolds
@@ -61,6 +61,7 @@ It is currently in early implementation: the product direction is documented, pa
 | `src/Integration/Laravel/Routing/PanelRouteRegistrar.php` | Registers auth, page, and resource panel routes from runtime registries |
 | `src/Integration/Laravel/DataSources/ResourceListDataSource.php` | Executes Eloquent-backed list resource queries for table screens |
 | `src/Core/Resources/ResourceSurfaceResolver.php` | Resolves resource surface availability, accessible resource-owned pages, and shared surface metadata |
+| `src/Contracts/Forms/FieldRenderer.php` | Public enum for stable form renderer hints in normalized payloads |
 | `src/Support/Schema/SchemaNodeNormalizer.php` | Normalizes typed schema nodes and legacy array definitions into deterministic runtime payload input |
 | `src/Integration/Laravel/Persistence/ResourceFormPersister.php` | Handles create and update persistence flow for resource forms |
 | `src/Core/Relations/RelationPayloadFactory.php` | Builds relation payloads for detail and nested resource contexts |
@@ -68,6 +69,10 @@ It is currently in early implementation: the product direction is documented, pa
 | `src/UI/Renderers/InertiaScreenRenderer.php` | Renders panel screens through Inertia instead of Blade-first server markup |
 | `src/UI/Renderers/JsonScreenRenderer.php` | Renders versioned runtime payloads for API-style consumers |
 | `resources/js/Pages/Flashboard/Screen.vue` | Main Inertia Vue page rendered with Nuxt UI components |
+| `resources/js/components/flashboard/forms/renderers/FormFieldRenderer.vue` | Central frontend renderer that maps normalized field payloads to Flashboard-owned wrapper components |
+| `resources/js/components/flashboard/forms/layout/SimpleFormShell.vue` | Schema-first create/edit shell for simple CRUD forms rendered in one centered page card |
+| `resources/js/components/flashboard/forms/layout/SectionedFormShell.vue` | Grouped create/edit shell for section-based resource forms |
+| `resources/js/components/flashboard/forms/layout/TabbedFormShell.vue` | Grouped create/edit shell for tab-driven resource forms |
 | `src/Integration/Laravel/Auth/PolicyBridge.php` | Bridges Laravel policies into package-level resource authorization |
 | `docs/installation.md` | Primary installation and bootstrap guide |
 | `docs/contracts.md` | Contract stability and compatibility policy |

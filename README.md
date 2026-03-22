@@ -5,7 +5,7 @@ Flashboard is a backend-driven Laravel admin runtime package for internal panels
 The current primary DX is a typed, declarative resource API:
 
 - `table()` with typed columns and filters such as `TextColumn`, `BadgeColumn`, `SelectFilter`
-- `form()` with typed fields and layout nodes such as `TextInput`, `Select`, `Toggle`, `Section`, `Tab`
+- `form()` with typed fields and a schema-first flow for simple CRUD forms, plus optional layout nodes such as `Section` and `Tab` when grouping is truly needed
 - `detail()` / `infolist()` with typed entries such as `TextEntry`
 - `actions()` and `pages()` as part of the same package-owned resource surface model
 

@@ -11,6 +11,7 @@ use Pepperfm\Flashboard\Contracts\Forms\FormContract;
 use Pepperfm\Flashboard\Contracts\Resources\Resource;
 use Pepperfm\Flashboard\Contracts\Tables\TableContract;
 use Pepperfm\Flashboard\Core\Detail\Entries\TextEntry;
+use Pepperfm\Flashboard\Contracts\Forms\FieldRenderer;
 use Pepperfm\Flashboard\Core\Forms\Fields\TextInput;
 use Pepperfm\Flashboard\Core\Tables\Columns\TextColumn;
 
@@ -107,6 +108,10 @@ final class MakeResourceCommand extends \Illuminate\Console\Command
             TextColumn::class,
         ];
 
+        if ($this->usesTextareaRenderer($titleField) || $this->usesTextareaRenderer($secondaryField)) {
+            $imports[] = FieldRenderer::class;
+        }
+
         if ($includeDetail) {
             $imports[] = DetailContract::class;
             $imports[] = TextEntry::class;
@@ -124,7 +129,7 @@ final class MakeResourceCommand extends \Illuminate\Console\Command
                 '{{ navigation_group_method }}',
                 '{{ title_field }}',
                 '{{ title_label }}',
-                '{{ title_input_suffix }}',
+                '{{ title_field_suffix }}',
                 '{{ secondary_form_field }}',
                 '{{ secondary_table_column }}',
                 '{{ secondary_form_rule }}',
@@ -139,7 +144,7 @@ final class MakeResourceCommand extends \Illuminate\Console\Command
                 $this->renderNavigationGroupMethod($navigationGroup),
                 $titleField,
                 str($titleField)->headline()->toString(),
-                str_contains(strtolower($titleField), 'email') ? PHP_EOL . '                    ->email()' : '',
+                $this->fieldModifierSuffix($titleField),
                 $this->secondaryFormField($secondaryField),
                 $this->secondaryTableColumn($secondaryField),
                 $this->secondaryFormRule($secondaryField),
@@ -191,11 +196,40 @@ final class MakeResourceCommand extends \Illuminate\Console\Command
         if ($secondaryField !== '') {
             return implode(PHP_EOL, [
                 "                TextInput::make('$secondaryField')",
-                "                    ->label('" . str($secondaryField)->headline()->value() . "')" . (str_contains(strtolower($secondaryField), 'email') ? PHP_EOL . '                    ->email()' : '') . ',',
+                "                    ->label('" . str($secondaryField)->headline()->value() . "')" . $this->fieldModifierSuffix($secondaryField) . ',',
             ]) . PHP_EOL;
         }
 
         return '';
+    }
+
+    private function fieldModifierSuffix(string $field): string
+    {
+        $suffix = '';
+
+        if ($this->isEmailField($field)) {
+            $suffix .= PHP_EOL . '                    ->email()';
+        }
+
+        if ($this->usesTextareaRenderer($field)) {
+            $suffix .= PHP_EOL . '                    ->renderer(FieldRenderer::Textarea)';
+        }
+
+        return $suffix;
+    }
+
+    private function isEmailField(string $field): bool
+    {
+        return str_contains(strtolower($field), 'email');
+    }
+
+    private function usesTextareaRenderer(string $field): bool
+    {
+        if ($field === '') {
+            return false;
+        }
+
+        return (bool) preg_match('/(?:description|notes|content|body)/i', $field);
     }
 
     private function renderDetailMethod(
