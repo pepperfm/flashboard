@@ -42,36 +42,23 @@ final class InstallCommandTest extends TestCase
         $method->setAccessible(true);
 
         $files = new Filesystem();
-        $packageLockPath = base_path('package-lock.json');
-        $bunLockPath = base_path('bun.lock');
-        $bunLockBackupPath = base_path('bun.lock.test-backup');
-
-        $packageLockExists = $files->exists($packageLockPath);
-        $bunLockExists = $files->exists($bunLockPath);
+        $testDirectory = sys_get_temp_dir() . '/flashboard-install-' . bin2hex(random_bytes(8));
+        $packageLockPath = $testDirectory . '/package-lock.json';
+        $bunLockPath = $testDirectory . '/bun.lock';
 
         try {
-            if ($bunLockExists) {
-                $files->move($bunLockPath, $bunLockBackupPath);
-            }
+            $files->ensureDirectoryExists($testDirectory);
 
             $files->put($packageLockPath, '{}');
 
-            self::assertSame('npm', $method->invoke($command, $files));
+            self::assertSame('npm', $method->invoke($command, $files, $testDirectory));
 
             $files->put($bunLockPath, '');
 
-            self::assertSame('bun', $method->invoke($command, $files));
+            self::assertSame('bun', $method->invoke($command, $files, $testDirectory));
         } finally {
-            if (!$packageLockExists && $files->exists($packageLockPath)) {
-                $files->delete($packageLockPath);
-            }
-
-            if (!$bunLockExists && $files->exists($bunLockPath)) {
-                $files->delete($bunLockPath);
-            }
-
-            if ($bunLockExists && $files->exists($bunLockBackupPath)) {
-                $files->move($bunLockBackupPath, $bunLockPath);
+            if ($files->isDirectory($testDirectory)) {
+                $files->deleteDirectory($testDirectory);
             }
         }
     }

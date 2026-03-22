@@ -29,6 +29,7 @@ final class InstallCommand extends \Illuminate\Console\Command
         $panelPath = $this->requestedPanelPath();
         $packageManager = $this->requestedPackageManager($files);
         $discoveryDirectory = app_path('Flashboard');
+        $packageBuildPath = $this->packageBasePath() . '/public/build';
         $providerPath = $this->ensurePanelProvider($files, $panelPath);
 
         info('Installing Flashboard...');
@@ -41,8 +42,13 @@ final class InstallCommand extends \Illuminate\Console\Command
         }
 
         $this->call('vendor:publish', $publishOptions + ['--tag' => 'flashboard-views']);
-        $this->call('vendor:publish', $publishOptions + ['--tag' => 'flashboard-assets']);
-        $this->runFrontendSetup($packageManager);
+        $assetsReady = $this->runFrontendSetup($packageManager, $files);
+
+        if ($assetsReady && $files->isDirectory($packageBuildPath)) {
+            $this->call('vendor:publish', $publishOptions + ['--tag' => 'flashboard-assets']);
+        } else {
+            warning('Skipped publishing flashboard-assets because no package build artifacts were generated.');
+        }
 
         info('Flashboard install bootstrap completed.');
         note('Next steps');
@@ -100,7 +106,7 @@ final class InstallCommand extends \Illuminate\Console\Command
 
     private function requestedPackageManager(Filesystem $files): string
     {
-        $default = $this->defaultPackageManager($files);
+        $default = $this->defaultPackageManager($files, $this->packageBasePath());
 
         return (string) select(
             label: 'Package manager for frontend assets',
@@ -115,51 +121,51 @@ final class InstallCommand extends \Illuminate\Console\Command
         );
     }
 
-    private function defaultPackageManager(Filesystem $files): string
+    private function defaultPackageManager(Filesystem $files, ?string $directory = null): string
     {
-        if ($files->exists(base_path('bun.lock')) || $files->exists(base_path('bun.lockb'))) {
+        $directory = $directory ?? $this->packageBasePath();
+
+        if ($files->exists($directory . '/bun.lock') || $files->exists($directory . '/bun.lockb')) {
             return 'bun';
         }
-
-        if ($files->exists(base_path('pnpm-lock.yaml'))) {
+        if ($files->exists($directory . '/pnpm-lock.yaml')) {
             return 'pnpm';
         }
-
-        if ($files->exists(base_path('yarn.lock'))) {
+        if ($files->exists($directory . '/yarn.lock')) {
             return 'yarn';
         }
 
-        if ($files->exists(base_path('package-lock.json'))) {
-            return 'npm';
-        }
-
         return 'npm';
+
     }
 
-    protected function runFrontendSetup(string $packageManager): void
+    protected function runFrontendSetup(string $packageManager, Filesystem $files): bool
     {
         if ($packageManager === 'skip') {
             note('Skipped frontend dependency install and asset build.');
 
-            return;
+            return false;
         }
 
         $installCommand = $this->frontendInstallCommand($packageManager);
         $buildCommand = $this->frontendBuildCommand($packageManager);
+        $workingDirectory = $this->packageBasePath();
 
         info(sprintf('Installing frontend dependencies with %s...', $packageManager));
-        $this->runProcess($installCommand);
+        $this->runProcess($installCommand, $workingDirectory);
 
         info(sprintf('Building frontend assets with %s...', $packageManager));
-        $this->runProcess($buildCommand);
+        $this->runProcess($buildCommand, $workingDirectory);
+
+        return $files->isDirectory($workingDirectory . '/public/build');
     }
 
     /**
      * @param list<string> $command
      */
-    protected function runProcess(array $command): void
+    protected function runProcess(array $command, string $workingDirectory): void
     {
-        $process = new Process($command, base_path());
+        $process = new Process($command, $workingDirectory);
         $process->setTimeout(null);
         $process->run(function (string $type, string $output): void {
             $this->output->write($output);
@@ -197,6 +203,11 @@ final class InstallCommand extends \Illuminate\Console\Command
             'yarn' => ['yarn', 'run', 'build'],
             default => ['npm', 'run', 'build'],
         };
+    }
+
+    private function packageBasePath(): string
+    {
+        return dirname(__DIR__, 4);
     }
 
     private function ensurePanelProvider(Filesystem $files, string $panelPath): string
