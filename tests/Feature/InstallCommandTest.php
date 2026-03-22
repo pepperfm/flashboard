@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Pepperfm\Flashboard\Tests\Feature;
 
 use Illuminate\Filesystem\Filesystem;
+use Pepperfm\Flashboard\Integration\Laravel\Console\BuildAssetsCommand;
 use Pepperfm\Flashboard\Integration\Laravel\Console\InstallCommand;
 use Pepperfm\Flashboard\Tests\TestCase;
 
@@ -65,8 +66,8 @@ final class InstallCommandTest extends TestCase
 
     public function test_frontend_install_command_uses_selected_package_manager(): void
     {
-        $command = $this->makeCommand();
-        $method = (new \ReflectionClass(InstallCommand::class))
+        $command = $this->makeBuildAssetsCommand();
+        $method = (new \ReflectionClass(BuildAssetsCommand::class))
             ->getMethod('frontendInstallCommand');
         $method->setAccessible(true);
 
@@ -78,8 +79,8 @@ final class InstallCommandTest extends TestCase
 
     public function test_frontend_build_command_uses_selected_package_manager(): void
     {
-        $command = $this->makeCommand();
-        $method = (new \ReflectionClass(InstallCommand::class))
+        $command = $this->makeBuildAssetsCommand();
+        $method = (new \ReflectionClass(BuildAssetsCommand::class))
             ->getMethod('frontendBuildCommand');
         $method->setAccessible(true);
 
@@ -92,6 +93,13 @@ final class InstallCommandTest extends TestCase
     private function makeCommand(): InstallCommand
     {
         $reflection = new \ReflectionClass(InstallCommand::class);
+
+        return $reflection->newInstanceWithoutConstructor();
+    }
+
+    private function makeBuildAssetsCommand(): BuildAssetsCommand
+    {
+        $reflection = new \ReflectionClass(BuildAssetsCommand::class);
 
         return $reflection->newInstanceWithoutConstructor();
     }

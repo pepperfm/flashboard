@@ -47,6 +47,12 @@ It will also ask which frontend package manager should be used for asset setup:
 
 Unless you choose `skip`, the installer will run the selected package manager's install command and then build Flashboard's published frontend assets automatically.
 
+If you want to rebuild package assets later without re-running the full installer, use:
+
+```bash
+php artisan flashboard:build-assets
+```
+
 This publishes:
 
 - `resources/views/vendor/flashboard/*`

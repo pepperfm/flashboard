@@ -27,6 +27,7 @@ use Pepperfm\Flashboard\Core\Runtime\Workspaces\WorkspacePayloadAssembler;
 use Pepperfm\Flashboard\Flashboard;
 use Pepperfm\Flashboard\Integration\Laravel\Auth\PanelAuthenticator;
 use Pepperfm\Flashboard\Integration\Laravel\Auth\PolicyBridge;
+use Pepperfm\Flashboard\Integration\Laravel\Console\BuildAssetsCommand;
 use Pepperfm\Flashboard\Integration\Laravel\Console\InstallCommand;
 use Pepperfm\Flashboard\Integration\Laravel\Console\PlaygroundInfoCommand;
 use Pepperfm\Flashboard\Integration\Laravel\DataSources\ResourceDetailDataSource;
@@ -116,6 +117,7 @@ final class FlashboardServiceProvider extends \Illuminate\Support\ServiceProvide
 
         if ($this->app->runningInConsole()) {
             $this->commands([
+                BuildAssetsCommand::class,
                 InstallCommand::class,
                 \Pepperfm\Flashboard\Integration\Laravel\Console\MakePageCommand::class,
                 \Pepperfm\Flashboard\Integration\Laravel\Console\MakeProviderCommand::class,
