@@ -85,10 +85,18 @@ It is currently in early implementation: the product direction is documented, pa
 ## Documentation
 | Document | Path | Description |
 |----------|------|-------------|
+| README | `README.md` | Package landing page with live docs links |
 | Admin Panel Library Concept | `ADMIN_PANEL_LIBRARY_CONCEPT.md` | Core product concept and intended package behavior |
 | Installation Guide | `docs/installation.md` | Package install and bootstrap flow |
+| Resources Guide | `docs/resources.md` | Resource DSL, discovery, and authoring patterns |
+| Forms Guide | `docs/forms.md` | Schema-tree form authoring and layout rules |
+| Tables Guide | `docs/tables.md` | List screen, column, filter, and pagination behavior |
+| Workspaces Guide | `docs/workspaces.md` | Custom page and operator workflow patterns |
+| Extensions Guide | `docs/extensions.md` | Query, payload, action, and runtime extension points |
 | Contracts Guide | `docs/contracts.md` | Beta contract stability and payload versioning notes |
+| Upgrading Guide | `docs/upgrading.md` | Migration notes for config and DSL changes |
 | Releases Guide | `docs/releases.md` | Release flow and diagnostics |
+| Beta Checklist | `docs/beta-checklist.md` | Beta readiness checklist for maintainers |
 
 ## AI Context Files
 | File | Purpose |

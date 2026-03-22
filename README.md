@@ -1,6 +1,7 @@
 # Flashboard
 
 Flashboard is a backend-driven Laravel admin runtime package for internal panels.
+Full documentation lives at [flashboard.pepperfm.com](https://flashboard.pepperfm.com).
 
 The current primary DX is a typed, declarative resource API:
 
@@ -11,18 +12,21 @@ The current primary DX is a typed, declarative resource API:
 
 Legacy array definitions remain supported as a compatibility bridge while host apps move to the typed DSL.
 
-## Docs
+## Documentation
 
-- [Installation](./docs/installation.md)
-- [Resources](./docs/resources.md)
-- [Forms](./docs/forms.md)
-- [Tables](./docs/tables.md)
-- [Workspaces](./docs/workspaces.md)
-- [Extensions](./docs/extensions.md)
-- [Contracts](./docs/contracts.md)
-- [Upgrading](./docs/upgrading.md)
-- [Releases](./docs/releases.md)
-- [Beta Checklist](./docs/beta-checklist.md)
+| Guide | Live Docs | Source |
+|-------|-----------|--------|
+| Overview | [flashboard.pepperfm.com/overview](https://flashboard.pepperfm.com/overview) | [README](./README.md) |
+| Installation | [Installation](https://flashboard.pepperfm.com/getting-started/installation) | [docs/installation.md](./docs/installation.md) |
+| Resources | [Resources](https://flashboard.pepperfm.com/getting-started/resources) | [docs/resources.md](./docs/resources.md) |
+| Forms | [Forms](https://flashboard.pepperfm.com/getting-started/forms) | [docs/forms.md](./docs/forms.md) |
+| Tables | [Tables](https://flashboard.pepperfm.com/getting-started/tables) | [docs/tables.md](./docs/tables.md) |
+| Workspaces | [Workspaces](https://flashboard.pepperfm.com/getting-started/workspaces) | [docs/workspaces.md](./docs/workspaces.md) |
+| Extensions | [Extensions](https://flashboard.pepperfm.com/reference/extensions) | [docs/extensions.md](./docs/extensions.md) |
+| Contracts | [Contracts](https://flashboard.pepperfm.com/reference/contracts) | [docs/contracts.md](./docs/contracts.md) |
+| Upgrading | [Upgrading](https://flashboard.pepperfm.com/reference/upgrading) | [docs/upgrading.md](./docs/upgrading.md) |
+| Releases | [Releases](https://flashboard.pepperfm.com/release/releases) | [docs/releases.md](./docs/releases.md) |
+| Beta Checklist | [Beta Checklist](https://flashboard.pepperfm.com/release/beta-checklist) | [docs/beta-checklist.md](./docs/beta-checklist.md) |
 
 ## Current Scope
 
