@@ -130,6 +130,6 @@ trait InteractsWithFrontendAssets
 
     private function packageBasePath(): string
     {
-        return dirname(__DIR__, 4);
+        return dirname(__DIR__, 5);
     }
 }
