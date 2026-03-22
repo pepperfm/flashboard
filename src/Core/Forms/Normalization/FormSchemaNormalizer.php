@@ -30,12 +30,17 @@ final class FormSchemaNormalizer
             $this->flattenGroupSchema($sections),
             $this->flattenGroupSchema($tabs),
         );
+        $deduplicatedFields = $this->deduplicateKeyedNodes($flattenedFields);
+        $explicitRules = (array) Arr::get($definition, 'rules', []);
 
         return [
             'sections' => $sections,
             'tabs' => $tabs,
-            'fields' => $this->deduplicateKeyedNodes($flattenedFields),
-            'rules' => (array) Arr::get($definition, 'rules', []),
+            'fields' => $deduplicatedFields,
+            'rules' => $this->mergeRules(
+                $this->inferRulesFromFields($deduplicatedFields),
+                $explicitRules,
+            ),
             'defaults' => (array) Arr::get($definition, 'defaults', []),
             'has_mutate_data_using' => (bool) Arr::get($definition, 'has_mutate_data_using', false),
             'has_after_save' => (bool) Arr::get($definition, 'has_after_save', false),
@@ -89,5 +94,73 @@ final class FormSchemaNormalizer
         }
 
         return array_values($deduplicated);
+    }
+
+    /**
+     * @param list<array<string, mixed>> $fields
+     *
+     * @return array<string, list<mixed>>
+     */
+    private function inferRulesFromFields(array $fields): array
+    {
+        $rules = [];
+
+        foreach ($fields as $field) {
+            $key = trim((string) Arr::get($field, 'key', ''));
+
+            if ($key === '') {
+                continue;
+            }
+
+            $fieldRules = [];
+            $isRequired = (bool) Arr::get($field, 'required', false);
+            $type = (string) Arr::get($field, 'type', '');
+            $inputType = (string) Arr::get($field, 'input_type', '');
+
+            $fieldRules[] = $isRequired ? 'required' : 'nullable';
+
+            if ($type === 'text' || $inputType === 'email') {
+                $fieldRules[] = 'string';
+            }
+
+            if ($inputType === 'email') {
+                $fieldRules[] = 'email';
+            }
+
+            if ($type === 'toggle') {
+                $fieldRules[] = 'boolean';
+            }
+
+            $rules[$key] = array_values(array_unique($fieldRules));
+        }
+
+        return $rules;
+    }
+
+    /**
+     * @param array<string, mixed> $inferredRules
+     * @param array<string, mixed> $explicitRules
+     *
+     * @return array<string, mixed>
+     */
+    private function mergeRules(array $inferredRules, array $explicitRules): array
+    {
+        $merged = $inferredRules;
+
+        foreach ($explicitRules as $field => $rules) {
+            $inferred = $merged[$field] ?? [];
+
+            if (!is_array($rules)) {
+                $rules = [$rules];
+            }
+
+            if (!is_array($inferred)) {
+                $inferred = [$inferred];
+            }
+
+            $merged[$field] = array_values(array_unique(array_merge($inferred, $rules), SORT_REGULAR));
+        }
+
+        return $merged;
     }
 }
