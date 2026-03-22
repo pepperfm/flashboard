@@ -55,6 +55,14 @@ php artisan flashboard:build-assets
 
 This command also republishes Flashboard views and assets after a successful build.
 
+You can bypass the interactive package-manager prompt with an explicit flag:
+
+```bash
+php artisan flashboard:build-assets --bun
+php artisan flashboard:build-assets --pnpm
+php artisan flashboard:build-assets --skip
+```
+
 This publishes:
 
 - `resources/views/vendor/flashboard/*`

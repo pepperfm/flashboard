@@ -16,6 +16,12 @@ trait InteractsWithFrontendAssets
 {
     private function requestedPackageManager(Filesystem $files): string
     {
+        $explicitPackageManager = $this->explicitPackageManagerOption();
+
+        if ($explicitPackageManager !== null) {
+            return $explicitPackageManager;
+        }
+
         $default = $this->defaultPackageManager($files, $this->packageBasePath());
 
         return (string) select(
@@ -29,6 +35,23 @@ trait InteractsWithFrontendAssets
             ],
             default: $default,
         );
+    }
+
+    private function explicitPackageManagerOption(): ?string
+    {
+        $selected = array_values(array_filter([
+            $this->option('bun') ? 'bun' : null,
+            $this->option('npm') ? 'npm' : null,
+            $this->option('pnpm') ? 'pnpm' : null,
+            $this->option('yarn') ? 'yarn' : null,
+            $this->option('skip') ? 'skip' : null,
+        ]));
+
+        if (count($selected) > 1) {
+            throw new \InvalidArgumentException('Choose only one package manager option: --bun, --npm, --pnpm, --yarn, or --skip.');
+        }
+
+        return $selected[0] ?? null;
     }
 
     private function defaultPackageManager(Filesystem $files, ?string $directory = null): string

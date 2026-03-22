@@ -12,7 +12,15 @@ use function Laravel\Prompts\info;
 use function Laravel\Prompts\note;
 use function Laravel\Prompts\warning;
 
-#[Signature('flashboard:build-assets {--force : Overwrite published views and assets when supported}')]
+#[Signature(
+    'flashboard:build-assets
+    {--force : Overwrite published views and assets when supported}
+    {--bun : Use bun for install and build}
+    {--npm : Use npm for install and build}
+    {--pnpm : Use pnpm for install and build}
+    {--yarn : Use yarn for install and build}
+    {--skip : Skip frontend install and build}'
+)]
 final class BuildAssetsCommand extends \Illuminate\Console\Command
 {
     use InteractsWithFrontendAssets;
