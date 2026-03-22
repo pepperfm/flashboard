@@ -187,6 +187,8 @@ final readonly class ScreenPayloadAssembler
      */
     private function resourceRoutes(string $resourceClass, mixed $recordKey = null): array
     {
+        $hasDetailSurface = $this->resourceSurfaceResolver->hasDetailSurfaceForResource($resourceClass);
+
         return [
             'index' => route(
                 config('flashboard.route_name_prefix', 'flashboard.')
@@ -196,7 +198,7 @@ final readonly class ScreenPayloadAssembler
                 config('flashboard.route_name_prefix', 'flashboard.')
                 . 'resources.' . $resourceClass::key() . '.create',
             ),
-            'detail' => $recordKey === null
+            'detail' => $recordKey === null || !$hasDetailSurface
                 ? null
                 : route(
                     config('flashboard.route_name_prefix', 'flashboard.')

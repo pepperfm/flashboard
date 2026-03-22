@@ -7,7 +7,10 @@ namespace Pepperfm\Flashboard\Tests\Feature;
 use Pepperfm\Flashboard\Core\Pages\DashboardPage;
 use Pepperfm\Flashboard\Core\Registry\PageRegistry;
 use Pepperfm\Flashboard\Core\Registry\ResourceRegistry;
+use Pepperfm\Flashboard\Core\Resources\ResourceSurfaceResolver;
 use Pepperfm\Flashboard\Integration\Laravel\Routing\PanelRouteRegistrar;
+use Pepperfm\Flashboard\Integration\Laravel\Auth\PolicyBridge;
+use Pepperfm\Flashboard\Tests\Fixtures\Flashboard\UsersResource;
 use Pepperfm\Flashboard\Tests\TestCase;
 
 final class PanelRoutingTest extends TestCase
@@ -20,6 +23,7 @@ final class PanelRoutingTest extends TestCase
         (new PanelRouteRegistrar(
             $this->app->make(PageRegistry::class),
             $this->app->make(ResourceRegistry::class),
+            new ResourceSurfaceResolver(new \Pepperfm\Flashboard\Core\Authorization\Visibility\ScreenAccessResolver(new PolicyBridge())),
         ))->register();
         $this->router->getRoutes()->refreshNameLookups();
 
@@ -37,9 +41,30 @@ final class PanelRoutingTest extends TestCase
         (new PanelRouteRegistrar(
             $this->app->make(PageRegistry::class),
             $this->app->make(ResourceRegistry::class),
+            new ResourceSurfaceResolver(new \Pepperfm\Flashboard\Core\Authorization\Visibility\ScreenAccessResolver(new PolicyBridge())),
         ))->register();
         $this->router->getRoutes()->refreshNameLookups();
 
         self::assertNotNull($this->router->getRoutes()->getByName('flashboard.home'));
+    }
+
+    public function test_detail_route_is_not_registered_when_resource_has_no_detail_surface(): void
+    {
+        $pageRegistry = new PageRegistry();
+        $resourceRegistry = new ResourceRegistry();
+        $resourceRegistry->register(UsersResource::class);
+
+        $this->app->instance(PageRegistry::class, $pageRegistry);
+        $this->app->instance(ResourceRegistry::class, $resourceRegistry);
+
+        (new PanelRouteRegistrar(
+            $this->app->make(PageRegistry::class),
+            $this->app->make(ResourceRegistry::class),
+            new ResourceSurfaceResolver(new \Pepperfm\Flashboard\Core\Authorization\Visibility\ScreenAccessResolver(new PolicyBridge())),
+        ))->register();
+        $this->router->getRoutes()->refreshNameLookups();
+
+        self::assertNull($this->router->getRoutes()->getByName('flashboard.resources.users.detail'));
+        self::assertNotNull($this->router->getRoutes()->getByName('flashboard.resources.users.edit'));
     }
 }

@@ -9,6 +9,7 @@ use Pepperfm\Flashboard\Contracts\Resources\Resource;
 use Pepperfm\Flashboard\Core\Authorization\Visibility\ScreenAccessResolver;
 use Pepperfm\Flashboard\Core\Extensions\ExtensionRegistry;
 use Pepperfm\Flashboard\Core\Hooks\RuntimeHookDispatcher;
+use Pepperfm\Flashboard\Core\Resources\ResourceSurfaceResolver;
 use Pepperfm\Flashboard\Core\Runtime\Assemblers\TablePayloadAssembler;
 use Pepperfm\Flashboard\Integration\Laravel\Auth\PanelAuthenticator;
 
@@ -20,6 +21,7 @@ final readonly class ResourceListDataSource
         private PanelAuthenticator $authenticator,
         private ExtensionRegistry $extensionRegistry,
         private RuntimeHookDispatcher $runtimeHookDispatcher,
+        private ResourceSurfaceResolver $resourceSurfaceResolver,
     ) {
     }
 
@@ -77,6 +79,7 @@ final readonly class ResourceListDataSource
 
         $paginator = $query->paginate($perPage);
         $user = $this->authenticator->user();
+        $hasDetailSurface = $this->resourceSurfaceResolver->hasDetailSurfaceForResource($resourceClass);
         $columns = array_values(array_map(
             fn(array $column): array => array_merge($column, [
                 'key' => (string) $column['key'],
@@ -106,11 +109,13 @@ final readonly class ResourceListDataSource
                 'id' => $record->getKey(),
                 'attributes' => [],
                 'links' => [
-                    'detail' => route(
-                        config('flashboard.route_name_prefix', 'flashboard.')
-                        . 'resources.' . $resourceClass::key() . '.detail',
-                        ['record' => $record->getKey()],
-                    ),
+                    'detail' => $hasDetailSurface
+                        ? route(
+                            config('flashboard.route_name_prefix', 'flashboard.')
+                            . 'resources.' . $resourceClass::key() . '.detail',
+                            ['record' => $record->getKey()],
+                        )
+                        : null,
                     'edit' => route(
                         config('flashboard.route_name_prefix', 'flashboard.')
                         . 'resources.' . $resourceClass::key() . '.edit',

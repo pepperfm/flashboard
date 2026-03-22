@@ -41,6 +41,14 @@ final readonly class ResourceSurfaceResolver
 
     /**
      * @param class-string<Resource> $resourceClass
+     */
+    public function hasDetailSurfaceForResource(string $resourceClass): bool
+    {
+        return $this->hasDetailSurface($resourceClass);
+    }
+
+    /**
+     * @param class-string<Resource> $resourceClass
      *
      * @return list<ActionContract>
      */

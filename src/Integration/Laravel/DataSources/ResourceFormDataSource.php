@@ -9,6 +9,7 @@ use Illuminate\Support\Arr;
 use Pepperfm\Flashboard\Contracts\Resources\Resource;
 use Pepperfm\Flashboard\Core\Authorization\Visibility\ScreenAccessResolver;
 use Pepperfm\Flashboard\Core\Extensions\ExtensionRegistry;
+use Pepperfm\Flashboard\Core\Resources\ResourceSurfaceResolver;
 use Pepperfm\Flashboard\Core\Runtime\Assemblers\FormPayloadAssembler;
 use Pepperfm\Flashboard\Core\Forms\Builders\Form;
 use Pepperfm\Flashboard\Integration\Laravel\Auth\PanelAuthenticator;
@@ -20,6 +21,7 @@ final readonly class ResourceFormDataSource
         private ScreenAccessResolver $screenAccessResolver,
         private PanelAuthenticator $authenticator,
         private ExtensionRegistry $extensionRegistry,
+        private ResourceSurfaceResolver $resourceSurfaceResolver,
     ) {
     }
 
@@ -81,11 +83,16 @@ final readonly class ResourceFormDataSource
                         config('flashboard.route_name_prefix', 'flashboard.')
                         . 'resources.' . $resourceClass::key() . '.index',
                     )
-                    : route(
-                        config('flashboard.route_name_prefix', 'flashboard.')
-                        . 'resources.' . $resourceClass::key() . '.detail',
-                        ['record' => $record->getKey()],
-                    ),
+                    : $this->resourceSurfaceResolver->hasDetailSurfaceForResource($resourceClass)
+                        ? route(
+                            config('flashboard.route_name_prefix', 'flashboard.')
+                            . 'resources.' . $resourceClass::key() . '.detail',
+                            ['record' => $record->getKey()],
+                        )
+                        : route(
+                            config('flashboard.route_name_prefix', 'flashboard.')
+                            . 'resources.' . $resourceClass::key() . '.index',
+                        ),
             ],
         ]);
 

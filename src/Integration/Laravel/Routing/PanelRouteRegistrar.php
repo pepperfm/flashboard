@@ -7,6 +7,7 @@ namespace Pepperfm\Flashboard\Integration\Laravel\Routing;
 use Illuminate\Support\Facades\Route;
 use Pepperfm\Flashboard\Core\Registry\PageRegistry;
 use Pepperfm\Flashboard\Core\Registry\ResourceRegistry;
+use Pepperfm\Flashboard\Core\Resources\ResourceSurfaceResolver;
 use Pepperfm\Flashboard\Integration\Laravel\Http\Controllers\ActionController;
 use Pepperfm\Flashboard\Integration\Laravel\Http\Controllers\Auth\LoginController;
 use Pepperfm\Flashboard\Integration\Laravel\Http\Controllers\Auth\LogoutController;
@@ -19,6 +20,7 @@ final readonly class PanelRouteRegistrar
     public function __construct(
         private PageRegistry $pageRegistry,
         private ResourceRegistry $resourceRegistry,
+        private ResourceSurfaceResolver $resourceSurfaceResolver,
     ) {
     }
 
@@ -92,11 +94,13 @@ final readonly class PanelRouteRegistrar
                 ->defaults('flashboard.resource', $resourceClass)
                 ->name('resources.' . $resourceClass::key() . '.store');
 
-            Route::get("$base/{record}", PanelScreenController::class)
-                ->middleware($resourceClass::middleware())
-                ->defaults('flashboard.resource', $resourceClass)
-                ->defaults('flashboard.resource_page', 'detail')
-                ->name('resources.' . $resourceClass::key() . '.detail');
+            if ($this->resourceSurfaceResolver->hasDetailSurfaceForResource($resourceClass)) {
+                Route::get("$base/{record}", PanelScreenController::class)
+                    ->middleware($resourceClass::middleware())
+                    ->defaults('flashboard.resource', $resourceClass)
+                    ->defaults('flashboard.resource_page', 'detail')
+                    ->name('resources.' . $resourceClass::key() . '.detail');
+            }
 
             Route::get("$base/{record}/edit", PanelScreenController::class)
                 ->middleware($resourceClass::middleware())
