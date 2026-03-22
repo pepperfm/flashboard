@@ -12,7 +12,7 @@ use function Laravel\Prompts\info;
 use function Laravel\Prompts\note;
 use function Laravel\Prompts\warning;
 
-#[Signature('flashboard:build-assets')]
+#[Signature('flashboard:build-assets {--force : Overwrite published views and assets when supported}')]
 final class BuildAssetsCommand extends \Illuminate\Console\Command
 {
     use InteractsWithFrontendAssets;
@@ -32,8 +32,10 @@ final class BuildAssetsCommand extends \Illuminate\Console\Command
             return self::FAILURE;
         }
 
+        $this->publishFrontendArtifacts((bool) $this->option('force'));
+
         info('Flashboard assets built successfully.');
-        note('If you are working from a host app, publish the updated assets with php artisan vendor:publish --tag=flashboard-assets --force.');
+        note('Published Flashboard views and assets into the host application.');
 
         return self::SUCCESS;
     }

@@ -53,6 +53,8 @@ If you want to rebuild package assets later without re-running the full installe
 php artisan flashboard:build-assets
 ```
 
+This command also republishes Flashboard views and assets after a successful build.
+
 This publishes:
 
 - `resources/views/vendor/flashboard/*`

@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Pepperfm\Flashboard\Integration\Laravel\Console\Concerns;
 
 use Illuminate\Filesystem\Filesystem;
+use Pepperfm\Flashboard\Integration\Laravel\FlashboardServiceProvider;
 use Symfony\Component\Process\Process;
 
 use function Laravel\Prompts\info;
@@ -66,6 +67,20 @@ trait InteractsWithFrontendAssets
         $this->runProcess($buildCommand, $workingDirectory);
 
         return $files->isDirectory("$workingDirectory/public/build");
+    }
+
+    protected function publishFrontendArtifacts(bool $force = false): void
+    {
+        $publishOptions = [
+            '--provider' => FlashboardServiceProvider::class,
+        ];
+
+        if ($force) {
+            $publishOptions['--force'] = true;
+        }
+
+        $this->call('vendor:publish', $publishOptions + ['--tag' => 'flashboard-views']);
+        $this->call('vendor:publish', $publishOptions + ['--tag' => 'flashboard-assets']);
     }
 
     /**
