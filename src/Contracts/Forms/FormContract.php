@@ -9,21 +9,29 @@ use Pepperfm\Flashboard\Contracts\Schema\KeyedSchemaNodeContract;
 interface FormContract
 {
     /**
+     * Compatibility helper: section nodes are normalized into the canonical schema tree.
+     *
      * @param list<array<string, mixed>|KeyedSchemaNodeContract> $sections
      */
     public function sections(array $sections): static;
 
     /**
+     * Compatibility helper: top-level tabs are normalized into the canonical schema tree.
+     *
      * @param list<array<string, mixed>|KeyedSchemaNodeContract> $tabs
      */
     public function tabs(array $tabs): static;
 
     /**
+     * Compatibility helper: plain field lists remain supported as the simplest schema root.
+     *
      * @param list<array<string, mixed>|KeyedSchemaNodeContract> $fields
      */
     public function fields(array $fields): static;
 
     /**
+     * Canonical form composition entrypoint.
+     *
      * @param list<array<string, mixed>|KeyedSchemaNodeContract> $schema
      */
     public function schema(array $schema): static;

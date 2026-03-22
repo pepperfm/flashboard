@@ -11,6 +11,7 @@ use Pepperfm\Flashboard\Contracts\Forms\FormLayoutAttribute;
 use Pepperfm\Flashboard\Contracts\Forms\FormLayoutDirection;
 use Pepperfm\Flashboard\Contracts\Forms\FormLayoutJustify;
 use Pepperfm\Flashboard\Contracts\Forms\FormLayoutMode;
+use Pepperfm\Flashboard\Contracts\Forms\FormSchemaNodeKind;
 use Pepperfm\Flashboard\Core\Forms\Fields\Field;
 use Pepperfm\Flashboard\Support\Schema\SchemaNodeNormalizer;
 
@@ -18,6 +19,7 @@ final class FormSchemaNormalizer
 {
     private const string KEY_DEFAULTS = 'defaults';
     private const string KEY_FIELDS = 'fields';
+    private const string KEY_KIND = 'kind';
     private const string KEY_LAYOUT = 'layout';
     private const string KEY_RULES = 'rules';
     private const string KEY_SCHEMA = 'schema';
@@ -31,28 +33,17 @@ final class FormSchemaNormalizer
      */
     public function normalize(array $definition): array
     {
-        $sections = $this->normalizeGroups(
-            (array) Arr::get($definition, self::KEY_SECTIONS, []),
-        );
-        $tabs = $this->normalizeGroups(
-            (array) Arr::get($definition, self::KEY_TABS, []),
-        );
-        $fields = $this->normalizeFields(
-            (array) Arr::get($definition, self::KEY_FIELDS, []),
-        );
-        $flattenedFields = array_merge(
-            $fields,
-            $this->flattenGroupSchema($sections),
-            $this->flattenGroupSchema($tabs),
-        );
+        $schema = $this->normalizeSchemaTree($definition);
+        $flattenedFields = $this->flattenFieldNodes($schema);
         $deduplicatedFields = $this->deduplicateKeyedNodes($flattenedFields);
         $explicitRules = (array) Arr::get($definition, self::KEY_RULES, []);
         $layout = $this->normalizeContainerLayout($definition);
 
         return [
             self::KEY_LAYOUT => $layout,
-            self::KEY_SECTIONS => $sections,
-            self::KEY_TABS => $tabs,
+            self::KEY_SCHEMA => $schema,
+            self::KEY_SECTIONS => $this->extractRootSections($schema),
+            self::KEY_TABS => $this->extractRootTabs($schema),
             self::KEY_FIELDS => $deduplicatedFields,
             self::KEY_RULES => $this->mergeRules(
                 $this->inferRulesFromFields($deduplicatedFields),
@@ -62,69 +53,6 @@ final class FormSchemaNormalizer
             'has_mutate_data_using' => (bool) Arr::get($definition, 'has_mutate_data_using', false),
             'has_after_save' => (bool) Arr::get($definition, 'has_after_save', false),
         ];
-    }
-
-    /**
-     * @param list<array<string, mixed>> $groups
-     *
-     * @return list<array<string, mixed>>
-     */
-    private function normalizeGroups(array $groups): array
-    {
-        return array_values(array_map(
-            function (array $group): array {
-                $schema = Arr::get($group, self::KEY_SCHEMA, []);
-                $group[self::KEY_LAYOUT] = $this->normalizeContainerLayout($group);
-
-                if (! is_array($schema)) {
-                    return $this->stripFlatLayoutKeys($group);
-                }
-
-                $group[self::KEY_SCHEMA] = $this->normalizeFields($schema);
-
-                return $this->stripFlatLayoutKeys($group);
-            },
-            SchemaNodeNormalizer::normalizeSchemaGroups($groups),
-        ));
-    }
-
-    /**
-     * @param list<array<string, mixed>> $fields
-     *
-     * @return list<array<string, mixed>>
-     */
-    private function normalizeFields(array $fields): array
-    {
-        return array_values(array_map(
-            fn (array $field): array => $this->normalizeField($field),
-            SchemaNodeNormalizer::normalizeKeyedNodes($fields),
-        ));
-    }
-
-    /**
-     * @param list<array<string, mixed>> $groups
-     *
-     * @return list<array<string, mixed>>
-     */
-    private function flattenGroupSchema(array $groups): array
-    {
-        $fields = [];
-
-        foreach ($groups as $group) {
-            $schema = Arr::get($group, self::KEY_SCHEMA, []);
-
-            if (!is_array($schema)) {
-                continue;
-            }
-
-            foreach ($schema as $field) {
-                if (is_array($field)) {
-                    $fields[] = $field;
-                }
-            }
-        }
-
-        return $fields;
     }
 
     /**
@@ -226,10 +154,228 @@ final class FormSchemaNormalizer
      */
     private function normalizeField(array $field): array
     {
+        $field[self::KEY_KIND] = FormSchemaNodeKind::Field->value;
         $field[Field::ATTRIBUTE_RENDERER] = $this->resolveFieldRenderer($field)->value;
         $field[self::KEY_LAYOUT] = $this->normalizeFieldLayout($field);
 
         return $this->stripFlatLayoutKeys($field);
+    }
+
+    /**
+     * @param array<string, mixed> $definition
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function normalizeSchemaTree(array $definition): array
+    {
+        return $this->normalizeSchemaNodes($this->composeRootSchema($definition));
+    }
+
+    /**
+     * @param list<array<string, mixed>|\Pepperfm\Flashboard\Contracts\Schema\KeyedSchemaNodeContract> $nodes
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function normalizeSchemaNodes(array $nodes, bool $insideTabs = false): array
+    {
+        return array_values(array_map(
+            fn (array|\Pepperfm\Flashboard\Contracts\Schema\KeyedSchemaNodeContract $node): array => $this->normalizeSchemaNode($node, $insideTabs),
+            $nodes,
+        ));
+    }
+
+    /**
+     * @param array<string, mixed>|\Pepperfm\Flashboard\Contracts\Schema\KeyedSchemaNodeContract $node
+     *
+     * @return array<string, mixed>
+     */
+    private function normalizeSchemaNode(array|\Pepperfm\Flashboard\Contracts\Schema\KeyedSchemaNodeContract $node, bool $insideTabs): array
+    {
+        $normalized = SchemaNodeNormalizer::normalizeKeyedNode($node);
+        $kind = $this->resolveSchemaNodeKind($normalized, $insideTabs);
+
+        return match ($kind) {
+            FormSchemaNodeKind::Field => $this->normalizeField($normalized),
+            FormSchemaNodeKind::Section => $this->normalizeSectionNode($normalized),
+            FormSchemaNodeKind::Tabs => $this->normalizeTabsNode($normalized),
+            FormSchemaNodeKind::Tab => $this->normalizeTabNode($normalized),
+        };
+    }
+
+    /**
+     * @param array<string, mixed> $node
+     *
+     * @return array<string, mixed>
+     */
+    private function normalizeSectionNode(array $node): array
+    {
+        $node[self::KEY_KIND] = FormSchemaNodeKind::Section->value;
+        $node[self::KEY_LAYOUT] = $this->normalizeContainerLayout($node);
+        $node[self::KEY_SCHEMA] = $this->normalizeSchemaNodes(
+            is_array(Arr::get($node, self::KEY_SCHEMA, [])) ? (array) Arr::get($node, self::KEY_SCHEMA, []) : [],
+        );
+
+        return $this->stripFlatLayoutKeys($node);
+    }
+
+    /**
+     * @param array<string, mixed> $node
+     *
+     * @return array<string, mixed>
+     */
+    private function normalizeTabNode(array $node): array
+    {
+        $node[self::KEY_KIND] = FormSchemaNodeKind::Tab->value;
+        $node[self::KEY_LAYOUT] = $this->normalizeContainerLayout($node);
+        $node[self::KEY_SCHEMA] = $this->normalizeSchemaNodes(
+            is_array(Arr::get($node, self::KEY_SCHEMA, [])) ? (array) Arr::get($node, self::KEY_SCHEMA, []) : [],
+        );
+
+        return $this->stripFlatLayoutKeys($node);
+    }
+
+    /**
+     * @param array<string, mixed> $node
+     *
+     * @return array<string, mixed>
+     */
+    private function normalizeTabsNode(array $node): array
+    {
+        $node[self::KEY_KIND] = FormSchemaNodeKind::Tabs->value;
+        $tabs = Arr::get($node, self::KEY_TABS, Arr::get($node, self::KEY_SCHEMA, []));
+        $node[self::KEY_TABS] = $this->normalizeSchemaNodes(
+            is_array($tabs) ? $tabs : [],
+            insideTabs: true,
+        );
+        unset($node[self::KEY_SCHEMA]);
+
+        return $node;
+    }
+
+    /**
+     * @param list<array<string, mixed>> $schema
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function flattenFieldNodes(array $schema): array
+    {
+        $fields = [];
+
+        foreach ($schema as $node) {
+            $kind = FormSchemaNodeKind::from((string) Arr::get($node, self::KEY_KIND, FormSchemaNodeKind::Field->value));
+
+            if ($kind === FormSchemaNodeKind::Field) {
+                $fields[] = $node;
+                continue;
+            }
+
+            if ($kind === FormSchemaNodeKind::Tabs) {
+                $fields = array_merge(
+                    $fields,
+                    $this->flattenFieldNodes((array) Arr::get($node, self::KEY_TABS, [])),
+                );
+
+                continue;
+            }
+
+            $fields = array_merge(
+                $fields,
+                $this->flattenFieldNodes((array) Arr::get($node, self::KEY_SCHEMA, [])),
+            );
+        }
+
+        return $fields;
+    }
+
+    /**
+     * @param list<array<string, mixed>> $schema
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function extractRootSections(array $schema): array
+    {
+        return array_values(array_filter(
+            $schema,
+            fn (array $node): bool => Arr::get($node, self::KEY_KIND) === FormSchemaNodeKind::Section->value,
+        ));
+    }
+
+    /**
+     * @param list<array<string, mixed>> $schema
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function extractRootTabs(array $schema): array
+    {
+        $tabs = [];
+
+        foreach ($schema as $node) {
+            if (Arr::get($node, self::KEY_KIND) !== FormSchemaNodeKind::Tabs->value) {
+                continue;
+            }
+
+            foreach ((array) Arr::get($node, self::KEY_TABS, []) as $tab) {
+                if (is_array($tab)) {
+                    $tabs[] = $tab;
+                }
+            }
+        }
+
+        return $tabs;
+    }
+
+    /**
+     * @param array<string, mixed> $definition
+     *
+     * @return list<array<string, mixed>|\Pepperfm\Flashboard\Contracts\Schema\KeyedSchemaNodeContract>
+     */
+    private function composeRootSchema(array $definition): array
+    {
+        $schema = (array) Arr::get($definition, self::KEY_SCHEMA, []);
+        $fields = (array) Arr::get($definition, self::KEY_FIELDS, []);
+        $sections = (array) Arr::get($definition, self::KEY_SECTIONS, []);
+        $tabs = (array) Arr::get($definition, self::KEY_TABS, []);
+
+        $nodes = [...$schema, ...$fields, ...$sections];
+
+        if ($tabs !== []) {
+            $nodes[] = [
+                self::KEY_KIND => FormSchemaNodeKind::Tabs->value,
+                'key' => 'tabs',
+                self::KEY_TABS => $tabs,
+            ];
+        }
+
+        return $nodes;
+    }
+
+    /**
+     * @param array<string, mixed> $node
+     */
+    private function resolveSchemaNodeKind(array $node, bool $insideTabs): FormSchemaNodeKind
+    {
+        if (Arr::has($node, self::KEY_KIND)) {
+            $kind = FormSchemaNodeKind::tryFrom((string) Arr::get($node, self::KEY_KIND, ''));
+
+            if ($kind !== null) {
+                return $kind;
+            }
+
+            throw new \InvalidArgumentException(sprintf(
+                'Unknown form schema node kind [%s].',
+                (string) Arr::get($node, self::KEY_KIND, ''),
+            ));
+        }
+
+        if (Arr::has($node, self::KEY_TABS)) {
+            return FormSchemaNodeKind::Tabs;
+        }
+
+        if (Arr::has($node, self::KEY_SCHEMA)) {
+            return $insideTabs ? FormSchemaNodeKind::Tab : FormSchemaNodeKind::Section;
+        }
+
+        return FormSchemaNodeKind::Field;
     }
 
     /**

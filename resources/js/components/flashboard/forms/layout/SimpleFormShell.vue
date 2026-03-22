@@ -1,16 +1,23 @@
 <script setup lang="ts">
-import FormFieldsLayout from '@/components/flashboard/forms/layout/FormFieldsLayout.vue'
-import type { FormContainerLayoutShape } from '@/components/flashboard/forms/layout/resolveFormLayout'
-import type { FormFieldShape } from '@/components/flashboard/forms/renderers/resolveFormFieldRenderer'
+import { computed } from 'vue'
+import FormFlex from '@/components/flashboard/forms/layout/FormFlex.vue'
+import FormGrid from '@/components/flashboard/forms/layout/FormGrid.vue'
+import {
+  resolveFormContainerLayout,
+  resolveFormItemLayout,
+  type FormContainerLayoutShape,
+} from '@/components/flashboard/forms/layout/resolveFormLayout'
+import FormNodeRenderer from '@/components/flashboard/forms/renderers/FormNodeRenderer.vue'
+import type { FormNodeShape } from '@/components/flashboard/forms/renderers/resolveFormFieldRenderer'
 
 const props = defineProps<{
   cancelUrl?: string
   errors?: Record<string, string>
-  fields: FormFieldShape[]
   layout?: FormContainerLayoutShape
   mode?: string
   processing?: boolean
   resourceName?: string
+  schema: FormNodeShape[]
   state: Record<string, unknown>
 }>()
 
@@ -24,6 +31,21 @@ const SIMPLE_FORM_DEFAULT_LAYOUT = {
   gap: 5,
   mode: 'stack',
 } as const
+
+const resolvedLayout = computed(() => resolveFormContainerLayout(
+  props.layout,
+  SIMPLE_FORM_DEFAULT_LAYOUT,
+))
+
+function nodeError(node: FormNodeShape): string | undefined {
+  if ((node.kind ?? 'field') !== 'field') {
+    return undefined
+  }
+
+  const error = props.errors?.[node.key]
+
+  return typeof error === 'string' ? error : undefined
+}
 </script>
 
 <template>
@@ -37,14 +59,26 @@ const SIMPLE_FORM_DEFAULT_LAYOUT = {
       </div>
 
       <UForm :state="props.state" class="form-stack" @submit.prevent="emit('submit')">
-        <FormFieldsLayout
-          :fields="props.fields"
-          :layout="props.layout"
-          :default-layout="SIMPLE_FORM_DEFAULT_LAYOUT"
-          :errors="props.errors"
-          :state="props.state"
-          @update:field="(fieldKey, value) => emit('update:field', fieldKey, value)"
-        />
+        <component
+          :is="resolvedLayout.mode === 'flex' ? FormFlex : FormGrid"
+          :class-name="resolvedLayout.className"
+          :style="resolvedLayout.style"
+        >
+          <div
+            v-for="node in props.schema"
+            :key="node.key"
+            :class="resolveFormItemLayout(resolvedLayout, (node.kind ?? 'field') === 'field' ? node.layout : undefined).className"
+            :style="resolveFormItemLayout(resolvedLayout, (node.kind ?? 'field') === 'field' ? node.layout : undefined).style"
+          >
+            <FormNodeRenderer
+              :node="node"
+              :state="props.state"
+              :errors="props.errors"
+              :error="nodeError(node)"
+              @update:field="(fieldKey, value) => emit('update:field', fieldKey, value)"
+            />
+          </div>
+        </component>
 
         <div class="action-row">
           <UButton color="primary" :loading="props.processing" @click="emit('submit')">

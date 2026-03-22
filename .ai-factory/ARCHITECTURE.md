@@ -111,7 +111,7 @@ Using a modular monolith lets us preserve that layering without introducing depl
 ## Key Principles
 1. Keep the public API surface declarative and split by concern: `table()`, `form()`, `detail()`, `actions()`, `pages()`.
 2. Keep typed schema nodes and schema normalization package-owned, with legacy arrays treated as a compatibility input rather than the canonical runtime contract.
-3. Prefer `$form->schema([...])` for simple CRUD forms; reserve `sections()` and `tabs()` for forms that genuinely need grouped layout.
+3. Prefer `$form->schema([...])` as the canonical form root; treat `Section`, `Tabs`, and `Tab` as schema nodes, while `sections()` and `tabs()` remain compatibility helpers only.
 4. Design contracts for the 80 percent path, then provide escape hatches for the remaining 20 percent.
 5. Keep admin runtime logic package-owned and business logic host-owned.
 6. Make payloads backend-driven and deterministic so the UI layer stays consistent across resources.

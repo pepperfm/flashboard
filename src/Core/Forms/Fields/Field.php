@@ -6,6 +6,7 @@ namespace Pepperfm\Flashboard\Core\Forms\Fields;
 
 use Pepperfm\Flashboard\Contracts\Forms\FieldRenderer;
 use Pepperfm\Flashboard\Contracts\Forms\FormLayoutAttribute;
+use Pepperfm\Flashboard\Contracts\Forms\FormSchemaNodeKind;
 use Pepperfm\Flashboard\Support\Schema\SchemaNode;
 
 class Field extends SchemaNode
@@ -63,6 +64,7 @@ class Field extends SchemaNode
     public function toArray(): array
     {
         $payload = parent::toArray();
+        $payload['kind'] = $payload['kind'] ?? FormSchemaNodeKind::Field->value;
 
         if (! array_key_exists(self::ATTRIBUTE_RENDERER, $payload)) {
             $renderer = $this->defaultRenderer();

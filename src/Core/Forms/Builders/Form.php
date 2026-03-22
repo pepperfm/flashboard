@@ -19,6 +19,11 @@ final class Form implements FormContract
     /**
      * @var list<array<string, mixed>|KeyedSchemaNodeContract>
      */
+    private array $schema = [];
+
+    /**
+     * @var list<array<string, mixed>|KeyedSchemaNodeContract>
+     */
     private array $sections = [];
 
     /**
@@ -78,7 +83,9 @@ final class Form implements FormContract
 
     public function schema(array $schema): static
     {
-        return $this->fields($schema);
+        $this->schema = $schema;
+
+        return $this;
     }
 
     public function layout(FormLayoutMode|string $mode): static
@@ -159,6 +166,7 @@ final class Form implements FormContract
     public function toArray(): array
     {
         return new FormSchemaNormalizer()->normalize(array_merge([
+            'schema' => $this->schema,
             'sections' => $this->sections,
             'tabs' => $this->tabs,
             'fields' => $this->fields,

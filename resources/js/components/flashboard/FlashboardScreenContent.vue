@@ -1,10 +1,8 @@
 <script setup lang="ts">
 import { router, useForm } from '@inertiajs/vue3'
-import SectionedFormShell from '@/components/flashboard/forms/layout/SectionedFormShell.vue'
 import SimpleFormShell from '@/components/flashboard/forms/layout/SimpleFormShell.vue'
-import TabbedFormShell from '@/components/flashboard/forms/layout/TabbedFormShell.vue'
 import type { FormContainerLayoutShape } from '@/components/flashboard/forms/layout/resolveFormLayout'
-import type { FormFieldShape } from '@/components/flashboard/forms/renderers/resolveFormFieldRenderer'
+import type { FormFieldShape, FormNodeShape } from '@/components/flashboard/forms/renderers/resolveFormFieldRenderer'
 import { computed, h, resolveComponent, watch } from 'vue'
 
 type ActionShape = {
@@ -84,6 +82,7 @@ type PayloadShape = {
   form?: {
     layout?: FormContainerLayoutShape
     mode?: string
+    schema?: FormNodeShape[]
     state?: Record<string, unknown>
     fields?: FormFieldShape[]
     sections?: FormGroupShape[]
@@ -124,39 +123,7 @@ const pagination = computed(() => props.payload.table?.dataset?.pagination)
 const hasPagination = computed(() => (pagination.value?.last_page ?? 1) > 1)
 
 const allowedFormFields = computed(() => props.payload.form?.fields ?? [])
-const allowedFormFieldMap = computed(() => new Map(
-  allowedFormFields.value.map((field) => [field.key, field]),
-))
-const formFieldKeysInGroups = computed(() => new Set(
-  [...(props.payload.form?.sections ?? []), ...(props.payload.form?.tabs ?? [])].flatMap(
-    (group) => (group.schema ?? []).map((field) => field.key),
-  ),
-))
-const standaloneFormFields = computed(() =>
-  allowedFormFields.value.filter((field) => !formFieldKeysInGroups.value.has(field.key)),
-)
-const visibleFormSections = computed(() =>
-  (props.payload.form?.sections ?? [])
-    .map((section) => ({
-      ...section,
-      schema: (section.schema ?? [])
-        .map((field) => allowedFormFieldMap.value.get(field.key))
-        .filter((field): field is FormFieldShape => Boolean(field)),
-    }))
-    .filter((section) => (section.schema?.length ?? 0) > 0),
-)
-const visibleFormTabs = computed(() =>
-  (props.payload.form?.tabs ?? [])
-    .map((tab) => ({
-      ...tab,
-      schema: (tab.schema ?? [])
-        .map((field) => allowedFormFieldMap.value.get(field.key))
-        .filter((field): field is FormFieldShape => Boolean(field)),
-    }))
-    .filter((tab) => (tab.schema?.length ?? 0) > 0),
-)
-const hasTabbedFormLayout = computed(() => visibleFormTabs.value.length > 0)
-const hasSectionedFormLayout = computed(() => visibleFormSections.value.length > 0)
+const formSchema = computed(() => props.payload.form?.schema ?? allowedFormFields.value)
 
 const detailEntries = computed(() => props.payload.detail?.entries ?? [])
 const detailEntryMap = computed(() => new Map(
@@ -467,48 +434,14 @@ function formatValue(value: unknown): string {
   </template>
 
   <template v-else-if="payload.resource?.page === 'create' || payload.resource?.page === 'edit'">
-    <TabbedFormShell
-      v-if="hasTabbedFormLayout"
-      :cancel-url="payload.form?.cancel?.url"
-      :errors="form.errors as Record<string, string>"
-      :layout="payload.form?.layout"
-      :mode="payload.form?.mode"
-      :processing="form.processing"
-      :resource-name="payload.resource?.name"
-      :sections="visibleFormSections"
-      :standalone-fields="standaloneFormFields"
-      :state="form"
-      :tabs="visibleFormTabs"
-      @submit="submitForm"
-      @update:field="updateFieldValue"
-      @visit="visit"
-    />
-
-    <SectionedFormShell
-      v-else-if="hasSectionedFormLayout"
-      :cancel-url="payload.form?.cancel?.url"
-      :errors="form.errors as Record<string, string>"
-      :layout="payload.form?.layout"
-      :mode="payload.form?.mode"
-      :processing="form.processing"
-      :resource-name="payload.resource?.name"
-      :sections="visibleFormSections"
-      :standalone-fields="standaloneFormFields"
-      :state="form"
-      @submit="submitForm"
-      @update:field="updateFieldValue"
-      @visit="visit"
-    />
-
     <SimpleFormShell
-      v-else
       :cancel-url="payload.form?.cancel?.url"
       :errors="form.errors as Record<string, string>"
-      :fields="standaloneFormFields"
       :layout="payload.form?.layout"
       :mode="payload.form?.mode"
       :processing="form.processing"
       :resource-name="payload.resource?.name"
+      :schema="formSchema"
       :state="form"
       @submit="submitForm"
       @update:field="updateFieldValue"

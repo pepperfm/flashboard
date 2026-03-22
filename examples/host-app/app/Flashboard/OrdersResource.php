@@ -14,6 +14,9 @@ use Pepperfm\Flashboard\Core\Actions\Builders\Action;
 use Pepperfm\Flashboard\Core\Detail\Entries\TextEntry;
 use Pepperfm\Flashboard\Core\Forms\Fields\Select;
 use Pepperfm\Flashboard\Core\Forms\Fields\TextInput;
+use Pepperfm\Flashboard\Core\Forms\Layout\Section;
+use Pepperfm\Flashboard\Core\Forms\Layout\Tab;
+use Pepperfm\Flashboard\Core\Forms\Layout\Tabs;
 use Pepperfm\Flashboard\Core\Relations\RelationDefinition;
 use Pepperfm\Flashboard\Core\Tables\Columns\BadgeColumn;
 use Pepperfm\Flashboard\Core\Tables\Columns\TextColumn;
@@ -37,10 +40,17 @@ final class OrdersResource extends Resource
     {
         return $form
             ->schema([
-                Select::make('status')->label('Status')->required(),
-                TextInput::make('notes')
-                    ->label('Notes')
-                    ->renderer(FieldRenderer::Textarea),
+                Section::make('main')->label('Main')->schema([
+                    Select::make('status')->label('Status')->required(),
+                    TextInput::make('notes')
+                        ->label('Notes')
+                        ->renderer(FieldRenderer::Textarea),
+                ]),
+                Tabs::make('settings')->tabs([
+                    Tab::make('visibility')->label('Visibility')->schema([
+                        Select::make('status')->label('Status'),
+                    ]),
+                ]),
             ])
             ->rules([
                 'status' => ['required', 'string'],

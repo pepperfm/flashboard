@@ -108,20 +108,20 @@ Actions and pages are still declared through their dedicated methods, but they n
 ## Form Authoring Guidance
 
 - prefer `$form->schema([...])` for simple CRUD resources
-- introduce `sections()` or `tabs()` only when the form has meaningful operator-facing grouping
+- introduce `Section` and `Tabs` nodes inside `schema()` when the form has meaningful operator-facing grouping
 - use `FieldRenderer` overrides when the control should render differently than the base field type, for example `TextInput::make('notes')->renderer(FieldRenderer::Textarea)`
 - use `columns()`, `gap()`, `columnSpan()`, and `fullWidth()` to place multiple fields on one row without extra row/container nodes
 - use `layout(FormLayoutMode::Flex)` with `direction()/justify()/align()/wrap()` only when a grouped form needs inline controls instead of a grid
 - keep array definitions only as a migration bridge; typed nodes remain the canonical package API
 
-If you do need grouped layout, Flashboard renders sections and tabs through dedicated package-owned shells instead of mixing layout logic into the page component.
+If you do need grouped layout, Flashboard now renders one canonical schema tree recursively instead of branching between “simple”, “sections”, and “tabs” form modes.
 
 ## Configuration Styles
 
 Flashboard currently supports both configuration styles:
 
 - typed schema nodes such as `Column::make('status')->label('Status')`
-- concept-aligned nodes such as `TextColumn::make('email')`, `TextInput::make('name')`, `Section::make('content')->schema([...])`, and `Tab::make('settings')->schema([...])`
+- concept-aligned nodes such as `TextColumn::make('email')`, `TextInput::make('name')`, `Section::make('content')->schema([...])`, and `Tabs::make('settings')->tabs([...])`
 - legacy compatibility arrays such as `['key' => 'status', 'label' => 'Status']`
 
 Typed nodes are the preferred public API going forward. Arrays remain supported while the package migrates the rest of the DSL toward the concept-first object style.

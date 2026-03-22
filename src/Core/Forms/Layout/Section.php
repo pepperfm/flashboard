@@ -9,6 +9,7 @@ use Pepperfm\Flashboard\Contracts\Forms\FormLayoutAttribute;
 use Pepperfm\Flashboard\Contracts\Forms\FormLayoutDirection;
 use Pepperfm\Flashboard\Contracts\Forms\FormLayoutJustify;
 use Pepperfm\Flashboard\Contracts\Forms\FormLayoutMode;
+use Pepperfm\Flashboard\Contracts\Forms\FormSchemaNodeKind;
 use Pepperfm\Flashboard\Support\Schema\SchemaNode;
 
 class Section extends SchemaNode
@@ -77,5 +78,13 @@ class Section extends SchemaNode
     public function wrap(bool $condition = true): static
     {
         return $this->attribute(FormLayoutAttribute::KEY_WRAP, $condition);
+    }
+
+    public function toArray(): array
+    {
+        $payload = parent::toArray();
+        $payload['kind'] = $payload['kind'] ?? FormSchemaNodeKind::Section->value;
+
+        return $payload;
     }
 }

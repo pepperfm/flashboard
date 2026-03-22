@@ -1,5 +1,5 @@
 import type { Component } from 'vue'
-import type { FormFieldLayoutShape } from '../layout/resolveFormLayout'
+import type { FormContainerLayoutShape, FormFieldLayoutShape } from '../layout/resolveFormLayout'
 import { formFieldRendererMap, type FormFieldRendererKey } from './FormFieldRendererMap'
 
 type FormOptionValue = string | number | boolean
@@ -10,6 +10,7 @@ export type FormOptionShape = {
 }
 
 export type FormFieldShape = {
+  kind?: 'field'
   help?: string
   hint?: string
   input_type?: string
@@ -22,6 +23,33 @@ export type FormFieldShape = {
   required?: boolean
   type?: string
 }
+
+export type FormSectionShape = {
+  kind: 'section'
+  description?: string
+  key: string
+  label?: string
+  layout?: FormContainerLayoutShape
+  schema?: FormNodeShape[]
+}
+
+export type FormTabShape = {
+  kind: 'tab'
+  icon?: string
+  key: string
+  label?: string
+  layout?: FormContainerLayoutShape
+  schema?: FormNodeShape[]
+}
+
+export type FormTabsShape = {
+  kind: 'tabs'
+  key: string
+  label?: string
+  tabs?: FormTabShape[]
+}
+
+export type FormNodeShape = FormFieldShape | FormSectionShape | FormTabShape | FormTabsShape
 
 const DEFAULT_FORM_FIELD_RENDERER: FormFieldRendererKey = 'input'
 

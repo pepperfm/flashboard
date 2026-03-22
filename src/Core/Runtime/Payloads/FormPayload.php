@@ -6,6 +6,7 @@ namespace Pepperfm\Flashboard\Core\Runtime\Payloads;
 
 final readonly class FormPayload
 {
+    private const string KEY_SCHEMA = 'schema';
     private const string KEY_SECTIONS = 'sections';
     private const string KEY_TABS = 'tabs';
     private const string KEY_FIELDS = 'fields';
@@ -23,6 +24,14 @@ final readonly class FormPayload
     public function toArray(): array
     {
         return $this->schema;
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    public function schema(): array
+    {
+        return (array) $this->schema[self::KEY_SCHEMA];
     }
 
     /**

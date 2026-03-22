@@ -1,7 +1,7 @@
 # Forms
 
 Flashboard form payloads are generated from `form()` definitions on a resource.
-The preferred authoring path is schema-first: start with `$form->schema([...])` for simple create/edit screens and only introduce grouped layout when operators genuinely need it.
+The canonical authoring path is schema-tree first: start with `$form->schema([...])` and treat layout containers as nodes inside that tree.
 
 ## Simple Forms First
 
@@ -61,7 +61,7 @@ Scalar `columns(2)` and `columns(3)` stay mobile-safe by default: Flashboard nor
 
 ## Grouped Layouts
 
-Use `sections()` or `tabs()` only when the form has meaningful visual grouping.
+Use `Section` and `Tabs` nodes inside `schema()` when the form has meaningful visual grouping.
 
 ```php
 use Pepperfm\Flashboard\Core\Forms\Fields\Select;
@@ -69,20 +69,21 @@ use Pepperfm\Flashboard\Core\Forms\Fields\TextInput;
 use Pepperfm\Flashboard\Core\Forms\Fields\Toggle;
 use Pepperfm\Flashboard\Core\Forms\Layout\Section;
 use Pepperfm\Flashboard\Core\Forms\Layout\Tab;
+use Pepperfm\Flashboard\Core\Forms\Layout\Tabs;
 
 public static function form(\Pepperfm\Flashboard\Contracts\Forms\FormContract $form): \Pepperfm\Flashboard\Contracts\Forms\FormContract
 {
     return $form
-        ->sections([
+        ->schema([
             Section::make('content')->label('Content')->schema([
                 TextInput::make('name')->label('Name')->required(),
                 TextInput::make('slug')->label('Slug'),
             ]),
-        ])
-        ->tabs([
-            Tab::make('settings')->label('Settings')->schema([
-                Select::make('status')->label('Status'),
-                Toggle::make('is_active')->label('Is active'),
+            Tabs::make('settings')->tabs([
+                Tab::make('general')->label('General')->schema([
+                    Select::make('status')->label('Status'),
+                    Toggle::make('is_active')->label('Is active'),
+                ]),
             ]),
         ]);
 }
@@ -113,6 +114,7 @@ Section::make('filters')
 ```
 
 Typed fields, sections, and tabs are the preferred public API. Legacy array definitions remain supported as a migration bridge.
+`sections()` and `tabs()` remain as compatibility helpers, but they now normalize into the same canonical schema tree instead of defining a separate runtime shape.
 
 ## Renderer Contract
 
@@ -127,14 +129,14 @@ Those wrappers stay thin over Nuxt UI (`UInput`, `UTextarea`, `USelect`, `USwitc
 
 ## Layout Contract
 
-Normalized form payloads now expose package-owned layout metadata:
+Normalized form payloads now expose:
 
-- container layout lives on `form.layout`, `section.layout`, and `tab.layout`
-- field sizing lives on `field.layout.column_span`
-- grid and flex settings are validated during normalization and fail fast on invalid combinations
-- legacy arrays can opt into the same behavior with `layout`, `columns`, `gap`, `direction`, `justify`, `align`, `wrap`, and `column_span`
+- one canonical `schema` tree for recursive rendering
+- flattened compatibility data in `fields`, `sections`, and `tabs` while the transition is still in progress
+- container layout on `form.layout`, `section.layout`, and `tab.layout`
+- field sizing on `field.layout.column_span`
 
-Invalid layout combinations such as `columns()` plus `direction()` on the same container raise an exception instead of being silently ignored.
+Invalid layout combinations such as `columns()` plus `direction()` on the same container still raise an exception instead of being silently ignored.
 
 ## Runtime Flow
 

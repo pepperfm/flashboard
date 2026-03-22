@@ -9,12 +9,14 @@ use Pepperfm\Flashboard\Contracts\Forms\FormLayoutAlign;
 use Pepperfm\Flashboard\Contracts\Forms\FormLayoutDirection;
 use Pepperfm\Flashboard\Contracts\Forms\FormLayoutJustify;
 use Pepperfm\Flashboard\Contracts\Forms\FormLayoutMode;
+use Pepperfm\Flashboard\Contracts\Forms\FormSchemaNodeKind;
 use Pepperfm\Flashboard\Core\Forms\Builders\Form;
 use Pepperfm\Flashboard\Core\Forms\Fields\Select;
 use Pepperfm\Flashboard\Core\Forms\Fields\TextInput;
 use Pepperfm\Flashboard\Core\Forms\Fields\Toggle;
 use Pepperfm\Flashboard\Core\Forms\Layout\Section;
 use Pepperfm\Flashboard\Core\Forms\Layout\Tab;
+use Pepperfm\Flashboard\Core\Forms\Layout\Tabs;
 use Pepperfm\Flashboard\Core\Runtime\Payloads\FormPayload;
 use Pepperfm\Flashboard\Tests\TestCase;
 
@@ -70,16 +72,16 @@ final class FormRendererPayloadTest extends TestCase
     {
         $payload = new FormPayload(
             Form::make()
-                ->sections([
+                ->schema([
                     Section::make('content')->label('Content')->schema([
                         TextInput::make('summary')
                             ->label('Summary')
                             ->renderer(FieldRenderer::Textarea),
                     ]),
-                ])
-                ->tabs([
-                    Tab::make('settings')->label('Settings')->schema([
-                        Toggle::make('is_active')->label('Is active'),
+                    Tabs::make('settings')->tabs([
+                        Tab::make('general')->label('General')->schema([
+                            Toggle::make('is_active')->label('Is active'),
+                        ]),
                     ]),
                 ])
                 ->toArray(),
@@ -265,5 +267,53 @@ final class FormRendererPayloadTest extends TestCase
         self::assertSame($typedPayload->toArray()['layout'], $arrayPayload->toArray()['layout']);
         self::assertSame($typedPayload->fields()[1]['layout'], $arrayPayload->fields()[1]['layout']);
         self::assertSame($typedPayload->sections()[0]['layout'], $arrayPayload->sections()[0]['layout']);
+    }
+
+    public function test_schema_tree_payload_preserves_container_nodes_and_flattened_compatibility_lists(): void
+    {
+        $payload = new FormPayload(
+            Form::make()
+                ->schema([
+                    Section::make('main')->label('Main')->schema([
+                        TextInput::make('email')->label('Email')->required(),
+                    ]),
+                    Tabs::make('settings')->tabs([
+                        Tab::make('access')->label('Access')->schema([
+                            Toggle::make('is_active')->label('Is active'),
+                        ]),
+                    ]),
+                ])
+                ->toArray(),
+        );
+
+        self::assertSame(FormSchemaNodeKind::Section->value, $payload->schema()[0]['kind']);
+        self::assertSame(FormSchemaNodeKind::Tabs->value, $payload->schema()[1]['kind']);
+        self::assertSame(FormSchemaNodeKind::Tab->value, $payload->schema()[1]['tabs'][0]['kind']);
+        self::assertCount(1, $payload->sections());
+        self::assertCount(1, $payload->tabs());
+        self::assertSame(['email', 'is_active'], array_column($payload->fields(), 'key'));
+    }
+
+    public function test_sections_and_tabs_compatibility_helpers_flow_into_the_same_schema_tree(): void
+    {
+        $payload = new FormPayload(
+            Form::make()
+                ->sections([
+                    Section::make('main')->label('Main')->schema([
+                        TextInput::make('email')->label('Email')->required(),
+                    ]),
+                ])
+                ->tabs([
+                    Tab::make('access')->label('Access')->schema([
+                        Toggle::make('is_active')->label('Is active'),
+                    ]),
+                ])
+                ->toArray(),
+        );
+
+        self::assertCount(2, $payload->schema());
+        self::assertSame(FormSchemaNodeKind::Section->value, $payload->schema()[0]['kind']);
+        self::assertSame(FormSchemaNodeKind::Tabs->value, $payload->schema()[1]['kind']);
+        self::assertSame(FormSchemaNodeKind::Tab->value, $payload->schema()[1]['tabs'][0]['kind']);
     }
 }

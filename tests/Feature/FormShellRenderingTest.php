@@ -13,17 +13,12 @@ final class FormShellRenderingTest extends TestCase
         $content = $this->fixture('resources/js/components/flashboard/FlashboardScreenContent.vue');
 
         self::assertStringContainsString('import SimpleFormShell', $content);
-        self::assertStringContainsString('import SectionedFormShell', $content);
-        self::assertStringContainsString('import TabbedFormShell', $content);
         self::assertStringContainsString('<SimpleFormShell', $content);
-        self::assertStringContainsString('<SectionedFormShell', $content);
-        self::assertStringContainsString('<TabbedFormShell', $content);
-        self::assertStringNotContainsString('function fieldComponent(', $content);
-        self::assertStringNotContainsString('<UInput', $content);
-        self::assertStringNotContainsString('<UTextarea', $content);
-        self::assertStringNotContainsString('<USelect', $content);
-        self::assertStringNotContainsString('<USwitch', $content);
-        self::assertStringNotContainsString('<component', $content);
+        self::assertStringNotContainsString('import SectionedFormShell', $content);
+        self::assertStringNotContainsString('import TabbedFormShell', $content);
+        self::assertStringContainsString(':schema="formSchema"', $content);
+        self::assertStringNotContainsString('hasTabbedFormLayout', $content);
+        self::assertStringNotContainsString('hasSectionedFormLayout', $content);
     }
 
     public function test_simple_form_shell_uses_centered_page_card_composition(): void
@@ -32,24 +27,21 @@ final class FormShellRenderingTest extends TestCase
 
         self::assertStringContainsString('<UPageSection', $content);
         self::assertStringContainsString('<UPageCard', $content);
-        self::assertStringContainsString('<FormFieldsLayout', $content);
+        self::assertStringContainsString('<FormNodeRenderer', $content);
         self::assertStringContainsString('SIMPLE_FORM_DEFAULT_LAYOUT', $content);
     }
 
     public function test_grouped_shells_render_through_shared_form_layout_layer(): void
     {
-        $sectioned = $this->fixture('resources/js/components/flashboard/forms/layout/SectionedFormShell.vue');
-        $tabbed = $this->fixture('resources/js/components/flashboard/forms/layout/TabbedFormShell.vue');
         $layoutResolver = $this->fixture('resources/js/components/flashboard/forms/layout/resolveFormLayout.ts');
+        $containerRenderer = $this->fixture('resources/js/components/flashboard/forms/renderers/FormContainerRenderer.vue');
+        $nodeRenderer = $this->fixture('resources/js/components/flashboard/forms/renderers/FormNodeRenderer.vue');
 
-        self::assertStringContainsString('<FormFieldsLayout', $sectioned);
-        self::assertStringContainsString('GROUPED_FORM_DEFAULT_LAYOUT', $sectioned);
-        self::assertStringContainsString('<FormFieldsLayout', $tabbed);
-        self::assertStringContainsString('<UTabs', $tabbed);
         self::assertStringContainsString('resolveFormContainerLayout', $layoutResolver);
         self::assertStringContainsString('resolveFormItemLayout', $layoutResolver);
-        self::assertStringNotContainsString('grid-template-columns: repeat(2, minmax(0, 1fr));', $sectioned);
-        self::assertStringNotContainsString('grid-template-columns: repeat(2, minmax(0, 1fr));', $tabbed);
+        self::assertStringContainsString('<UTabs', $containerRenderer);
+        self::assertStringContainsString('<FormNodeRenderer', $containerRenderer);
+        self::assertStringContainsString('<FormContainerRenderer', $nodeRenderer);
     }
 
     private function fixture(string $path): string
