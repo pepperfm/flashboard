@@ -46,9 +46,9 @@ Generated resources now use the typed DSL by default and keep legacy arrays only
 
 ## Local Development
 
-- `composer install`
-- `npm install`
-- `npm run build`
+- `composer i`
+- `bun i`
+- `bun run build`
 - `composer test`
 - `composer analyse`
 
