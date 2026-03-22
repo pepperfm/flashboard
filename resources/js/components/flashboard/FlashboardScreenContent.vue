@@ -387,6 +387,7 @@ function fieldComponentProps(field: FormFieldShape): Record<string, unknown> {
 
   if (component === 'USelect') {
     return {
+      class: 'w-full',
       items: normalizeSelectItems(field),
       name: field.key,
       placeholder,
@@ -405,6 +406,7 @@ function fieldComponentProps(field: FormFieldShape): Record<string, unknown> {
   if (component === 'UTextarea') {
     return {
       autoresize: true,
+      class: 'w-full',
       name: field.key,
       placeholder,
       rows: 4,
@@ -412,6 +414,7 @@ function fieldComponentProps(field: FormFieldShape): Record<string, unknown> {
   }
 
   return {
+    class: 'w-full',
     name: field.key,
     placeholder,
     required: field.required,
@@ -587,7 +590,7 @@ function formatValue(value: unknown): string {
 
   <template v-else-if="payload.resource?.page === 'create' || payload.resource?.page === 'edit'">
     <div class="form-page-shell">
-      <UPageCard class="form-card">
+      <UCard class="form-card" variant="outline">
         <template #header>
           <div class="section-header">
             <div>
@@ -758,7 +761,7 @@ function formatValue(value: unknown): string {
             </UButton>
           </div>
         </template>
-      </UPageCard>
+      </UCard>
     </div>
   </template>
 
