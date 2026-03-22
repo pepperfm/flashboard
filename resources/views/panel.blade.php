@@ -3,56 +3,76 @@
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <style>
-        :root {
-            color-scheme: light;
-            font-family: "Inter", "Segoe UI", sans-serif;
-            --ui-radius: 0.25rem;
-            background: rgb(250 250 250);
-        }
-
-        html.dark {
-            color-scheme: dark;
-            background: rgb(10 10 11);
-        }
-
-        body {
-            margin: 0;
-            min-height: 100vh;
-            background: inherit;
-            color: rgb(24 24 27);
-        }
-
-        html.dark body {
-            color: rgb(244 244 245);
-        }
-
-        #app,
-        [data-page] {
-            min-height: 100vh;
-        }
-    </style>
+    @inertiaHead
     <script>
         (() => {
-            const themeStorageKey = 'flashboard-theme'
-            const radiusStorageKey = 'flashboard-theme-radius'
             const root = document.documentElement
-            const storedMode = window.localStorage.getItem(themeStorageKey)
-            const mode = storedMode === 'light' || storedMode === 'dark' || storedMode === 'system'
-                ? storedMode
-                : 'system'
-            const shouldUseDark = mode === 'dark'
-                || (mode === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches)
-            const storedRadius = window.localStorage.getItem(radiusStorageKey)
-            const parsedRadius = storedRadius === null ? 0.25 : Number(storedRadius)
-            const radius = Number.isFinite(parsedRadius) ? parsedRadius : 0.25
+            const shades = [50, 100, 200, 300, 400, 500, 600, 700, 800, 900, 950]
+            const blackScale = {
+                50: '#fafafa',
+                100: '#f5f5f5',
+                200: '#e5e5e5',
+                300: '#d4d4d4',
+                400: '#a3a3a3',
+                500: '#737373',
+                600: '#525252',
+                700: '#404040',
+                800: '#262626',
+                900: '#171717',
+                950: '#0a0a0a',
+            }
 
-            root.classList.toggle('dark', shouldUseDark)
-            root.style.colorScheme = shouldUseDark ? 'dark' : 'light'
-            root.style.setProperty('--ui-radius', `${radius}rem`)
+            try {
+                const mode = window.localStorage.getItem('flashboard-theme')
+                const primary = window.localStorage.getItem('flashboard-theme-primary')
+                const neutral = window.localStorage.getItem('flashboard-theme-neutral')
+                const radius = window.localStorage.getItem('flashboard-theme-radius')
+                const useDark = mode === 'dark'
+                    || (mode !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches)
+
+                const applyScale = (prefix, color) => {
+                    if (!color) {
+                        return
+                    }
+
+                    for (const shade of shades) {
+                        root.style.setProperty(`--ui-color-${prefix}-${shade}`, `var(--color-${color}-${shade})`)
+                    }
+                }
+
+                const applyBlackPrimaryScale = () => {
+                    for (const shade of shades) {
+                        root.style.setProperty(`--ui-color-primary-${shade}`, blackScale[shade])
+                    }
+                }
+
+                if (primary === 'black') {
+                    applyBlackPrimaryScale()
+                } else {
+                    applyScale('primary', primary)
+                }
+
+                applyScale('neutral', neutral)
+
+                if (primary) {
+                    root.style.setProperty('--ui-primary', `var(--ui-color-primary-${useDark ? 400 : 500})`)
+                }
+
+                if (radius !== null && radius !== '') {
+                    const parsedRadius = Number(radius)
+
+                    if (!Number.isNaN(parsedRadius)) {
+                        root.style.setProperty('--ui-radius', `${parsedRadius}rem`)
+                    }
+                }
+
+                root.classList.toggle('dark', useDark)
+                root.style.colorScheme = useDark ? 'dark' : 'light'
+            } catch (_error) {
+                // Ignore local theme bootstrap failures and let the client app recover.
+            }
         })()
     </script>
-    @inertiaHead
     @php($flashboardStyles = app(\Pepperfm\Flashboard\UI\Assets\PublishedAssetManager::class)->styles())
     @php($flashboardScript = app(\Pepperfm\Flashboard\UI\Assets\PublishedAssetManager::class)->script())
     @foreach ($flashboardStyles as $style)
