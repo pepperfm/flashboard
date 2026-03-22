@@ -37,6 +37,16 @@ The installer will ask for a panel path such as `panel` or `admin` and generate 
 - `admin` → `AdminPanelProvider`
 - `partner-balance` → `PartnerBalancePanelProvider`
 
+It will also ask which frontend package manager should be used for asset setup:
+
+- `bun`
+- `npm`
+- `pnpm`
+- `yarn`
+- `skip frontend install/build`
+
+Unless you choose `skip`, the installer will run the selected package manager's install command and then build Flashboard's published frontend assets automatically.
+
 This publishes:
 
 - `resources/views/vendor/flashboard/*`

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Pepperfm\Flashboard\Tests\Feature;
 
+use Illuminate\Filesystem\Filesystem;
 use Pepperfm\Flashboard\Integration\Laravel\Console\InstallCommand;
 use Pepperfm\Flashboard\Tests\TestCase;
 
@@ -31,6 +32,74 @@ final class InstallCommandTest extends TestCase
 
         self::assertSame('/', $method->invoke($command, ''));
         self::assertSame('/panel', $method->invoke($command, 'panel'));
+    }
+
+    public function test_default_package_manager_prefers_existing_lock_files(): void
+    {
+        $command = $this->makeCommand();
+        $method = (new \ReflectionClass(InstallCommand::class))
+            ->getMethod('defaultPackageManager');
+        $method->setAccessible(true);
+
+        $files = new Filesystem();
+        $packageLockPath = base_path('package-lock.json');
+        $bunLockPath = base_path('bun.lock');
+        $bunLockBackupPath = base_path('bun.lock.test-backup');
+
+        $packageLockExists = $files->exists($packageLockPath);
+        $bunLockExists = $files->exists($bunLockPath);
+
+        try {
+            if ($bunLockExists) {
+                $files->move($bunLockPath, $bunLockBackupPath);
+            }
+
+            $files->put($packageLockPath, '{}');
+
+            self::assertSame('npm', $method->invoke($command, $files));
+
+            $files->put($bunLockPath, '');
+
+            self::assertSame('bun', $method->invoke($command, $files));
+        } finally {
+            if (!$packageLockExists && $files->exists($packageLockPath)) {
+                $files->delete($packageLockPath);
+            }
+
+            if (!$bunLockExists && $files->exists($bunLockPath)) {
+                $files->delete($bunLockPath);
+            }
+
+            if ($bunLockExists && $files->exists($bunLockBackupPath)) {
+                $files->move($bunLockBackupPath, $bunLockPath);
+            }
+        }
+    }
+
+    public function test_frontend_install_command_uses_selected_package_manager(): void
+    {
+        $command = $this->makeCommand();
+        $method = (new \ReflectionClass(InstallCommand::class))
+            ->getMethod('frontendInstallCommand');
+        $method->setAccessible(true);
+
+        self::assertSame(['npm', 'install'], $method->invoke($command, 'npm'));
+        self::assertSame(['pnpm', 'install'], $method->invoke($command, 'pnpm'));
+        self::assertSame(['yarn', 'install'], $method->invoke($command, 'yarn'));
+        self::assertSame(['bun', 'install'], $method->invoke($command, 'bun'));
+    }
+
+    public function test_frontend_build_command_uses_selected_package_manager(): void
+    {
+        $command = $this->makeCommand();
+        $method = (new \ReflectionClass(InstallCommand::class))
+            ->getMethod('frontendBuildCommand');
+        $method->setAccessible(true);
+
+        self::assertSame(['npm', 'run', 'build'], $method->invoke($command, 'npm'));
+        self::assertSame(['pnpm', 'run', 'build'], $method->invoke($command, 'pnpm'));
+        self::assertSame(['yarn', 'run', 'build'], $method->invoke($command, 'yarn'));
+        self::assertSame(['bun', 'run', 'build'], $method->invoke($command, 'bun'));
     }
 
     private function makeCommand(): InstallCommand
