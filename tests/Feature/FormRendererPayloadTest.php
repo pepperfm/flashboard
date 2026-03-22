@@ -174,6 +174,27 @@ final class FormRendererPayloadTest extends TestCase
         );
     }
 
+    public function test_columns_method_defaults_to_two_columns(): void
+    {
+        $payload = new FormPayload(
+            Form::make()
+                ->columns()
+                ->schema([
+                    TextInput::make('name')->label('Name'),
+                    TextInput::make('email')->label('Email'),
+                ])
+                ->toArray(),
+        );
+
+        self::assertSame(
+            [
+                'mode' => 'grid',
+                'columns' => ['default' => 1, 'md' => 2],
+            ],
+            $payload->toArray()['layout'],
+        );
+    }
+
     public function test_form_layout_normalization_rejects_mixed_grid_and_flex_configuration(): void
     {
         $this->expectException(\InvalidArgumentException::class);

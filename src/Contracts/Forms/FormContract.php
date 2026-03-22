@@ -41,7 +41,7 @@ interface FormContract
     /**
      * @param array<string, int>|int $columns
      */
-    public function columns(array|int $columns): static;
+    public function columns(array|int $columns = 2): static;
 
     /**
      * @param array<string, int>|int $gap

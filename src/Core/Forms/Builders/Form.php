@@ -96,7 +96,7 @@ final class Form implements FormContract
         );
     }
 
-    public function columns(array|int $columns): static
+    public function columns(array|int $columns = 2): static
     {
         return $this->setLayoutAttribute(FormLayoutAttribute::KEY_COLUMNS, $columns);
     }

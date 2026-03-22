@@ -38,7 +38,7 @@ class Section extends SchemaNode
     /**
      * @param array<string, int>|int $columns
      */
-    public function columns(array|int $columns): static
+    public function columns(array|int $columns = 2): static
     {
         return $this->attribute(FormLayoutAttribute::KEY_COLUMNS, $columns);
     }
