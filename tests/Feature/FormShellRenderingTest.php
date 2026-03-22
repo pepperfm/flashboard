@@ -32,19 +32,24 @@ final class FormShellRenderingTest extends TestCase
 
         self::assertStringContainsString('<UPageSection', $content);
         self::assertStringContainsString('<UPageCard', $content);
-        self::assertStringContainsString('<FormFieldRenderer', $content);
-        self::assertStringContainsString("class=\"simple-field-stack\"", $content);
+        self::assertStringContainsString('<FormFieldsLayout', $content);
+        self::assertStringContainsString('SIMPLE_FORM_DEFAULT_LAYOUT', $content);
     }
 
-    public function test_grouped_shells_render_through_shared_form_field_renderer(): void
+    public function test_grouped_shells_render_through_shared_form_layout_layer(): void
     {
         $sectioned = $this->fixture('resources/js/components/flashboard/forms/layout/SectionedFormShell.vue');
         $tabbed = $this->fixture('resources/js/components/flashboard/forms/layout/TabbedFormShell.vue');
+        $layoutResolver = $this->fixture('resources/js/components/flashboard/forms/layout/resolveFormLayout.ts');
 
-        self::assertStringContainsString('<FormFieldRenderer', $sectioned);
-        self::assertStringContainsString('<UCard variant="soft">', $sectioned);
-        self::assertStringContainsString('<FormFieldRenderer', $tabbed);
+        self::assertStringContainsString('<FormFieldsLayout', $sectioned);
+        self::assertStringContainsString('GROUPED_FORM_DEFAULT_LAYOUT', $sectioned);
+        self::assertStringContainsString('<FormFieldsLayout', $tabbed);
         self::assertStringContainsString('<UTabs', $tabbed);
+        self::assertStringContainsString('resolveFormContainerLayout', $layoutResolver);
+        self::assertStringContainsString('resolveFormItemLayout', $layoutResolver);
+        self::assertStringNotContainsString('grid-template-columns: repeat(2, minmax(0, 1fr));', $sectioned);
+        self::assertStringNotContainsString('grid-template-columns: repeat(2, minmax(0, 1fr));', $tabbed);
     }
 
     private function fixture(string $path): string

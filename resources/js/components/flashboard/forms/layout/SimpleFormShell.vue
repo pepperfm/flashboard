@@ -1,11 +1,13 @@
 <script setup lang="ts">
-import FormFieldRenderer from '@/components/flashboard/forms/renderers/FormFieldRenderer.vue'
+import FormFieldsLayout from '@/components/flashboard/forms/layout/FormFieldsLayout.vue'
+import type { FormContainerLayoutShape } from '@/components/flashboard/forms/layout/resolveFormLayout'
 import type { FormFieldShape } from '@/components/flashboard/forms/renderers/resolveFormFieldRenderer'
 
 const props = defineProps<{
   cancelUrl?: string
   errors?: Record<string, string>
   fields: FormFieldShape[]
+  layout?: FormContainerLayoutShape
   mode?: string
   processing?: boolean
   resourceName?: string
@@ -18,11 +20,10 @@ const emit = defineEmits<{
   visit: [href: string]
 }>()
 
-function fieldError(fieldKey: string): string | undefined {
-  const error = props.errors?.[fieldKey]
-
-  return typeof error === 'string' ? error : undefined
-}
+const SIMPLE_FORM_DEFAULT_LAYOUT = {
+  gap: 5,
+  mode: 'stack',
+} as const
 </script>
 
 <template>
@@ -36,20 +37,14 @@ function fieldError(fieldKey: string): string | undefined {
       </div>
 
       <UForm :state="props.state" class="form-stack" @submit.prevent="emit('submit')">
-        <div class="simple-field-stack">
-          <div
-            v-for="field in props.fields"
-            :key="field.key"
-            class="simple-field-row"
-          >
-            <FormFieldRenderer
-              :field="field"
-              :model-value="props.state[field.key]"
-              :error="fieldError(field.key)"
-              @update:model-value="emit('update:field', field.key, $event)"
-            />
-          </div>
-        </div>
+        <FormFieldsLayout
+          :fields="props.fields"
+          :layout="props.layout"
+          :default-layout="SIMPLE_FORM_DEFAULT_LAYOUT"
+          :errors="props.errors"
+          :state="props.state"
+          @update:field="(fieldKey, value) => emit('update:field', fieldKey, value)"
+        />
 
         <div class="action-row">
           <UButton color="primary" :loading="props.processing" @click="emit('submit')">
@@ -104,13 +99,4 @@ function fieldError(fieldKey: string): string | undefined {
   font-weight: 700;
 }
 
-.simple-field-row {
-  display: grid;
-  gap: 0.5rem;
-}
-
-.simple-field-stack {
-  display: grid;
-  gap: 1.25rem;
-}
 </style>

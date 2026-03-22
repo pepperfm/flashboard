@@ -44,12 +44,14 @@ final class OrdersResource extends Resource
     public static function form(\Pepperfm\Flashboard\Contracts\Forms\FormContract $form): \Pepperfm\Flashboard\Contracts\Forms\FormContract
     {
         return $form
+            ->columns(2)
             ->schema([
                 Select::make('status')->label('Status'),
                 TextInput::make('name')->label('Name')->required(),
                 TextInput::make('email')->label('Email')->email(),
                 TextInput::make('notes')
                     ->label('Notes')
+                    ->columnSpan(2)
                     ->renderer(FieldRenderer::Textarea),
                 Toggle::make('is_active')->label('Is active'),
             ]);
@@ -108,6 +110,8 @@ Actions and pages are still declared through their dedicated methods, but they n
 - prefer `$form->schema([...])` for simple CRUD resources
 - introduce `sections()` or `tabs()` only when the form has meaningful operator-facing grouping
 - use `FieldRenderer` overrides when the control should render differently than the base field type, for example `TextInput::make('notes')->renderer(FieldRenderer::Textarea)`
+- use `columns()`, `gap()`, `columnSpan()`, and `fullWidth()` to place multiple fields on one row without extra row/container nodes
+- use `layout(FormLayoutMode::Flex)` with `direction()/justify()/align()/wrap()` only when a grouped form needs inline controls instead of a grid
 - keep array definitions only as a migration bridge; typed nodes remain the canonical package API
 
 If you do need grouped layout, Flashboard renders sections and tabs through dedicated package-owned shells instead of mixing layout logic into the page component.

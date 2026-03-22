@@ -10,3 +10,158 @@
 [data-flashboard='ready'] {
   color: var(--flashboard-ink);
 }
+
+.fb-form-layout {
+  min-width: 0;
+}
+
+.fb-form-layout--stack,
+.fb-form-layout--grid {
+  display: grid;
+  gap: var(--fb-form-layout-gap-default, 1rem);
+}
+
+.fb-form-layout--stack {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.fb-form-layout--grid {
+  grid-template-columns: repeat(var(--fb-form-layout-columns-default, 1), minmax(0, 1fr));
+}
+
+.fb-form-layout--flex {
+  display: flex;
+  gap: var(--fb-form-layout-gap-default, 1rem);
+  flex-direction: var(--fb-form-layout-direction-default, row);
+  justify-content: var(--fb-form-layout-justify-default, flex-start);
+  align-items: var(--fb-form-layout-align-default, stretch);
+  flex-wrap: var(--fb-form-layout-wrap-default, wrap);
+}
+
+.fb-form-layout__item {
+  min-width: 0;
+}
+
+.fb-form-layout__item--grid {
+  grid-column: span var(--fb-form-layout-span-default, 1) / span var(--fb-form-layout-span-default, 1);
+}
+
+.fb-form-layout__item--flex {
+  flex: 1 1 0;
+  min-width: min(18rem, 100%);
+}
+
+@media (min-width: 40rem) {
+  .fb-form-layout--stack,
+  .fb-form-layout--grid,
+  .fb-form-layout--flex {
+    gap: var(--fb-form-layout-gap-sm, var(--fb-form-layout-gap-default, 1rem));
+  }
+
+  .fb-form-layout--grid {
+    grid-template-columns: repeat(var(--fb-form-layout-columns-sm, var(--fb-form-layout-columns-default, 1)), minmax(0, 1fr));
+  }
+
+  .fb-form-layout--flex {
+    flex-direction: var(--fb-form-layout-direction-sm, var(--fb-form-layout-direction-default, row));
+    justify-content: var(--fb-form-layout-justify-sm, var(--fb-form-layout-justify-default, flex-start));
+    align-items: var(--fb-form-layout-align-sm, var(--fb-form-layout-align-default, stretch));
+    flex-wrap: var(--fb-form-layout-wrap-sm, var(--fb-form-layout-wrap-default, wrap));
+  }
+
+  .fb-form-layout__item--grid {
+    grid-column: span var(--fb-form-layout-span-sm, var(--fb-form-layout-span-default, 1)) / span var(--fb-form-layout-span-sm, var(--fb-form-layout-span-default, 1));
+  }
+}
+
+@media (min-width: 48rem) {
+  .fb-form-layout--stack,
+  .fb-form-layout--grid,
+  .fb-form-layout--flex {
+    gap: var(--fb-form-layout-gap-md, var(--fb-form-layout-gap-sm, var(--fb-form-layout-gap-default, 1rem)));
+  }
+
+  .fb-form-layout--grid {
+    grid-template-columns: repeat(var(--fb-form-layout-columns-md, var(--fb-form-layout-columns-sm, var(--fb-form-layout-columns-default, 1))), minmax(0, 1fr));
+  }
+
+  .fb-form-layout--flex {
+    flex-direction: var(--fb-form-layout-direction-md, var(--fb-form-layout-direction-sm, var(--fb-form-layout-direction-default, row)));
+    justify-content: var(--fb-form-layout-justify-md, var(--fb-form-layout-justify-sm, var(--fb-form-layout-justify-default, flex-start)));
+    align-items: var(--fb-form-layout-align-md, var(--fb-form-layout-align-sm, var(--fb-form-layout-align-default, stretch)));
+    flex-wrap: var(--fb-form-layout-wrap-md, var(--fb-form-layout-wrap-sm, var(--fb-form-layout-wrap-default, wrap)));
+  }
+
+  .fb-form-layout__item--grid {
+    grid-column: span var(--fb-form-layout-span-md, var(--fb-form-layout-span-sm, var(--fb-form-layout-span-default, 1))) / span var(--fb-form-layout-span-md, var(--fb-form-layout-span-sm, var(--fb-form-layout-span-default, 1)));
+  }
+}
+
+@media (min-width: 64rem) {
+  .fb-form-layout--stack,
+  .fb-form-layout--grid,
+  .fb-form-layout--flex {
+    gap: var(--fb-form-layout-gap-lg, var(--fb-form-layout-gap-md, var(--fb-form-layout-gap-sm, var(--fb-form-layout-gap-default, 1rem))));
+  }
+
+  .fb-form-layout--grid {
+    grid-template-columns: repeat(var(--fb-form-layout-columns-lg, var(--fb-form-layout-columns-md, var(--fb-form-layout-columns-sm, var(--fb-form-layout-columns-default, 1)))), minmax(0, 1fr));
+  }
+
+  .fb-form-layout--flex {
+    flex-direction: var(--fb-form-layout-direction-lg, var(--fb-form-layout-direction-md, var(--fb-form-layout-direction-sm, var(--fb-form-layout-direction-default, row))));
+    justify-content: var(--fb-form-layout-justify-lg, var(--fb-form-layout-justify-md, var(--fb-form-layout-justify-sm, var(--fb-form-layout-justify-default, flex-start))));
+    align-items: var(--fb-form-layout-align-lg, var(--fb-form-layout-align-md, var(--fb-form-layout-align-sm, var(--fb-form-layout-align-default, stretch))));
+    flex-wrap: var(--fb-form-layout-wrap-lg, var(--fb-form-layout-wrap-md, var(--fb-form-layout-wrap-sm, var(--fb-form-layout-wrap-default, wrap))));
+  }
+
+  .fb-form-layout__item--grid {
+    grid-column: span var(--fb-form-layout-span-lg, var(--fb-form-layout-span-md, var(--fb-form-layout-span-sm, var(--fb-form-layout-span-default, 1)))) / span var(--fb-form-layout-span-lg, var(--fb-form-layout-span-md, var(--fb-form-layout-span-sm, var(--fb-form-layout-span-default, 1))));
+  }
+}
+
+@media (min-width: 80rem) {
+  .fb-form-layout--stack,
+  .fb-form-layout--grid,
+  .fb-form-layout--flex {
+    gap: var(--fb-form-layout-gap-xl, var(--fb-form-layout-gap-lg, var(--fb-form-layout-gap-md, var(--fb-form-layout-gap-sm, var(--fb-form-layout-gap-default, 1rem)))));
+  }
+
+  .fb-form-layout--grid {
+    grid-template-columns: repeat(var(--fb-form-layout-columns-xl, var(--fb-form-layout-columns-lg, var(--fb-form-layout-columns-md, var(--fb-form-layout-columns-sm, var(--fb-form-layout-columns-default, 1))))), minmax(0, 1fr));
+  }
+
+  .fb-form-layout--flex {
+    flex-direction: var(--fb-form-layout-direction-xl, var(--fb-form-layout-direction-lg, var(--fb-form-layout-direction-md, var(--fb-form-layout-direction-sm, var(--fb-form-layout-direction-default, row)))));
+    justify-content: var(--fb-form-layout-justify-xl, var(--fb-form-layout-justify-lg, var(--fb-form-layout-justify-md, var(--fb-form-layout-justify-sm, var(--fb-form-layout-justify-default, flex-start)))));
+    align-items: var(--fb-form-layout-align-xl, var(--fb-form-layout-align-lg, var(--fb-form-layout-align-md, var(--fb-form-layout-align-sm, var(--fb-form-layout-align-default, stretch)))));
+    flex-wrap: var(--fb-form-layout-wrap-xl, var(--fb-form-layout-wrap-lg, var(--fb-form-layout-wrap-md, var(--fb-form-layout-wrap-sm, var(--fb-form-layout-wrap-default, wrap)))));
+  }
+
+  .fb-form-layout__item--grid {
+    grid-column: span var(--fb-form-layout-span-xl, var(--fb-form-layout-span-lg, var(--fb-form-layout-span-md, var(--fb-form-layout-span-sm, var(--fb-form-layout-span-default, 1))))) / span var(--fb-form-layout-span-xl, var(--fb-form-layout-span-lg, var(--fb-form-layout-span-md, var(--fb-form-layout-span-sm, var(--fb-form-layout-span-default, 1)))));
+  }
+}
+
+@media (min-width: 96rem) {
+  .fb-form-layout--stack,
+  .fb-form-layout--grid,
+  .fb-form-layout--flex {
+    gap: var(--fb-form-layout-gap-2xl, var(--fb-form-layout-gap-xl, var(--fb-form-layout-gap-lg, var(--fb-form-layout-gap-md, var(--fb-form-layout-gap-sm, var(--fb-form-layout-gap-default, 1rem))))));
+  }
+
+  .fb-form-layout--grid {
+    grid-template-columns: repeat(var(--fb-form-layout-columns-2xl, var(--fb-form-layout-columns-xl, var(--fb-form-layout-columns-lg, var(--fb-form-layout-columns-md, var(--fb-form-layout-columns-sm, var(--fb-form-layout-columns-default, 1)))))), minmax(0, 1fr));
+  }
+
+  .fb-form-layout--flex {
+    flex-direction: var(--fb-form-layout-direction-2xl, var(--fb-form-layout-direction-xl, var(--fb-form-layout-direction-lg, var(--fb-form-layout-direction-md, var(--fb-form-layout-direction-sm, var(--fb-form-layout-direction-default, row))))));
+    justify-content: var(--fb-form-layout-justify-2xl, var(--fb-form-layout-justify-xl, var(--fb-form-layout-justify-lg, var(--fb-form-layout-justify-md, var(--fb-form-layout-justify-sm, var(--fb-form-layout-justify-default, flex-start))))));
+    align-items: var(--fb-form-layout-align-2xl, var(--fb-form-layout-align-xl, var(--fb-form-layout-align-lg, var(--fb-form-layout-align-md, var(--fb-form-layout-align-sm, var(--fb-form-layout-align-default, stretch))))));
+    flex-wrap: var(--fb-form-layout-wrap-2xl, var(--fb-form-layout-wrap-xl, var(--fb-form-layout-wrap-lg, var(--fb-form-layout-wrap-md, var(--fb-form-layout-wrap-sm, var(--fb-form-layout-wrap-default, wrap))))));
+  }
+
+  .fb-form-layout__item--grid {
+    grid-column: span var(--fb-form-layout-span-2xl, var(--fb-form-layout-span-xl, var(--fb-form-layout-span-lg, var(--fb-form-layout-span-md, var(--fb-form-layout-span-sm, var(--fb-form-layout-span-default, 1)))))) / span var(--fb-form-layout-span-2xl, var(--fb-form-layout-span-xl, var(--fb-form-layout-span-lg, var(--fb-form-layout-span-md, var(--fb-form-layout-span-sm, var(--fb-form-layout-span-default, 1))))));
+  }
+}

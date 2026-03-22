@@ -27,6 +27,38 @@ public static function form(\Pepperfm\Flashboard\Contracts\Forms\FormContract $f
 
 This path renders as a single centered `UPageCard` shell in the package UI without an artificial `Main` subsection card.
 
+## Field Layout
+
+Schema-first forms can now place multiple fields on one row without introducing nested layout nodes.
+
+```php
+use Pepperfm\Flashboard\Core\Forms\Fields\TextInput;
+
+public static function form(\Pepperfm\Flashboard\Contracts\Forms\FormContract $form): \Pepperfm\Flashboard\Contracts\Forms\FormContract
+{
+    return $form
+        ->columns(2)
+        ->gap(4)
+        ->schema([
+            TextInput::make('first_name')->label('First name'),
+            TextInput::make('last_name')->label('Last name'),
+            TextInput::make('email')
+                ->label('Email')
+                ->email()
+                ->columnSpan(2),
+        ]);
+}
+```
+
+Available layout helpers:
+
+- `columns(int|array)` for grid containers
+- `gap(int|array)` for grid or flex spacing
+- `columnSpan(int|array)` for grid items
+- `fullWidth()` as a shorthand for spanning the full grid width
+
+Scalar `columns(2)` and `columns(3)` stay mobile-safe by default: Flashboard normalizes them to one column on small screens and activates multiple columns from `md` upward.
+
 ## Grouped Layouts
 
 Use `sections()` or `tabs()` only when the form has meaningful visual grouping.
@@ -56,6 +88,30 @@ public static function form(\Pepperfm\Flashboard\Contracts\Forms\FormContract $f
 }
 ```
 
+Sections and tabs support the same layout API as the root form:
+
+```php
+use Pepperfm\Flashboard\Contracts\Forms\FormLayoutAlign;
+use Pepperfm\Flashboard\Contracts\Forms\FormLayoutDirection;
+use Pepperfm\Flashboard\Contracts\Forms\FormLayoutJustify;
+use Pepperfm\Flashboard\Contracts\Forms\FormLayoutMode;
+use Pepperfm\Flashboard\Core\Forms\Fields\Select;
+use Pepperfm\Flashboard\Core\Forms\Fields\TextInput;
+use Pepperfm\Flashboard\Core\Forms\Layout\Section;
+
+Section::make('filters')
+    ->label('Filters')
+    ->layout(FormLayoutMode::Flex)
+    ->direction(FormLayoutDirection::Row)
+    ->justify(FormLayoutJustify::Between)
+    ->align(FormLayoutAlign::Center)
+    ->gap(2)
+    ->schema([
+        Select::make('status')->label('Status'),
+        TextInput::make('search')->label('Search'),
+    ]);
+```
+
 Typed fields, sections, and tabs are the preferred public API. Legacy array definitions remain supported as a migration bridge.
 
 ## Renderer Contract
@@ -68,6 +124,17 @@ Normalized form payloads now expose an explicit `renderer` hint for every field.
 - the frontend maps these hints through package-owned wrappers: `FBInput`, `FBTextarea`, `FBSelect`, `FBSwitch`
 
 Those wrappers stay thin over Nuxt UI (`UInput`, `UTextarea`, `USelect`, `USwitch`) so Flashboard owns the runtime contract without creating a second UI framework.
+
+## Layout Contract
+
+Normalized form payloads now expose package-owned layout metadata:
+
+- container layout lives on `form.layout`, `section.layout`, and `tab.layout`
+- field sizing lives on `field.layout.column_span`
+- grid and flex settings are validated during normalization and fail fast on invalid combinations
+- legacy arrays can opt into the same behavior with `layout`, `columns`, `gap`, `direction`, `justify`, `align`, `wrap`, and `column_span`
+
+Invalid layout combinations such as `columns()` plus `direction()` on the same container raise an exception instead of being silently ignored.
 
 ## Runtime Flow
 

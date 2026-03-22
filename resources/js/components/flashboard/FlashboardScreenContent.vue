@@ -3,6 +3,7 @@ import { router, useForm } from '@inertiajs/vue3'
 import SectionedFormShell from '@/components/flashboard/forms/layout/SectionedFormShell.vue'
 import SimpleFormShell from '@/components/flashboard/forms/layout/SimpleFormShell.vue'
 import TabbedFormShell from '@/components/flashboard/forms/layout/TabbedFormShell.vue'
+import type { FormContainerLayoutShape } from '@/components/flashboard/forms/layout/resolveFormLayout'
 import type { FormFieldShape } from '@/components/flashboard/forms/renderers/resolveFormFieldRenderer'
 import { computed, h, resolveComponent, watch } from 'vue'
 
@@ -28,6 +29,7 @@ type FormGroupShape = {
   label?: string
   description?: string
   icon?: string
+  layout?: FormContainerLayoutShape
   schema?: FormFieldShape[]
 }
 
@@ -80,6 +82,7 @@ type PayloadShape = {
     }
   }
   form?: {
+    layout?: FormContainerLayoutShape
     mode?: string
     state?: Record<string, unknown>
     fields?: FormFieldShape[]
@@ -468,6 +471,7 @@ function formatValue(value: unknown): string {
       v-if="hasTabbedFormLayout"
       :cancel-url="payload.form?.cancel?.url"
       :errors="form.errors as Record<string, string>"
+      :layout="payload.form?.layout"
       :mode="payload.form?.mode"
       :processing="form.processing"
       :resource-name="payload.resource?.name"
@@ -484,6 +488,7 @@ function formatValue(value: unknown): string {
       v-else-if="hasSectionedFormLayout"
       :cancel-url="payload.form?.cancel?.url"
       :errors="form.errors as Record<string, string>"
+      :layout="payload.form?.layout"
       :mode="payload.form?.mode"
       :processing="form.processing"
       :resource-name="payload.resource?.name"
@@ -500,6 +505,7 @@ function formatValue(value: unknown): string {
       :cancel-url="payload.form?.cancel?.url"
       :errors="form.errors as Record<string, string>"
       :fields="standaloneFormFields"
+      :layout="payload.form?.layout"
       :mode="payload.form?.mode"
       :processing="form.processing"
       :resource-name="payload.resource?.name"

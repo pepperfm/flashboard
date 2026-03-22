@@ -5,6 +5,11 @@ declare(strict_types=1);
 namespace Pepperfm\Flashboard\Core\Forms\Builders;
 
 use Illuminate\Database\Eloquent\Model;
+use Pepperfm\Flashboard\Contracts\Forms\FormLayoutAlign;
+use Pepperfm\Flashboard\Contracts\Forms\FormLayoutAttribute;
+use Pepperfm\Flashboard\Contracts\Forms\FormLayoutDirection;
+use Pepperfm\Flashboard\Contracts\Forms\FormLayoutJustify;
+use Pepperfm\Flashboard\Contracts\Forms\FormLayoutMode;
 use Pepperfm\Flashboard\Contracts\Schema\KeyedSchemaNodeContract;
 use Pepperfm\Flashboard\Contracts\Forms\FormContract;
 use Pepperfm\Flashboard\Core\Forms\Normalization\FormSchemaNormalizer;
@@ -35,6 +40,11 @@ final class Form implements FormContract
      * @var array<string, mixed>
      */
     private array $defaults = [];
+
+    /**
+     * @var array<string, mixed>
+     */
+    private array $layout = [];
 
     private ?\Closure $mutateDataUsing = null;
 
@@ -71,6 +81,53 @@ final class Form implements FormContract
         return $this->fields($schema);
     }
 
+    public function layout(FormLayoutMode|string $mode): static
+    {
+        return $this->setLayoutAttribute(
+            FormLayoutAttribute::KEY_LAYOUT,
+            $mode instanceof FormLayoutMode ? $mode->value : $mode,
+        );
+    }
+
+    public function columns(array|int $columns): static
+    {
+        return $this->setLayoutAttribute(FormLayoutAttribute::KEY_COLUMNS, $columns);
+    }
+
+    public function gap(array|int $gap): static
+    {
+        return $this->setLayoutAttribute(FormLayoutAttribute::KEY_GAP, $gap);
+    }
+
+    public function direction(FormLayoutDirection|string $direction): static
+    {
+        return $this->setLayoutAttribute(
+            FormLayoutAttribute::KEY_DIRECTION,
+            $direction instanceof FormLayoutDirection ? $direction->value : $direction,
+        );
+    }
+
+    public function justify(FormLayoutJustify|string $justify): static
+    {
+        return $this->setLayoutAttribute(
+            FormLayoutAttribute::KEY_JUSTIFY,
+            $justify instanceof FormLayoutJustify ? $justify->value : $justify,
+        );
+    }
+
+    public function align(FormLayoutAlign|string $align): static
+    {
+        return $this->setLayoutAttribute(
+            FormLayoutAttribute::KEY_ALIGN,
+            $align instanceof FormLayoutAlign ? $align->value : $align,
+        );
+    }
+
+    public function wrap(bool $condition = true): static
+    {
+        return $this->setLayoutAttribute(FormLayoutAttribute::KEY_WRAP, $condition);
+    }
+
     public function rules(array $rules): static
     {
         $this->rules = $rules;
@@ -101,7 +158,7 @@ final class Form implements FormContract
 
     public function toArray(): array
     {
-        return new FormSchemaNormalizer()->normalize([
+        return new FormSchemaNormalizer()->normalize(array_merge([
             'sections' => $this->sections,
             'tabs' => $this->tabs,
             'fields' => $this->fields,
@@ -109,7 +166,7 @@ final class Form implements FormContract
             'defaults' => $this->defaults,
             'has_mutate_data_using' => $this->mutateDataUsing !== null,
             'has_after_save' => $this->afterSave !== null,
-        ]);
+        ], $this->layout));
     }
 
     /**
@@ -152,5 +209,12 @@ final class Form implements FormContract
         }
 
         value($this->afterSave, $record, $data);
+    }
+
+    private function setLayoutAttribute(string $key, mixed $value): static
+    {
+        $this->layout[$key] = $value;
+
+        return $this;
     }
 }

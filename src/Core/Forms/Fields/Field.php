@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Pepperfm\Flashboard\Core\Forms\Fields;
 
 use Pepperfm\Flashboard\Contracts\Forms\FieldRenderer;
+use Pepperfm\Flashboard\Contracts\Forms\FormLayoutAttribute;
 use Pepperfm\Flashboard\Support\Schema\SchemaNode;
 
 class Field extends SchemaNode
@@ -72,6 +73,19 @@ class Field extends SchemaNode
         }
 
         return $payload;
+    }
+
+    /**
+     * @param array<string, int|string>|int $span
+     */
+    public function columnSpan(array|int $span): static
+    {
+        return $this->attribute(FormLayoutAttribute::KEY_COLUMN_SPAN, $span);
+    }
+
+    public function fullWidth(): static
+    {
+        return $this->attribute(FormLayoutAttribute::KEY_COLUMN_SPAN, FormLayoutAttribute::VALUE_FULL);
     }
 
     protected function defaultRenderer(): ?FieldRenderer

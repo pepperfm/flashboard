@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { computed, ref, watch } from 'vue'
-import FormFieldRenderer from '@/components/flashboard/forms/renderers/FormFieldRenderer.vue'
+import FormFieldsLayout from '@/components/flashboard/forms/layout/FormFieldsLayout.vue'
+import type { FormContainerLayoutShape } from '@/components/flashboard/forms/layout/resolveFormLayout'
 import type { FormFieldShape } from '@/components/flashboard/forms/renderers/resolveFormFieldRenderer'
 
 type FormGroupShape = {
@@ -8,12 +9,14 @@ type FormGroupShape = {
   icon?: string
   key: string
   label?: string
+  layout?: FormContainerLayoutShape
   schema?: FormFieldShape[]
 }
 
 const props = defineProps<{
   cancelUrl?: string
   errors?: Record<string, string>
+  layout?: FormContainerLayoutShape
   mode?: string
   processing?: boolean
   resourceName?: string
@@ -30,6 +33,11 @@ const emit = defineEmits<{
 }>()
 
 const activeTab = ref<string | number>('')
+const GROUPED_FORM_DEFAULT_LAYOUT = {
+  columns: 2,
+  gap: 4,
+  mode: 'grid',
+} as const
 
 const tabItems = computed(() =>
   props.tabs.map((tab) => ({
@@ -42,6 +50,10 @@ const tabItems = computed(() =>
 const activeTabSchema = computed(() =>
   props.tabs.find((tab) => tab.key === activeTab.value)?.schema ?? [],
 )
+const activeTabLayout = computed(() =>
+  props.tabs.find((tab) => tab.key === activeTab.value)?.layout,
+)
+const hasActiveTabLayout = computed(() => Object.keys(activeTabLayout.value ?? {}).length > 0)
 
 watch(
   () => tabItems.value,
@@ -54,12 +66,6 @@ watch(
   },
   { immediate: true },
 )
-
-function fieldError(fieldKey: string): string | undefined {
-  const error = props.errors?.[fieldKey]
-
-  return typeof error === 'string' ? error : undefined
-}
 </script>
 
 <template>
@@ -84,16 +90,27 @@ function fieldError(fieldKey: string): string | undefined {
         />
 
         <div v-if="activeTabSchema.length" class="section-stack">
+          <UCard v-if="hasActiveTabLayout" variant="soft">
+            <FormFieldsLayout
+              :fields="activeTabSchema"
+              :layout="activeTabLayout"
+              :default-layout="GROUPED_FORM_DEFAULT_LAYOUT"
+              :errors="props.errors"
+              :state="props.state"
+              @update:field="(fieldKey, value) => emit('update:field', fieldKey, value)"
+            />
+          </UCard>
+
           <UCard
-            v-for="field in activeTabSchema"
+            v-for="field in hasActiveTabLayout ? [] : activeTabSchema"
             :key="field.key"
             variant="soft"
           >
-            <FormFieldRenderer
-              :field="field"
-              :model-value="props.state[field.key]"
-              :error="fieldError(field.key)"
-              @update:model-value="emit('update:field', field.key, $event)"
+            <FormFieldsLayout
+              :fields="[field]"
+              :errors="props.errors"
+              :state="props.state"
+              @update:field="(fieldKey, value) => emit('update:field', fieldKey, value)"
             />
           </UCard>
         </div>
@@ -113,38 +130,26 @@ function fieldError(fieldKey: string): string | undefined {
               </div>
             </template>
 
-            <div class="field-grid">
-              <div
-                v-for="field in section.schema ?? []"
-                :key="field.key"
-              >
-                <FormFieldRenderer
-                  :field="field"
-                  :model-value="props.state[field.key]"
-                  :error="fieldError(field.key)"
-                  @update:model-value="emit('update:field', field.key, $event)"
-                />
-              </div>
-            </div>
+            <FormFieldsLayout
+              :fields="section.schema ?? []"
+              :layout="section.layout"
+              :default-layout="GROUPED_FORM_DEFAULT_LAYOUT"
+              :errors="props.errors"
+              :state="props.state"
+              @update:field="(fieldKey, value) => emit('update:field', fieldKey, value)"
+            />
           </UCard>
         </div>
 
-        <div
+        <FormFieldsLayout
           v-if="props.standaloneFields.length"
-          class="field-grid"
-        >
-          <div
-            v-for="field in props.standaloneFields"
-            :key="field.key"
-          >
-            <FormFieldRenderer
-              :field="field"
-              :model-value="props.state[field.key]"
-              :error="fieldError(field.key)"
-              @update:model-value="emit('update:field', field.key, $event)"
-            />
-          </div>
-        </div>
+          :fields="props.standaloneFields"
+          :layout="props.layout"
+          :default-layout="GROUPED_FORM_DEFAULT_LAYOUT"
+          :errors="props.errors"
+          :state="props.state"
+          @update:field="(fieldKey, value) => emit('update:field', fieldKey, value)"
+        />
 
         <div class="action-row">
           <UButton color="primary" :loading="props.processing" @click="emit('submit')">
@@ -170,11 +175,6 @@ function fieldError(fieldKey: string): string | undefined {
   display: flex;
   flex-wrap: wrap;
   gap: 0.75rem;
-}
-
-.field-grid {
-  display: grid;
-  gap: 1rem;
 }
 
 .form-stack {
@@ -224,9 +224,4 @@ function fieldError(fieldKey: string): string | undefined {
   margin-bottom: 0.5rem;
 }
 
-@media (min-width: 720px) {
-  .field-grid {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-}
 </style>

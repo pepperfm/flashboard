@@ -28,6 +28,26 @@ interface FormContract
      */
     public function schema(array $schema): static;
 
+    public function layout(FormLayoutMode|string $mode): static;
+
+    /**
+     * @param array<string, int>|int $columns
+     */
+    public function columns(array|int $columns): static;
+
+    /**
+     * @param array<string, int>|int $gap
+     */
+    public function gap(array|int $gap): static;
+
+    public function direction(FormLayoutDirection|string $direction): static;
+
+    public function justify(FormLayoutJustify|string $justify): static;
+
+    public function align(FormLayoutAlign|string $align): static;
+
+    public function wrap(bool $condition = true): static;
+
     /**
      * @param array<string, mixed> $rules
      */

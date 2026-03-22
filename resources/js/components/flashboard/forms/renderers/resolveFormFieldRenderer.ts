@@ -1,4 +1,5 @@
 import type { Component } from 'vue'
+import type { FormFieldLayoutShape } from '../layout/resolveFormLayout'
 import { formFieldRendererMap, type FormFieldRendererKey } from './FormFieldRendererMap'
 
 type FormOptionValue = string | number | boolean
@@ -14,6 +15,7 @@ export type FormFieldShape = {
   input_type?: string
   key: string
   label?: string
+  layout?: FormFieldLayoutShape
   options?: FormOptionShape[] | Record<string, FormOptionValue>
   placeholder?: string
   renderer?: string
