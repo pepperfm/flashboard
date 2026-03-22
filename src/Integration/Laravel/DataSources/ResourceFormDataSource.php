@@ -59,6 +59,25 @@ final readonly class ResourceFormDataSource
                 $user,
             ),
         ));
+        $cancelUrl = null;
+
+        if ($record === null) {
+            $cancelUrl = route(
+                config('flashboard.route_name_prefix', 'flashboard.')
+                . 'resources.' . $resourceClass::key() . '.index',
+            );
+        } elseif ($this->resourceSurfaceResolver->hasDetailSurfaceForResource($resourceClass)) {
+            $cancelUrl = route(
+                config('flashboard.route_name_prefix', 'flashboard.')
+                . 'resources.' . $resourceClass::key() . '.detail',
+                ['record' => $record->getKey()],
+            );
+        } else {
+            $cancelUrl = route(
+                config('flashboard.route_name_prefix', 'flashboard.')
+                . 'resources.' . $resourceClass::key() . '.index',
+            );
+        }
 
         $payload = array_merge($schema->toArray(), [
             'fields' => $fields,
@@ -78,21 +97,7 @@ final readonly class ResourceFormDataSource
                     ),
             ],
             'cancel' => [
-                'url' => $record === null
-                    ? route(
-                        config('flashboard.route_name_prefix', 'flashboard.')
-                        . 'resources.' . $resourceClass::key() . '.index',
-                    )
-                    : $this->resourceSurfaceResolver->hasDetailSurfaceForResource($resourceClass)
-                        ? route(
-                            config('flashboard.route_name_prefix', 'flashboard.')
-                            . 'resources.' . $resourceClass::key() . '.detail',
-                            ['record' => $record->getKey()],
-                        )
-                        : route(
-                            config('flashboard.route_name_prefix', 'flashboard.')
-                            . 'resources.' . $resourceClass::key() . '.index',
-                        ),
+                'url' => $cancelUrl,
             ],
         ]);
 
