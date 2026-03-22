@@ -2,7 +2,7 @@
 import type { DropdownMenuItem, NavigationMenuItem } from '@nuxt/ui'
 import FlashboardThemePanel from '@/components/flashboard/FlashboardThemePanel.vue'
 import { NEUTRAL_OPTIONS, PRIMARY_OPTIONS, RADIUS_OPTIONS } from '@/components/flashboard/themeOptions'
-import { computed, onMounted, ref, watch } from 'vue'
+import { computed, ref, watch } from 'vue'
 
 const THEME_STORAGE_KEY = 'flashboard-theme'
 const THEME_PRIMARY_STORAGE_KEY = 'flashboard-theme-primary'
@@ -31,10 +31,10 @@ const appConfig = useAppConfig()
 const collapsed = ref(false)
 const themePanelOpen = ref(false)
 const userMenuOpen = ref(false)
-const themeMode = ref<ThemeMode>('system')
-const primaryColor = ref<string>(appConfig.ui.colors.primary)
-const neutralColor = ref<string>(appConfig.ui.colors.neutral)
-const radius = ref<number>(0.25)
+const themeMode = ref<ThemeMode>(resolveThemeMode())
+const primaryColor = ref<string>(resolveThemeColor(THEME_PRIMARY_STORAGE_KEY, PRIMARY_OPTIONS, appConfig.ui.colors.primary))
+const neutralColor = ref<string>(resolveThemeColor(THEME_NEUTRAL_STORAGE_KEY, NEUTRAL_OPTIONS, appConfig.ui.colors.neutral))
+const radius = ref<number>(resolveThemeRadius())
 
 const userLabel = computed(() => {
   if (props.user === null) {
@@ -71,36 +71,11 @@ const userMenuItems = computed<DropdownMenuItem[][]>(() => [
   ],
 ])
 
-onMounted(() => {
-  const storedMode = window.localStorage.getItem(THEME_STORAGE_KEY)
-  const storedPrimary = window.localStorage.getItem(THEME_PRIMARY_STORAGE_KEY)
-  const storedNeutral = window.localStorage.getItem(THEME_NEUTRAL_STORAGE_KEY)
-  const storedRadius = window.localStorage.getItem(THEME_RADIUS_STORAGE_KEY)
-
-  if (storedMode === 'light' || storedMode === 'dark' || storedMode === 'system') {
-    themeMode.value = storedMode
-  }
-
-  if (storedPrimary && PRIMARY_OPTIONS.includes(storedPrimary as (typeof PRIMARY_OPTIONS)[number])) {
-    primaryColor.value = storedPrimary
-  }
-
-  if (storedNeutral && NEUTRAL_OPTIONS.includes(storedNeutral as (typeof NEUTRAL_OPTIONS)[number])) {
-    neutralColor.value = storedNeutral
-  }
-
-  if (storedRadius) {
-    const parsedRadius = Number(storedRadius)
-
-    if (RADIUS_OPTIONS.includes(parsedRadius as (typeof RADIUS_OPTIONS)[number])) {
-      radius.value = parsedRadius
-    }
-  }
-
+if (typeof window !== 'undefined') {
   applyTheme(themeMode.value)
   applyUiColors()
   applyRadius()
-})
+}
 
 watch(themeMode, (value) => {
   window.localStorage.setItem(THEME_STORAGE_KEY, value)
@@ -128,6 +103,51 @@ function closeMenu(handler: () => void): (event: Event) => void {
     handler()
     userMenuOpen.value = false
   }
+}
+
+function resolveThemeMode(): ThemeMode {
+  if (typeof window === 'undefined') {
+    return 'system'
+  }
+
+  const storedMode = window.localStorage.getItem(THEME_STORAGE_KEY)
+
+  return storedMode === 'light' || storedMode === 'dark' || storedMode === 'system'
+    ? storedMode
+    : 'system'
+}
+
+/**
+ * @param readonly string[] $allowedOptions
+ */
+function resolveThemeColor(storageKey: string, allowedOptions: readonly string[], fallback: string): string {
+  if (typeof window === 'undefined') {
+    return fallback
+  }
+
+  const storedColor = window.localStorage.getItem(storageKey)
+
+  return storedColor && allowedOptions.includes(storedColor)
+    ? storedColor
+    : fallback
+}
+
+function resolveThemeRadius(): number {
+  if (typeof window === 'undefined') {
+    return 0.25
+  }
+
+  const storedRadius = window.localStorage.getItem(THEME_RADIUS_STORAGE_KEY)
+
+  if (!storedRadius) {
+    return 0.25
+  }
+
+  const parsedRadius = Number(storedRadius)
+
+  return RADIUS_OPTIONS.includes(parsedRadius as (typeof RADIUS_OPTIONS)[number])
+    ? parsedRadius
+    : 0.25
 }
 
 function isActive(href?: string): boolean {
