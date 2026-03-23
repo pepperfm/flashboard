@@ -3,7 +3,7 @@
 ## Requirements
 
 - PHP 8.4+
-- Laravel 12 or 13 host application
+- Laravel 13 host application
 - Session-based authentication in the host app
 
 ## Composer
