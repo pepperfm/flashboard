@@ -14,3 +14,4 @@
 - Prefer `$form->schema([...])` for simple CRUD forms; introduce `sections()` or `tabs()` only when the form has meaningful visual grouping.
 - Simple resource create/edit screens should render as one centered `UPageCard`/`UCard` shell without an artificial `Main` subsection card.
 - Keep the sidebar footer UX split into two square icon menus: a palette button for theme controls and a separate user button for account actions.
+- When documentation content, page structure, section headings, or code-example formatting changes, review and update the docs MCP implementation in `flashboard-docs/server/mcp/` and related raw markdown routes so `flashboard.pepperfm.com/mcp` stays consistent with the published docs.

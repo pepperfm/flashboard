@@ -98,6 +98,10 @@ It is currently in early implementation: the product direction is documented, pa
 | Releases Guide | `docs/releases.md` | Release flow and diagnostics |
 | Beta Checklist | `docs/beta-checklist.md` | Beta readiness checklist for maintainers |
 
+Documentation companion project:
+- `../flashboard-docs/` — separate Nuxt UI docs site and MCP surface for `flashboard.pepperfm.com`
+- Whenever docs pages, headings, navigation structure, or example formats change, review `../flashboard-docs/server/mcp/` and `../flashboard-docs/server/routes/raw/` for MCP/output drift
+
 ## AI Context Files
 | File | Purpose |
 |------|---------|
@@ -111,3 +115,4 @@ It is currently in early implementation: the product direction is documented, pa
 - Treat `ADMIN_PANEL_LIBRARY_CONCEPT.md` as the primary product-direction artifact until implementation files exist.
 - Keep package code framework-aligned for Laravel, but do not leak host application business rules into the reusable library.
 - Prefer contract-first changes: public interfaces and payload shapes should be explicit before UI or adapter details.
+- Treat the docs MCP surface as part of the documentation contract: when docs change, verify whether `flashboard-docs/server/mcp/` tools or raw markdown routes must change too.

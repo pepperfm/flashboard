@@ -107,6 +107,7 @@ Using a modular monolith lets us preserve that layering without introducing depl
 - `UI` consumes normalized contracts and payload objects to render consistent admin screens through Inertia + Vue + Nuxt UI.
 - `Integration/Laravel` adapts framework routing, middleware, auth, requests, and responses to the package runtime.
 - Extension points should use interfaces, explicit hooks, and configuration objects instead of deep inheritance chains.
+- The separate docs site (`flashboard-docs`) is part of the external developer surface; changes to docs IA, headings, or example formats may require coordinated updates to its MCP tools and raw markdown endpoints so AI consumers receive consistent structured output.
 
 ## Key Principles
 1. Keep the public API surface declarative and split by concern: `table()`, `form()`, `detail()`, `actions()`, `pages()`.
