@@ -117,6 +117,7 @@ Using a modular monolith lets us preserve that layering without introducing depl
 5. Keep admin runtime logic package-owned and business logic host-owned.
 6. Make payloads backend-driven and deterministic so the UI layer stays consistent across resources.
 7. Prefer explicit contracts and composition over magic configuration and overloaded DSLs.
+8. Keep searchable table select filters Flashboard-owned in the Vue layer: use Nuxt UI primitives (`UPopover`, `UInput`, compact `UButton` rows), but perform filtering in Flashboard with case-insensitive matching over option labels and values. Do not rely on `USelectMenu`'s built-in search for SKU-like labels whose submitted values are ids.
 
 ## Code Examples
 

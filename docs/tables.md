@@ -39,6 +39,17 @@ Typed columns and filters are the preferred public API. Legacy array definitions
 - select option keys are submitted as filter values, and `queryColumn()` can target a different database column
 - Eloquent pagination with query-string preservation
 
+## Searchable Select Filters
+
+Call `searchable()` on a select filter to render a searchable picker instead of a plain select:
+
+```php
+\Pepperfm\Flashboard\Core\Tables\Filters\SelectFilter::make('sku')
+    ->label('SKU')
+    ->searchable()
+    ->options($products->pluck('sku', 'id')->all());
+```
+
 ## Extension Points
 
 - `queryExtensions()` for custom query mutation

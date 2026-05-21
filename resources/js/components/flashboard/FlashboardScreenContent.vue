@@ -135,6 +135,7 @@ const props = defineProps<{
 }>()
 
 const form = useForm<Record<string, unknown>>({})
+const tableFilterPopoverOpen = reactive<Record<string, boolean>>({})
 const tableFilterSearchTerms = reactive<Record<string, string>>({})
 
 const pagination = computed(() => props.payload.table?.dataset?.pagination)
@@ -355,6 +356,31 @@ function searchableTableFilterOptions(filter: TableFilterShape): TableFilterOpti
     String(option.label ?? '').toLowerCase().includes(searchTerm)
     || String(option.value ?? '').toLowerCase().includes(searchTerm),
   )
+}
+
+function selectedTableFilterLabel(filter: TableFilterShape): string | null {
+  const selectedValue = activeTableFilterValue(filter.key)
+
+  if (selectedValue === null) {
+    return null
+  }
+
+  const selectedOption = normalizeTableFilterOptions(filter)
+    .find((option) => String(option.value ?? '') === String(selectedValue))
+
+  return selectedOption?.label ? String(selectedOption.label) : String(selectedValue)
+}
+
+function selectTableFilterOption(filter: TableFilterShape, value: TableFilterOptionValue | null | undefined) {
+  tableFilterPopoverOpen[filter.key] = false
+  updateTableFilter(filter.key, value)
+}
+
+function tableFilterOptionClass(filter: TableFilterShape, option: TableFilterOptionShape): Record<string, boolean> {
+  return {
+    'table-filter-option': true,
+    'table-filter-option--active': String(activeTableFilterValue(filter.key) ?? '') === String(option.value ?? ''),
+  }
 }
 
 function updateTableFilter(filterKey: string, value: TableFilterOptionValue | null | undefined) {
@@ -588,31 +614,52 @@ function formatValue(value: unknown): string {
             @update:model-value="updateTableFilter(filter.key, $event)"
           />
 
-          <USelectMenu
+          <UPopover
             v-else-if="filter.type === 'select'"
-            class="w-full"
-            :ignore-filter="true"
-            :items="searchableTableFilterOptions(filter)"
-            :model-value="activeTableFilterValue(filter.key)"
-            :placeholder="filter.label ?? filter.key"
-            :search-input="false"
-            value-key="value"
-            @update:model-value="updateTableFilter(filter.key, $event)"
+            v-model:open="tableFilterPopoverOpen[filter.key]"
+            :content="{ align: 'start', sideOffset: 8, collisionPadding: 12 }"
           >
-            <template #content-top>
-              <UInput
-                v-model="tableFilterSearchTerms[filter.key]"
-                autocomplete="off"
-                class="select-menu-search"
-                icon="i-lucide-search"
-                placeholder="Search"
-                @click.stop
-                @keydown.stop
-                @keyup.stop
-                @pointerdown.stop
-              />
+            <UButton
+              class="table-filter-trigger"
+              color="neutral"
+              trailing-icon="i-lucide-chevron-down"
+              variant="outline"
+            >
+              {{ selectedTableFilterLabel(filter) ?? filter.label ?? filter.key }}
+            </UButton>
+
+            <template #content>
+              <div class="table-filter-popover">
+                <UInput
+                  v-model="tableFilterSearchTerms[filter.key]"
+                  autocomplete="off"
+                  autofocus
+                  icon="i-lucide-search"
+                  placeholder="Search"
+                  size="sm"
+                />
+
+                <div class="table-filter-options">
+                  <UButton
+                    v-for="option in searchableTableFilterOptions(filter)"
+                    :key="String(option.value ?? option.label ?? '')"
+                    :class="tableFilterOptionClass(filter, option)"
+                    color="neutral"
+                    size="sm"
+                    type="button"
+                    :variant="String(activeTableFilterValue(filter.key) ?? '') === String(option.value ?? '') ? 'soft' : 'ghost'"
+                    @click="selectTableFilterOption(filter, option.value)"
+                  >
+                    {{ option.label ?? option.value }}
+                  </UButton>
+
+                  <p v-if="searchableTableFilterOptions(filter).length === 0" class="table-filter-empty">
+                    No data
+                  </p>
+                </div>
+              </div>
             </template>
-          </USelectMenu>
+          </UPopover>
 
           <UInput
             v-else
@@ -883,9 +930,36 @@ function formatValue(value: unknown): string {
   min-width: 0;
 }
 
-.select-menu-search {
+.table-filter-trigger {
   width: 100%;
+  justify-content: space-between;
+}
+
+.table-filter-popover {
+  display: grid;
+  gap: 0.5rem;
+  width: min(18rem, calc(100vw - 2rem));
   padding: 0.5rem;
+}
+
+.table-filter-options {
+  display: grid;
+  gap: 0.125rem;
+  max-height: 14rem;
+  overflow-y: auto;
+}
+
+.table-filter-option {
+  width: 100%;
+  justify-content: flex-start;
+}
+
+.table-filter-empty {
+  margin: 0;
+  padding: 1rem 0.75rem;
+  color: var(--ui-text-muted);
+  font-size: 0.875rem;
+  text-align: center;
 }
 
 .section-header {
