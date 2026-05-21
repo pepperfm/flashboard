@@ -1,12 +1,15 @@
 # Changelog
 
-## Unreleased
+## 0.1.1 - 2026-05-21
 
 - add a typed public resource schema DSL for tables, forms, and detail/infolist screens
 - normalize typed nodes and legacy arrays through shared runtime schema normalizers
 - expose unified resource surface metadata, including access-filtered resource-owned pages
 - update `flashboard:make-resource` and example resources to generate the typed DSL by default
 - expand Inertia + Nuxt UI screen rendering to use richer schema metadata for tables, forms, sections, tabs, toggles, selects, and detail entries
+- declare frontend package-manager options on `flashboard:install`
+- support Inertia Laravel 3 for Laravel 13 host applications
+- exclude development-only files from Composer path mirrors and release archives
 
 ## 0.1.0-beta.1
 

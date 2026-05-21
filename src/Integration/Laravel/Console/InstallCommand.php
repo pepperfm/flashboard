@@ -18,7 +18,15 @@ use function Laravel\Prompts\table;
 use function Laravel\Prompts\text;
 use function Laravel\Prompts\warning;
 
-#[Signature('flashboard:install {--force : Overwrite publish targets when supported}')]
+#[Signature(
+    'flashboard:install
+    {--force : Overwrite publish targets when supported}
+    {--bun : Use bun for install and build}
+    {--npm : Use npm for install and build}
+    {--pnpm : Use pnpm for install and build}
+    {--yarn : Use yarn for install and build}
+    {--skip : Skip frontend install and build}'
+)]
 final class InstallCommand extends \Illuminate\Console\Command
 {
     use InteractsWithFrontendAssets;

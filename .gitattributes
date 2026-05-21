@@ -1,0 +1,17 @@
+/vendor export-ignore
+/node_modules export-ignore
+/public/build export-ignore
+/resources/dist export-ignore
+/.ai-factory export-ignore
+/.codex export-ignore
+/.claude export-ignore
+/.github export-ignore
+/.idea export-ignore
+/flashboard-docs export-ignore
+/coverage export-ignore
+/tmp export-ignore
+/.DS_Store export-ignore
+/.env export-ignore
+/.env.* export-ignore
+/auto-imports.d.ts export-ignore
+/components.d.ts export-ignore

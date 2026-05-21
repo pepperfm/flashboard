@@ -11,6 +11,21 @@ use Pepperfm\Flashboard\Tests\TestCase;
 
 final class InstallCommandTest extends TestCase
 {
+    public function test_install_command_declares_frontend_package_manager_options(): void
+    {
+        $attributes = new \ReflectionClass(InstallCommand::class)
+            ->getAttributes(\Illuminate\Console\Attributes\Signature::class);
+        self::assertCount(1, $attributes);
+
+        $signature = (string) $attributes[0]->getArguments()[0];
+
+        self::assertStringContainsString('{--bun ', $signature);
+        self::assertStringContainsString('{--npm ', $signature);
+        self::assertStringContainsString('{--pnpm ', $signature);
+        self::assertStringContainsString('{--yarn ', $signature);
+        self::assertStringContainsString('{--skip ', $signature);
+    }
+
     public function test_provider_class_name_is_derived_from_panel_path(): void
     {
         $command = $this->makeCommand();
