@@ -21,6 +21,9 @@ abstract class Resource
 {
     public const string DEFAULT_SUFFIX = 'Resource';
 
+    /**
+     * @return class-string<\Illuminate\Database\Eloquent\Model>
+     */
     abstract public static function model(): string;
 
     public static function key(): string

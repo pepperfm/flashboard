@@ -72,7 +72,7 @@ final class FlashboardServiceProvider extends \Illuminate\Support\ServiceProvide
         }
 
         if (config('flashboard.logging.report_boot', false)) {
-            $config = $this->app->make(PanelConfigurationResolver::class)->resolve();
+            $this->app->make(PanelConfigurationResolver::class)->resolve();
         }
     }
 
