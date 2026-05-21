@@ -59,6 +59,13 @@ final class MakeResourceCommandTest extends TestCase
             $content,
         );
         self::assertSame(1, substr_count($content, "TextColumn::make('id')"));
+        self::assertStringContainsString(
+            "    public static function navigationIcon(): string" . PHP_EOL
+            . "    {" . PHP_EOL
+            . "        return 'lucide:panel-left';" . PHP_EOL
+            . "    }",
+            $content,
+        );
         self::assertStringNotContainsString('email', $content);
         self::assertStringNotContainsString('public static function detail(', $content);
         self::assertStringNotContainsString(PHP_EOL . PHP_EOL . PHP_EOL, $content);

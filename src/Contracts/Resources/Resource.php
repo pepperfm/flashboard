@@ -50,6 +50,11 @@ abstract class Resource
         return null;
     }
 
+    public static function navigationIcon(): ?string
+    {
+        return null;
+    }
+
     public static function routeBasePath(): string
     {
         return static::key();
@@ -250,6 +255,7 @@ abstract class Resource
     {
         return $item
             ->label(static::navigationLabel())
+            ->icon(static::navigationIcon())
             ->group(static::navigationGroup())
             ->visible(static::isVisibleInNavigation());
     }

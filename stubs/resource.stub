@@ -14,6 +14,11 @@ final class {{ class }} extends Resource
         return {{ model_basename }}::class;
     }
 
+    public static function navigationIcon(): string
+    {
+        return 'lucide:panel-left';
+    }
+
 {{ navigation_group_method }}    public static function table(TableContract $table): TableContract
     {
         return $table->columns([

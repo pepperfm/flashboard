@@ -171,9 +171,6 @@ function chipStyle(color: string) {
 
 .theme-option {
   justify-content: flex-start;
-  min-height: 2.35rem;
-  padding-inline: 0.625rem;
-  font-size: 0.82rem;
 }
 
 .theme-dot {
@@ -198,8 +195,6 @@ function chipStyle(color: string) {
 .radius-option,
 .appearance-option {
   justify-content: center;
-  min-height: 2.35rem;
-  font-size: 0.82rem;
 }
 
 .appearance-grid {

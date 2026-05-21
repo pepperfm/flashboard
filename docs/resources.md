@@ -131,10 +131,24 @@ Typed nodes are the preferred public API going forward. Arrays remain supported 
 - `routeBasePath()`
 - `navigationLabel()`
 - `navigationGroup()`
+- `navigationIcon()`
 - `formRules()`
 - `mutateFormDataBeforeSave()`
 - `afterSave()`
 - `policy()`
+
+## Navigation Icons
+
+Resources can customize their sidebar icon with `navigationIcon()`:
+
+```php
+public static function navigationIcon(): string
+{
+    return 'lucide:annoyed';
+}
+```
+
+Icon names use the Nuxt UI/Iconify format without the leading `i-`: `collection:name`. Browse available names on [Icones](https://icones.js.org/). Flashboard passes the value to Nuxt UI with `i-` added under the hood and supports the `lucide` and `heroicons` collections, for example `lucide:annoyed` or `heroicons:cube`.
 
 ## Escape Hatches
 

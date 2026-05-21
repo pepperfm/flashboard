@@ -8,9 +8,11 @@ const THEME_STORAGE_KEY = 'flashboard-theme'
 const THEME_PRIMARY_STORAGE_KEY = 'flashboard-theme-primary'
 const THEME_NEUTRAL_STORAGE_KEY = 'flashboard-theme-neutral'
 const THEME_RADIUS_STORAGE_KEY = 'flashboard-theme-radius'
+const DEFAULT_NAVIGATION_ICON = 'i-lucide-panel-left'
 
 type NavigationItem = {
   href?: string
+  icon?: string | null
   label: string
 }
 
@@ -47,7 +49,7 @@ const userLabel = computed(() => {
 const navigationItems = computed<NavigationMenuItem[][]>(() => [
   props.items.map((item, index) => ({
     label: item.label,
-    icon: 'i-lucide-panel-left',
+    icon: resolveNavigationIcon(item.icon),
     active: isActive(item.href),
     onSelect: (event: Event) => {
       event.preventDefault()
@@ -57,6 +59,14 @@ const navigationItems = computed<NavigationMenuItem[][]>(() => [
     value: `navigation-${index}`,
   })),
 ])
+
+function resolveNavigationIcon(icon?: string | null): string {
+  if (!icon) {
+    return DEFAULT_NAVIGATION_ICON
+  }
+
+  return icon.startsWith('i-') ? icon : `i-${icon}`
+}
 
 const userMenuItems = computed<DropdownMenuItem[][]>(() => [
   [
