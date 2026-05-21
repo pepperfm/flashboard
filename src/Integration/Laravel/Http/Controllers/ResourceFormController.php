@@ -27,9 +27,6 @@ final readonly class ResourceFormController
         $user = $this->authenticator->user();
 
         if (!$this->screenAccessResolver->canCreateRecord($resourceClass, $user)) {
-            logger()->warning('[FIX] Denied resource create submission.', [
-                'resource' => $resourceClass,
-            ]);
             abort(403);
         }
 
@@ -47,10 +44,6 @@ final readonly class ResourceFormController
         $user = $this->authenticator->user();
 
         if (!$this->screenAccessResolver->canEditRecord($resourceClass, $user, $record)) {
-            logger()->warning('[FIX] Denied resource update submission.', [
-                'resource' => $resourceClass,
-                'record' => $record->getKey(),
-            ]);
             abort(403);
         }
 

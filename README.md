@@ -18,13 +18,13 @@ Legacy array definitions remain supported as a compatibility bridge while host a
 
 ## Current Scope
 
-The repository currently contains the package foundation:
+The repository currently contains a working package runtime:
 
 - Composer package metadata and Laravel package discovery
 - A Flashboard service provider and install command
 - Baseline panel configuration and `/admin` route registration
 - Public panel, page, resource, table, form, detail, action, and navigation contracts
-- Initial fluent builder layer, typed schema node DSL, and discovery registries for panels, resources, and pages
+- Fluent builder layer, typed schema node DSL, and discovery registries for panels, resources, and pages
 - Runtime metadata, screen resolution, lifecycle hooks, and payload assembly for page/resource screens
 - Package auth flow, route registrar, panel shell layout, permission-aware navigation, and Eloquent-backed list screen data source
 - Create/edit persistence, detail hydration, relation payloads, action execution, and custom workspace page support
@@ -32,7 +32,7 @@ The repository currently contains the package foundation:
 - Inertia + Vue panel shell with `@inertiaHead`, `@inertia`, a Vite-powered app entry, and Nuxt UI component primitives
 - A real Inertia root view and Vue page shell so host applications can verify package wiring through the client runtime
 
-The full resource runtime, table engine, form engine, detail views, and operator workflows are still planned and tracked in [`.ai-factory/ROADMAP.md`](./.ai-factory/ROADMAP.md).
+The package is still beta-stage, but the core resource runtime, table engine, form engine, detail views, actions, relations, and operator workspace surfaces are now implemented enough for host-app validation.
 
 ## Install In A Host Laravel App
 
@@ -44,6 +44,8 @@ The full resource runtime, table engine, form engine, detail views, and operator
 
 Generated resources now use the typed DSL by default and keep legacy arrays only as a migration fallback.
 
+During install, Flashboard builds its frontend assets inside the installed package directory and then publishes the compiled files into the host application at `public/vendor/flashboard/build`. Use `php artisan flashboard:build-assets` when you need to rebuild and republish those assets later.
+
 ## Local Development
 
 - `composer i`
@@ -54,5 +56,5 @@ Generated resources now use the typed DSL by default and keep legacy arrays only
 
 ## Notes
 
-- The package is intentionally bootstrapped before feature completion.
-- The panel route now boots through an Inertia root view and Vue page shell.
+- Flashboard is beta-stage: public contracts should stay explicit and versioned as the package hardens.
+- The panel route boots through an Inertia root view and Vue page shell.

@@ -46,9 +46,6 @@ final readonly class PanelScreenController
             $context->screen()->pageClass() !== null &&
             !$this->screenAccessResolver->canAccessPage($context->screen()->pageClass(), $user)
         ) {
-            logger()->warning('[FIX] Denied page access.', [
-                'page' => $context->screen()->pageClass(),
-            ]);
             abort(403);
         }
 
@@ -56,11 +53,6 @@ final readonly class PanelScreenController
             is_string($resourceClass) &&
             !$this->canAccessResourceScreen($resourceClass, $resourcePage, $record, $user)
         ) {
-            logger()->warning('[FIX] Denied resource screen access.', [
-                'page' => $resourcePage,
-                'resource' => $resourceClass,
-                'record' => $record?->getKey(),
-            ]);
             abort(403);
         }
 

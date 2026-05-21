@@ -30,10 +30,6 @@ final readonly class ActionController
         $user = $this->authenticator->user();
         $record = $resourceClass::resolveRecord($request->route('record'));
         if ($record !== null && !$this->screenAccessResolver->canViewRecord($resourceClass, $user, $record)) {
-            logger()->warning('[FIX] Denied resource action on inaccessible record.', [
-                'action' => $action,
-                'resource' => $resourceClass,
-            ]);
             abort(403);
         }
 
@@ -41,10 +37,6 @@ final readonly class ActionController
         abort_unless($resolvedAction instanceof ActionContract, 404);
 
         if (!$this->screenAccessResolver->canViewAction($resourceClass, $resolvedAction->key(), $user)) {
-            logger()->warning('[FIX] Denied resource action by action visibility rule.', [
-                'action' => $resolvedAction->key(),
-                'resource' => $resourceClass,
-            ]);
             abort(403);
         }
 

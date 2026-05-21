@@ -45,7 +45,7 @@ It will also ask which frontend package manager should be used for asset setup:
 - `yarn`
 - `skip frontend install/build`
 
-Unless you choose `skip`, the installer will run the selected package manager's install command and then build Flashboard's published frontend assets automatically.
+Unless you choose `skip`, the installer will run the selected package manager's install command inside the installed Flashboard package directory, build the package frontend there, and then publish the compiled assets into the host application.
 
 If you want to rebuild package assets later without re-running the full installer, use:
 
@@ -53,7 +53,7 @@ If you want to rebuild package assets later without re-running the full installe
 php artisan flashboard:build-assets
 ```
 
-This command also republishes Flashboard views and assets after a successful build.
+This command also runs inside the installed Flashboard package directory and republishes Flashboard views and assets after a successful build.
 
 You can bypass the interactive package-manager prompt with an explicit flag:
 
@@ -68,7 +68,7 @@ This publishes:
 - `resources/views/vendor/flashboard/*`
 - `public/vendor/flashboard/build/*`
 
-The package ships its own built frontend assets. A host application does not need to install Flashboard's Vue, Inertia, or Nuxt UI npm dependencies manually.
+The host application does not need to add Flashboard's Vue, Inertia, or Nuxt UI dependencies to its own frontend build. Those dependencies belong to the package build, which `flashboard:install` and `flashboard:build-assets` run from the installed package directory.
 
 ## Configure Flashboard
 
