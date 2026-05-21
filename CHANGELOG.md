@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+## 0.1.4 - 2026-05-22
+
+- add multiple select table filters with lazy backend loading, selected-value hydration, capped `whereIn()` input, and docs
+- move simple service-provider singleton registrations to Laravel `#[Singleton]` attributes
+- trim package boot logging setup and refine provider configuration examples
+
 ## 0.1.3 - 2026-05-21
 
 - render table filters above resource index tables, preserve selected filter values, expose a reset action, support searchable select filters, and allow filters to target a separate query column

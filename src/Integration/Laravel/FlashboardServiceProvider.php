@@ -71,9 +71,6 @@ final class FlashboardServiceProvider extends \Illuminate\Support\ServiceProvide
             ], 'flashboard-assets');
         }
 
-        if (config('flashboard.logging.report_boot', false)) {
-            $this->app->make(PanelConfigurationResolver::class)->resolve();
-        }
     }
 
     private function configPath(): string
