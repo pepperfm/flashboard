@@ -31,6 +31,7 @@ use Pepperfm\Flashboard\Integration\Laravel\Console\BuildAssetsCommand;
 use Pepperfm\Flashboard\Integration\Laravel\Console\InstallCommand;
 use Pepperfm\Flashboard\Integration\Laravel\Console\PlaygroundInfoCommand;
 use Pepperfm\Flashboard\Integration\Laravel\DataSources\ResourceDetailDataSource;
+use Pepperfm\Flashboard\Integration\Laravel\DataSources\ResourceFilterOptionsDataSource;
 use Pepperfm\Flashboard\Integration\Laravel\DataSources\ResourceFormDataSource;
 use Pepperfm\Flashboard\Integration\Laravel\DataSources\ResourceListDataSource;
 use Pepperfm\Flashboard\Integration\Laravel\Discovery\ConfigPanelProvider;
@@ -97,6 +98,7 @@ final class FlashboardServiceProvider extends \Illuminate\Support\ServiceProvide
         $this->app->singleton(\Pepperfm\Flashboard\Core\Extensions\ExtensionRegistry::class);
         $this->app->singleton(\Pepperfm\Flashboard\Core\Hooks\RuntimeHookDispatcher::class);
         $this->app->singleton(ResourceListDataSource::class);
+        $this->app->singleton(ResourceFilterOptionsDataSource::class);
         $this->app->singleton(ResourceFormDataSource::class);
         $this->app->singleton(ResourceDetailDataSource::class);
         $this->app->singleton(ResourceFormPersister::class);

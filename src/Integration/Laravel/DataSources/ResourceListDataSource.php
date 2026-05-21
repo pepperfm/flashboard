@@ -46,7 +46,8 @@ final readonly class ResourceListDataSource
 
         $searchableColumns = $table->searchableColumns();
         $sortableColumns = $table->sortableColumns();
-        $filterColumns = $this->filterColumns($table->filters());
+        $tableFilters = $this->tableFilters($resourceClass, $table->filters());
+        $filterColumns = $this->filterColumns($tableFilters);
 
         if ($search !== '' && $searchableColumns !== []) {
             $query->where(function (\Illuminate\Database\Eloquent\Builder $builder) use (
@@ -70,7 +71,11 @@ final readonly class ResourceListDataSource
                     continue;
                 }
 
-                $query->where($filterColumns[$key] ?? $key, $value);
+                if (!array_key_exists($key, $filterColumns)) {
+                    continue;
+                }
+
+                $query->where($filterColumns[$key], $value);
             }
         }
 
@@ -142,8 +147,8 @@ final readonly class ResourceListDataSource
                     . 'resources.' . $resourceClass::key() . '.create',
                 ),
             ],
-            'filters' => $table->filters(),
-            'active_filters' => is_array($filters) ? $filters : [],
+            'filters' => $tableFilters,
+            'active_filters' => is_array($filters) ? $this->activeFilters($filters, $filterColumns) : [],
             'scopes' => $table->scopes(),
             'search' => $search,
             'sort' => $sort,
@@ -190,5 +195,53 @@ final readonly class ResourceListDataSource
         }
 
         return $columns;
+    }
+
+    /**
+     * @param class-string<Resource> $resourceClass
+     * @param list<array<string, mixed>> $filters
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function tableFilters(string $resourceClass, array $filters): array
+    {
+        return array_values(array_map(function (array $filter) use ($resourceClass): array {
+            $key = Arr::get($filter, 'key');
+
+            if (($filter['lazy'] ?? false) !== true || !is_string($key) || $key === '') {
+                return $filter;
+            }
+
+            unset($filter['options']);
+
+            return array_merge($filter, [
+                'options_url' => route(
+                    config('flashboard.route_name_prefix', 'flashboard.')
+                    . 'resources.' . $resourceClass::key() . '.filters.options',
+                    ['filter' => $key],
+                ),
+            ]);
+        }, $filters));
+    }
+
+    /**
+     * @param array<array-key, mixed> $filters
+     * @param array<string, string> $filterColumns
+     *
+     * @return array<string, mixed>
+     */
+    private function activeFilters(array $filters, array $filterColumns): array
+    {
+        $activeFilters = [];
+
+        foreach ($filters as $key => $value) {
+            if (!is_string($key) || !array_key_exists($key, $filterColumns)) {
+                continue;
+            }
+
+            $activeFilters[$key] = $value;
+        }
+
+        return $activeFilters;
     }
 }

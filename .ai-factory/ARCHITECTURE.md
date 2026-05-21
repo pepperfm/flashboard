@@ -19,7 +19,7 @@ Using a modular monolith lets us preserve that layering without introducing depl
 │   └── flashboard.php           # Publishable package configuration and panel defaults
 ├── resources/
 │   ├── css/                     # Package-owned styling primitives and tokens
-│   ├── js/                      # Frontend bootstrap entries plus package-owned form wrappers, renderer maps, and layout shells
+│   ├── js/                      # Frontend bootstrap entries plus package-owned table/form wrappers, renderer maps, and layout shells
 │   └── views/                   # Inertia root view and auth blade views
 ├── routes/
 │   └── flashboard.php           # Package route definitions mounted by the service provider
@@ -31,6 +31,7 @@ Using a modular monolith lets us preserve that layering without introducing depl
 │   │   ├── Schema/
 │   │   ├── Resources/
 │   │   └── Tables/
+│   │       └── Filters/       # Stable lazy table-filter option query/result DTOs
 │   ├── Core/                   # Package runtime and business-neutral admin orchestration
 │   │   ├── Actions/
 │   │   ├── Authorization/

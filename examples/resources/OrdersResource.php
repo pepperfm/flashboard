@@ -38,7 +38,7 @@ final class OrdersResource extends Resource
                 TextColumn::make('created_at')->label('Created'),
             ])
             ->filters([
-                SelectFilter::make('status')->label('Status'),
+                SelectFilter::make('status')->label('Status')->lazy(),
             ]);
     }
 

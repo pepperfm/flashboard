@@ -57,6 +57,14 @@ final class Table implements TableContract
         return $this;
     }
 
+    /**
+     * @return list<array<string, mixed>|KeyedSchemaNodeContract>
+     */
+    public function rawFilters(): array
+    {
+        return $this->filters;
+    }
+
     public function scopes(array $scopes): static
     {
         $this->scopes = $scopes;

@@ -3,6 +3,7 @@
 ## Unreleased
 
 - render table filters above resource index tables, preserve selected filter values, expose a reset action, support searchable select filters, and allow filters to target a separate query column
+- add lazy backend-loaded select filters with server-side search, scroll pagination, selected-value hydration, and custom option resolvers
 
 ## 0.1.2 - 2026-05-21
 

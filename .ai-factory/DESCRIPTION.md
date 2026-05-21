@@ -31,7 +31,7 @@ The package is intended to turn declarative resource definitions into a ready-to
 - **Framework:** Laravel package targeting Laravel 13 host applications
 - **Database:** Host application database; the package should avoid owning a mandatory database schema by default
 - **ORM:** Eloquent in the consuming Laravel application
-- **Frontend/UI:** Backend-driven admin UI runtime rendered through Inertia + Vue with Nuxt UI and a Vite asset pipeline
+- **Frontend/UI:** Backend-driven admin UI runtime rendered through Inertia + Vue with Nuxt UI, VueUse interaction helpers, and a Vite asset pipeline
 - **Integrations:** Panel auth, permissions, routing, notifications, browser automation tooling via MCP
 - **Dev Tooling:** PHPUnit, PHPStan, demo resource stub, and playground guidance
 

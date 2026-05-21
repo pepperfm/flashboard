@@ -37,7 +37,7 @@ final class OrdersResource extends Resource
                 BadgeColumn::make('status')->label('Status')->searchable(),
             ])
             ->filters([
-                SelectFilter::make('status')->label('Status'),
+                SelectFilter::make('status')->label('Status')->lazy(),
             ]);
     }
 

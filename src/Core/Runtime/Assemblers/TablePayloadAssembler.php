@@ -16,7 +16,21 @@ final class TablePayloadAssembler
     public function assemble(string $resourceClass): TablePayload
     {
         return new TablePayload(
-            $resourceClass::table(Table::make())->toArray(),
+            $this->table($resourceClass)->toArray(),
         );
+    }
+
+    /**
+     * @param class-string<Resource> $resourceClass
+     */
+    public function table(string $resourceClass): Table
+    {
+        $table = $resourceClass::table(Table::make());
+
+        if (!$table instanceof Table) {
+            throw new \UnexpectedValueException('Resource table definitions must return the Flashboard table builder instance.');
+        }
+
+        return $table;
     }
 }

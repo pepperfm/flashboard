@@ -13,6 +13,7 @@ use Pepperfm\Flashboard\Integration\Laravel\Http\Controllers\Auth\LoginControlle
 use Pepperfm\Flashboard\Integration\Laravel\Http\Controllers\Auth\LogoutController;
 use Pepperfm\Flashboard\Integration\Laravel\Http\Controllers\Auth\ShowLoginController;
 use Pepperfm\Flashboard\Integration\Laravel\Http\Controllers\PanelScreenController;
+use Pepperfm\Flashboard\Integration\Laravel\Http\Controllers\ResourceFilterOptionsController;
 use Pepperfm\Flashboard\Integration\Laravel\Http\Controllers\ResourceFormController;
 
 final readonly class PanelRouteRegistrar
@@ -93,6 +94,16 @@ final readonly class PanelRouteRegistrar
                 ->middleware($resourceClass::middleware())
                 ->defaults('flashboard.resource', $resourceClass)
                 ->name('resources.' . $resourceClass::key() . '.store');
+
+            Route::get("$base/_options/{filter}", ResourceFilterOptionsController::class)
+                ->middleware($resourceClass::middleware())
+                ->defaults('flashboard.resource', $resourceClass)
+                ->name('resources.' . $resourceClass::key() . '.filters.options');
+
+            Route::get("$base/_filter-options/{filter}", ResourceFilterOptionsController::class)
+                ->middleware($resourceClass::middleware())
+                ->defaults('flashboard.resource', $resourceClass)
+                ->name('resources.' . $resourceClass::key() . '.filters.legacy-options');
 
             if ($this->resourceSurfaceResolver->hasDetailSurfaceForResource($resourceClass)) {
                 Route::get("$base/{record}", PanelScreenController::class)

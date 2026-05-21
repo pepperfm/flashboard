@@ -83,4 +83,60 @@ final class TableFilterPayloadTest extends TestCase
             2 => 'SKU-2',
         ], $payload->filters()[0]['options']);
     }
+
+    public function test_select_filters_can_be_marked_lazy_without_serializing_resolvers(): void
+    {
+        $payload = new TablePayload(
+            Table::make()
+                ->filters([
+                    SelectFilter::make('status')
+                        ->label('Status')
+                        ->lazy(static fn (): array => [
+                            [
+                                'label' => 'Draft',
+                                'value' => 'draft',
+                            ],
+                        ], perPage: 15),
+                ])
+                ->toArray(),
+        );
+
+        self::assertSame([
+            [
+                'key' => 'status',
+                'label' => 'Status',
+                'type' => 'select',
+                'lazy' => true,
+                'options_per_page' => 15,
+            ],
+        ], $payload->filters());
+    }
+
+    public function test_lazy_select_filters_can_define_option_label_and_value_columns(): void
+    {
+        $payload = new TablePayload(
+            Table::make()
+                ->filters([
+                    SelectFilter::make('sku')
+                        ->label('SKU')
+                        ->lazy()
+                        ->optionValue('id')
+                        ->optionLabel('sku'),
+                ])
+                ->toArray(),
+        );
+
+        self::assertSame([
+            [
+                'key' => 'sku',
+                'label' => 'SKU',
+                'type' => 'select',
+                'lazy' => true,
+                'options_per_page' => SelectFilter::DEFAULT_OPTIONS_PER_PAGE,
+                'query_column' => 'id',
+                'option_value_column' => 'id',
+                'option_label_column' => 'sku',
+            ],
+        ], $payload->filters());
+    }
 }

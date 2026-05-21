@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { router, useForm } from '@inertiajs/vue3'
 import SimpleFormShell from '@/components/flashboard/forms/layout/SimpleFormShell.vue'
+import LazySelectFilter from '@/components/flashboard/table/LazySelectFilter.vue'
 import type { FormContainerLayoutShape } from '@/components/flashboard/forms/layout/resolveFormLayout'
 import type { FormFieldShape, FormNodeShape } from '@/components/flashboard/forms/renderers/resolveFormFieldRenderer'
 import { computed, h, reactive, resolveComponent, watch } from 'vue'
@@ -31,8 +32,11 @@ type TableFilterOptionShape = {
 
 type TableFilterShape = {
   key: string
+  lazy?: boolean
   label?: string
   options?: TableFilterOptionShape[] | Record<string, TableFilterOptionValue>
+  options_per_page?: number
+  options_url?: string
   searchable?: boolean
   type?: string
 }
@@ -605,8 +609,15 @@ function formatValue(value: unknown): string {
           :name="`filters.${filter.key}`"
           class="table-filter-field"
         >
+          <LazySelectFilter
+            v-if="filter.type === 'select' && filter.lazy === true"
+            :filter="filter"
+            :model-value="activeTableFilterValue(filter.key)"
+            @update:model-value="updateTableFilter(filter.key, $event)"
+          />
+
           <USelect
-            v-if="filter.type === 'select' && filter.searchable !== true"
+            v-else-if="filter.type === 'select' && filter.searchable !== true"
             class="w-full"
             :items="normalizeTableFilterOptions(filter)"
             :model-value="activeTableFilterValue(filter.key)"
@@ -636,7 +647,6 @@ function formatValue(value: unknown): string {
                   autofocus
                   icon="i-lucide-search"
                   placeholder="Search"
-                  size="sm"
                 />
 
                 <div class="table-filter-options">
@@ -645,7 +655,6 @@ function formatValue(value: unknown): string {
                     :key="String(option.value ?? option.label ?? '')"
                     :class="tableFilterOptionClass(filter, option)"
                     color="neutral"
-                    size="sm"
                     type="button"
                     :variant="String(activeTableFilterValue(filter.key) ?? '') === String(option.value ?? '') ? 'soft' : 'ghost'"
                     @click="selectTableFilterOption(filter, option.value)"

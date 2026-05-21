@@ -36,7 +36,7 @@ It is currently in early implementation: the product direction is documented, pa
 ├── phpstan.neon.dist            # Static analysis configuration
 ├── phpunit.xml                  # Testbench test suite entrypoint
 ├── playground/                  # Manual validation notes for local package development
-├── resources/                   # Package views and frontend source assets, including package-owned form wrappers and layout shells
+├── resources/                   # Package views and frontend source assets, including package-owned table/form wrappers and layout shells
 ├── routes/                      # Package route definitions loaded by the service provider
 ├── src/                         # Package source code grouped by contracts, schema foundations, core runtime, UI, and Laravel integration
 ├── stubs/                       # Generator stubs for demo and future package scaffolds
@@ -60,7 +60,11 @@ It is currently in early implementation: the product direction is documented, pa
 | `src/Core/Runtime/Resolvers/ScreenResolver.php` | Resolves the current route into a page or resource screen |
 | `src/Integration/Laravel/Routing/PanelRouteRegistrar.php` | Registers auth, page, and resource panel routes from runtime registries |
 | `src/Integration/Laravel/DataSources/ResourceListDataSource.php` | Executes Eloquent-backed list resource queries for table screens |
+| `src/Integration/Laravel/DataSources/ResourceFilterOptionsDataSource.php` | Serves lazy backend-loaded select filter options with search, pagination, and selected-value hydration |
+| `src/Integration/Laravel/Http/Controllers/ResourceFilterOptionsController.php` | Protected JSON endpoint for resource table filter option requests |
 | `src/Core/Resources/ResourceSurfaceResolver.php` | Resolves resource surface availability, accessible resource-owned pages, and shared surface metadata |
+| `src/Contracts/Tables/Filters/SelectFilterOptionsQuery.php` | Public resolver context for custom lazy select filter option loaders |
+| `src/Contracts/Tables/Filters/SelectFilterOptionsResult.php` | Public result DTO for lazy select filter option responses |
 | `src/Contracts/Forms/FieldRenderer.php` | Public enum for stable form renderer hints in normalized payloads |
 | `src/Support/Schema/SchemaNodeNormalizer.php` | Normalizes typed schema nodes and legacy array definitions into deterministic runtime payload input |
 | `src/Integration/Laravel/Persistence/ResourceFormPersister.php` | Handles create and update persistence flow for resource forms |
@@ -69,6 +73,7 @@ It is currently in early implementation: the product direction is documented, pa
 | `src/UI/Renderers/InertiaScreenRenderer.php` | Renders panel screens through Inertia instead of Blade-first server markup |
 | `src/UI/Renderers/JsonScreenRenderer.php` | Renders versioned runtime payloads for API-style consumers |
 | `resources/js/Pages/Flashboard/Screen.vue` | Main Inertia Vue page rendered with Nuxt UI components |
+| `resources/js/components/flashboard/table/LazySelectFilter.vue` | Lazy backend-loaded Nuxt UI select menu for table filters |
 | `resources/js/components/flashboard/forms/renderers/FormFieldRenderer.vue` | Central frontend renderer that maps normalized field payloads to Flashboard-owned wrapper components |
 | `resources/js/components/flashboard/forms/layout/SimpleFormShell.vue` | Schema-first create/edit shell for simple CRUD forms rendered in one centered page card |
 | `resources/js/components/flashboard/forms/layout/SectionedFormShell.vue` | Grouped create/edit shell for section-based resource forms |
@@ -99,8 +104,8 @@ It is currently in early implementation: the product direction is documented, pa
 | Beta Checklist | `docs/beta-checklist.md` | Beta readiness checklist for maintainers |
 
 Documentation companion project:
-- `../flashboard-docs/` — separate Nuxt UI docs site and MCP surface for `flashboard.pepperfm.com`
-- Whenever docs pages, headings, navigation structure, or example formats change, review `../flashboard-docs/server/mcp/` and `../flashboard-docs/server/routes/raw/` for MCP/output drift
+- `flashboard-docs/` — bundled Nuxt UI docs site and MCP surface for `flashboard.pepperfm.com`
+- Whenever docs pages, headings, navigation structure, or example formats change, review `flashboard-docs/server/mcp/` and `flashboard-docs/server/routes/raw/` for MCP/output drift
 
 ## AI Context Files
 | File | Purpose |
