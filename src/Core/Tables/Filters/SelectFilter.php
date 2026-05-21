@@ -12,7 +12,7 @@ class SelectFilter extends Filter
     }
 
     /**
-     * @param array<string, mixed> $options
+     * @param array<array-key, mixed> $options
      */
     public function options(array $options): static
     {

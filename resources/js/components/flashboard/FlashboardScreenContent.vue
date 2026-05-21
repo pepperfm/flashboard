@@ -3,7 +3,7 @@ import { router, useForm } from '@inertiajs/vue3'
 import SimpleFormShell from '@/components/flashboard/forms/layout/SimpleFormShell.vue'
 import type { FormContainerLayoutShape } from '@/components/flashboard/forms/layout/resolveFormLayout'
 import type { FormFieldShape, FormNodeShape } from '@/components/flashboard/forms/renderers/resolveFormFieldRenderer'
-import { computed, h, resolveComponent, watch } from 'vue'
+import { computed, h, reactive, resolveComponent, watch } from 'vue'
 
 type ActionShape = {
   key: string
@@ -19,6 +19,21 @@ type TableColumnShape = {
   label: string
   searchable?: boolean
   sortable?: boolean
+  type?: string
+}
+
+type TableFilterOptionValue = string | number | boolean
+
+type TableFilterOptionShape = {
+  label?: string
+  value?: TableFilterOptionValue
+}
+
+type TableFilterShape = {
+  key: string
+  label?: string
+  options?: TableFilterOptionShape[] | Record<string, TableFilterOptionValue>
+  searchable?: boolean
   type?: string
 }
 
@@ -62,7 +77,9 @@ type PayloadShape = {
   actions?: ActionShape[]
   table?: {
     dataset?: {
+      active_filters?: Record<string, TableFilterOptionValue | null | undefined>
       columns?: TableColumnShape[]
+      filters?: TableFilterShape[]
       rows?: Array<{
         id: string | number
         attributes: Record<string, unknown>
@@ -118,6 +135,7 @@ const props = defineProps<{
 }>()
 
 const form = useForm<Record<string, unknown>>({})
+const tableFilterSearchTerms = reactive<Record<string, string>>({})
 
 const pagination = computed(() => props.payload.table?.dataset?.pagination)
 const hasPagination = computed(() => (pagination.value?.last_page ?? 1) > 1)
@@ -151,6 +169,12 @@ const visibleDetailSections = computed(() =>
 const dataTableColumns = computed(() => props.payload.table?.dataset?.columns ?? [])
 const dataColumnWidth = computed(() =>
   `calc((100% - var(--fb-table-actions-width)) / ${Math.max(dataTableColumns.value.length, 1)})`,
+)
+const tableFilters = computed(() => props.payload.table?.dataset?.filters ?? [])
+const hasTableFilters = computed(() => tableFilters.value.length > 0)
+const hasActiveTableFilters = computed(() =>
+  Object.values(props.payload.table?.dataset?.active_filters ?? {})
+    .some((value) => value !== null && value !== undefined && value !== ''),
 )
 
 watch(
@@ -274,6 +298,105 @@ function visitPage(page: number) {
   } else {
     url.searchParams.set('page', String(page))
   }
+
+  router.get(
+    url.toString(),
+    {},
+    {
+      preserveScroll: true,
+      preserveState: true,
+      replace: true,
+    },
+  )
+}
+
+function activeTableFilterValue(filterKey: string): TableFilterOptionValue | null {
+  const value = props.payload.table?.dataset?.active_filters?.[filterKey]
+
+  if (value === undefined || value === '') {
+    return null
+  }
+
+  return value
+}
+
+function normalizeTableFilterOptions(filter: TableFilterShape): TableFilterOptionShape[] {
+  const options = filter.options ?? []
+
+  const normalizedOptions = Array.isArray(options)
+    ? options.map((option) => (
+        typeof option === 'object' && option !== null && 'value' in option
+          ? option
+          : { label: String(option), value: option as TableFilterOptionValue }
+      ))
+    : Object.entries(options).map(([value, label]) => ({
+        label: String(label),
+        value,
+      }))
+
+  return [
+    {
+      label: `All ${filter.label ?? filter.key}`,
+      value: '',
+    },
+    ...normalizedOptions,
+  ]
+}
+
+function searchableTableFilterOptions(filter: TableFilterShape): TableFilterOptionShape[] {
+  const options = normalizeTableFilterOptions(filter)
+  const searchTerm = (tableFilterSearchTerms[filter.key] ?? '').trim().toLowerCase()
+
+  if (searchTerm === '') {
+    return options
+  }
+
+  return options.filter((option) =>
+    String(option.label ?? '').toLowerCase().includes(searchTerm)
+    || String(option.value ?? '').toLowerCase().includes(searchTerm),
+  )
+}
+
+function updateTableFilter(filterKey: string, value: TableFilterOptionValue | null | undefined) {
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  tableFilterSearchTerms[filterKey] = ''
+
+  const url = new URL(window.location.href)
+
+  if (value === null || value === undefined || value === '') {
+    url.searchParams.delete(`filters[${filterKey}]`)
+  } else {
+    url.searchParams.set(`filters[${filterKey}]`, String(value))
+  }
+
+  url.searchParams.delete('page')
+
+  router.get(
+    url.toString(),
+    {},
+    {
+      preserveScroll: true,
+      preserveState: true,
+      replace: true,
+    },
+  )
+}
+
+function resetTableFilters() {
+  if (typeof window === 'undefined') {
+    return
+  }
+
+  const url = new URL(window.location.href)
+
+  Array.from(url.searchParams.keys())
+    .filter((key) => key.startsWith('filters[') || key === 'filters')
+    .forEach((key) => url.searchParams.delete(key))
+
+  url.searchParams.delete('page')
 
   router.get(
     url.toString(),
@@ -425,15 +548,81 @@ function formatValue(value: unknown): string {
             <h3 class="section-title">{{ payload.resource?.name ?? 'Resource' }}</h3>
           </div>
 
-          <UBadge
-            v-if="pagination?.total !== undefined"
-            color="neutral"
-            variant="subtle"
-          >
-            {{ pagination.total }} total
-          </UBadge>
+          <div class="section-meta">
+            <UBadge
+              v-if="pagination?.total !== undefined"
+              color="neutral"
+              variant="subtle"
+            >
+              {{ pagination.total }} total
+            </UBadge>
+
+            <UButton
+              v-if="hasActiveTableFilters"
+              color="neutral"
+              icon="i-lucide-x"
+              size="xs"
+              variant="ghost"
+              @click="resetTableFilters"
+            >
+              Reset filters
+            </UButton>
+          </div>
         </div>
       </template>
+
+      <div v-if="hasTableFilters" class="table-toolbar">
+        <UFormField
+          v-for="filter in tableFilters"
+          :key="filter.key"
+          :label="filter.label ?? filter.key"
+          :name="`filters.${filter.key}`"
+          class="table-filter-field"
+        >
+          <USelect
+            v-if="filter.type === 'select' && filter.searchable !== true"
+            class="w-full"
+            :items="normalizeTableFilterOptions(filter)"
+            :model-value="activeTableFilterValue(filter.key)"
+            :placeholder="filter.label ?? filter.key"
+            @update:model-value="updateTableFilter(filter.key, $event)"
+          />
+
+          <USelectMenu
+            v-else-if="filter.type === 'select'"
+            class="w-full"
+            :ignore-filter="true"
+            :items="searchableTableFilterOptions(filter)"
+            :model-value="activeTableFilterValue(filter.key)"
+            :placeholder="filter.label ?? filter.key"
+            :search-input="false"
+            value-key="value"
+            @update:model-value="updateTableFilter(filter.key, $event)"
+          >
+            <template #content-top>
+              <UInput
+                v-model="tableFilterSearchTerms[filter.key]"
+                autocomplete="off"
+                class="select-menu-search"
+                icon="i-lucide-search"
+                placeholder="Search"
+                @click.stop
+                @keydown.stop
+                @keyup.stop
+                @pointerdown.stop
+              />
+            </template>
+          </USelectMenu>
+
+          <UInput
+            v-else
+            class="w-full"
+            :model-value="activeTableFilterValue(filter.key)"
+            :placeholder="filter.label ?? filter.key"
+            @update:model-value="updateTableFilter(filter.key, $event)"
+          />
+        </UFormField>
+      </div>
 
       <UTable
         class="resource-table"
@@ -683,11 +872,33 @@ function formatValue(value: unknown): string {
   --fb-table-actions-width: 7rem;
 }
 
+.table-toolbar {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: 1rem;
+  padding: 1rem 0;
+}
+
+.table-filter-field {
+  min-width: 0;
+}
+
+.select-menu-search {
+  width: 100%;
+  padding: 0.5rem;
+}
+
 .section-header {
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
   gap: 1rem;
+}
+
+.section-meta {
+  display: grid;
+  justify-items: end;
+  gap: 0.35rem;
 }
 
 .section-kicker {

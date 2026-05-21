@@ -1,5 +1,9 @@
 # Changelog
 
+## Unreleased
+
+- render table filters above resource index tables, preserve selected filter values, expose a reset action, support searchable select filters, and allow filters to target a separate query column
+
 ## 0.1.2 - 2026-05-21
 
 - require only the model prompt in `flashboard:make-resource` and infer resource/id defaults for the rest

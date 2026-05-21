@@ -46,6 +46,7 @@ final readonly class ResourceListDataSource
 
         $searchableColumns = $table->searchableColumns();
         $sortableColumns = $table->sortableColumns();
+        $filterColumns = $this->filterColumns($table->filters());
 
         if ($search !== '' && $searchableColumns !== []) {
             $query->where(function (\Illuminate\Database\Eloquent\Builder $builder) use (
@@ -69,7 +70,7 @@ final readonly class ResourceListDataSource
                     continue;
                 }
 
-                $query->where($key, $value);
+                $query->where($filterColumns[$key] ?? $key, $value);
             }
         }
 
@@ -142,6 +143,7 @@ final readonly class ResourceListDataSource
                 ),
             ],
             'filters' => $table->filters(),
+            'active_filters' => is_array($filters) ? $filters : [],
             'scopes' => $table->scopes(),
             'search' => $search,
             'sort' => $sort,
@@ -160,5 +162,33 @@ final readonly class ResourceListDataSource
     private function getColumnKey(?array $column = null): string
     {
         return (string) Arr::get($column, 'key', 'value');
+    }
+
+    /**
+     * @param list<array<string, mixed>> $filters
+     *
+     * @return array<string, string>
+     */
+    private function filterColumns(array $filters): array
+    {
+        $columns = [];
+
+        foreach ($filters as $filter) {
+            $key = Arr::get($filter, 'key');
+
+            if (!is_string($key) || $key === '') {
+                continue;
+            }
+
+            $queryColumn = Arr::get($filter, 'query_column', $key);
+
+            if (!is_string($queryColumn) || $queryColumn === '') {
+                continue;
+            }
+
+            $columns[$key] = $queryColumn;
+        }
+
+        return $columns;
     }
 }

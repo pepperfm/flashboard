@@ -8,8 +8,18 @@ use Pepperfm\Flashboard\Support\Schema\SchemaNode;
 
 class Filter extends SchemaNode
 {
+    public function searchable(bool $condition = true): static
+    {
+        return $this->attribute('searchable', $condition);
+    }
+
+    public function queryColumn(string $column): static
+    {
+        return $this->attribute('query_column', $column);
+    }
+
     /**
-     * @param array<string, mixed> $options
+     * @param array<array-key, mixed> $options
      */
     public function options(array $options): static
     {
