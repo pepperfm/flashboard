@@ -4,6 +4,7 @@ const props = withDefaults(defineProps<{
   modelValue?: string | number | null
   name?: string
   placeholder?: string
+  readonly?: boolean
   required?: boolean
   type?: string
 }>(), {
@@ -22,6 +23,7 @@ const emit = defineEmits<{
     :model-value="props.modelValue"
     :name="props.name"
     :placeholder="props.placeholder"
+    :readonly="props.readonly"
     :required="props.required"
     :type="props.type"
     @update:model-value="emit('update:modelValue', $event)"

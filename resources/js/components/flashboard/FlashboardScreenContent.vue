@@ -122,8 +122,11 @@ const form = useForm<Record<string, unknown>>({})
 const pagination = computed(() => props.payload.table?.dataset?.pagination)
 const hasPagination = computed(() => (pagination.value?.last_page ?? 1) > 1)
 
-const allowedFormFields = computed(() => props.payload.form?.fields ?? [])
-const formSchema = computed(() => props.payload.form?.schema ?? allowedFormFields.value)
+const isCreateForm = computed(() => props.payload.resource?.page === 'create' || props.payload.form?.mode === 'create')
+const allowedFormFields = computed(() => removeGeneratedPrimaryKeyFields(props.payload.form?.fields ?? []))
+const formSchema = computed(() =>
+  removeGeneratedPrimaryKeyNodes(props.payload.form?.schema ?? allowedFormFields.value),
+)
 
 const detailEntries = computed(() => props.payload.detail?.entries ?? [])
 const detailEntryMap = computed(() => new Map(
@@ -144,6 +147,10 @@ const visibleDetailSections = computed(() =>
         .filter((entry): entry is DetailEntryShape => Boolean(entry)),
     }))
     .filter((section) => (section.schema?.length ?? 0) > 0),
+)
+const dataTableColumns = computed(() => props.payload.table?.dataset?.columns ?? [])
+const dataColumnWidth = computed(() =>
+  `calc((100% - var(--fb-table-actions-width)) / ${Math.max(dataTableColumns.value.length, 1)})`,
 )
 
 watch(
@@ -190,15 +197,31 @@ function renderTableValue(column: TableColumnShape, value: unknown) {
 
 const tableColumns = computed(() =>
   [
-    ...(props.payload.table?.dataset?.columns ?? []).map((column) => ({
+    ...dataTableColumns.value.map((column) => ({
       accessorKey: column.key,
       header: column.label,
+      meta: {
+        style: {
+          th: { width: dataColumnWidth.value },
+          td: { width: dataColumnWidth.value },
+        },
+      },
       cell: ({ row }: { row: { original: Record<string, unknown> } }) =>
         renderTableValue(column, row.original[column.key]),
     })),
     {
       id: '__actions',
       header: 'Actions',
+      meta: {
+        class: {
+          th: 'fb-table-actions-cell',
+          td: 'fb-table-actions-cell',
+        },
+        style: {
+          th: { textAlign: 'right', width: 'var(--fb-table-actions-width)' },
+          td: { textAlign: 'right', width: 'var(--fb-table-actions-width)' },
+        },
+      },
       cell: ({ row }: { row: { original: Record<string, unknown> } }) => {
         const links = row.original.__links as { detail?: string; edit?: string } | undefined
 
@@ -265,6 +288,62 @@ function visitPage(page: number) {
 
 function updateFieldValue(fieldKey: string, value: unknown) {
   form[fieldKey] = value
+}
+
+function shouldHideGeneratedPrimaryKeyField(field: FormFieldShape): boolean {
+  return isCreateForm.value && field.key === 'id'
+}
+
+function removeGeneratedPrimaryKeyFields(fields: FormFieldShape[]): FormFieldShape[] {
+  return fields.filter((field) => !shouldHideGeneratedPrimaryKeyField(field))
+}
+
+function removeGeneratedPrimaryKeyNodes(nodes: FormNodeShape[]): FormNodeShape[] {
+  return nodes
+    .map((node) => {
+      if (node.kind === 'section') {
+        return {
+          ...node,
+          schema: removeGeneratedPrimaryKeyNodes(node.schema ?? []),
+        }
+      }
+
+      if (node.kind === 'tab') {
+        return {
+          ...node,
+          schema: removeGeneratedPrimaryKeyNodes(node.schema ?? []),
+        }
+      }
+
+      if (node.kind === 'tabs') {
+        return {
+          ...node,
+          tabs: (node.tabs ?? [])
+            .map((tab) => ({
+              ...tab,
+              schema: removeGeneratedPrimaryKeyNodes(tab.schema ?? []),
+            }))
+            .filter((tab) => (tab.schema ?? []).length > 0),
+        }
+      }
+
+      return shouldHideGeneratedPrimaryKeyField(node) ? null : node
+    })
+    .filter((node): node is FormNodeShape => {
+      if (node === null) {
+        return false
+      }
+
+      if (node.kind === 'section' || node.kind === 'tab') {
+        return (node.schema ?? []).length > 0
+      }
+
+      if (node.kind === 'tabs') {
+        return (node.tabs ?? []).length > 0
+      }
+
+      return true
+    })
 }
 
 function submitForm() {
@@ -357,8 +436,10 @@ function formatValue(value: unknown): string {
       </template>
 
       <UTable
+        class="resource-table"
         :data="tableRows"
         :columns="tableColumns"
+        :ui="{ base: 'w-full table-fixed' }"
         empty="The resource index route is wired, but there are no registered records to render yet."
       />
 
@@ -596,6 +677,10 @@ function formatValue(value: unknown): string {
   display: flex;
   gap: 0.5rem;
   justify-content: flex-end;
+}
+
+.resource-table {
+  --fb-table-actions-width: 7rem;
 }
 
 .section-header {

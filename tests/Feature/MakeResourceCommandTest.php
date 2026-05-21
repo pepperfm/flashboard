@@ -9,6 +9,61 @@ use Pepperfm\Flashboard\Tests\TestCase;
 
 final class MakeResourceCommandTest extends TestCase
 {
+    public function test_default_resource_class_is_inferred_from_model_class(): void
+    {
+        $reflection = new \ReflectionClass(MakeResourceCommand::class);
+        $method = $reflection->getMethod('defaultResourceClassForModelClass');
+        $method->setAccessible(true);
+        $command = $reflection->newInstanceWithoutConstructor();
+
+        self::assertSame(
+            'OrdersResource',
+            $method->invoke($command, 'App\\Models\\Order'),
+        );
+        self::assertSame(
+            'ProductCategoriesResource',
+            $method->invoke($command, 'App\\Models\\ProductCategory'),
+        );
+    }
+
+    public function test_model_fqcn_can_be_passed_as_the_only_argument(): void
+    {
+        $reflection = new \ReflectionClass(MakeResourceCommand::class);
+        $method = $reflection->getMethod('looksLikeModelClass');
+        $method->setAccessible(true);
+        $command = $reflection->newInstanceWithoutConstructor();
+
+        self::assertTrue($method->invoke($command, 'App\\Models\\Order'));
+        self::assertFalse($method->invoke($command, 'OrdersResource'));
+    }
+
+    public function test_render_stub_can_scaffold_minimal_id_only_resource(): void
+    {
+        $content = $this->renderResourceStub(
+            titleField: 'id',
+            secondaryField: '',
+            includeDetail: false,
+        );
+
+        self::assertStringContainsString(
+            "            TextColumn::make('id')" . PHP_EOL
+            . "                ->label('ID')" . PHP_EOL
+            . "                ->sortable()," . PHP_EOL
+            . '        ]);',
+            $content,
+        );
+        self::assertStringContainsString(
+            "                TextInput::make('id')" . PHP_EOL
+            . "                    ->label('ID')" . PHP_EOL
+            . '                    ->required(),',
+            $content,
+        );
+        self::assertSame(1, substr_count($content, "TextColumn::make('id')"));
+        self::assertStringNotContainsString('email', $content);
+        self::assertStringNotContainsString('public static function detail(', $content);
+        self::assertStringNotContainsString(PHP_EOL . PHP_EOL . PHP_EOL, $content);
+    }
+
     public function test_render_stub_does_not_add_extra_blank_lines_when_optional_sections_are_enabled(): void
     {
         $content = $this->renderResourceStub(

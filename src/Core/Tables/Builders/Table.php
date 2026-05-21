@@ -36,11 +36,11 @@ final class Table implements TableContract
      */
     private array $bulkActions = [];
 
-    private int $pagination = 15;
+    private int $pagination = 10;
 
-    public static function make(): self
+    public static function make(): static
     {
-        return new self();
+        return new static();
     }
 
     public function columns(array $columns): static
@@ -87,7 +87,7 @@ final class Table implements TableContract
 
     public function toArray(): array
     {
-        return (new TableSchemaNormalizer())->normalize([
+        return new TableSchemaNormalizer()->normalize([
             'columns' => $this->columns,
             'filters' => $this->filters,
             'scopes' => $this->scopes,

@@ -53,6 +53,10 @@ export type FormNodeShape = FormFieldShape | FormSectionShape | FormTabShape | F
 
 const DEFAULT_FORM_FIELD_RENDERER: FormFieldRendererKey = 'input'
 
+function isSystemIdField(field: FormFieldShape): boolean {
+  return field.key === 'id'
+}
+
 function isFormFieldRendererKey(value: string): value is FormFieldRendererKey {
   return value in formFieldRendererMap
 }
@@ -74,6 +78,10 @@ function fallbackRendererForType(type?: string): FormFieldRendererKey {
 }
 
 export function resolveFormFieldRendererKey(field: FormFieldShape): FormFieldRendererKey {
+  if (isSystemIdField(field)) {
+    return DEFAULT_FORM_FIELD_RENDERER
+  }
+
   if (typeof field.renderer === 'string' && isFormFieldRendererKey(field.renderer)) {
     return field.renderer
   }
@@ -141,6 +149,7 @@ export function resolveFormFieldRendererProps(field: FormFieldShape): Record<str
   return {
     name: field.key,
     placeholder,
+    readonly: isSystemIdField(field),
     required: field.required,
     type: field.input_type ?? 'text',
   }

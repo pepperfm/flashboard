@@ -35,30 +35,37 @@ final class MakeResourceCommand extends \Illuminate\Console\Command
 
     public function handle(Filesystem $files): int
     {
-        $className = $this->qualifyResourceClassName(
-            (string) ($this->argument('name') ?: text(
-                label: 'Resource class name',
-                default: 'UsersResource',
-                required: true,
-            )),
-        );
-        $modelClass = (string) ($this->argument('model') ?: text(
+        $nameArgument = trim((string) ($this->argument('name') ?? ''));
+        $modelArgument = trim((string) ($this->argument('model') ?? ''));
+
+        if ($modelArgument === '' && $this->looksLikeModelClass($nameArgument)) {
+            $modelArgument = $nameArgument;
+            $nameArgument = '';
+        }
+
+        $modelClass = (string) ($modelArgument ?: text(
             label: 'Eloquent model class',
-            default: 'App\\Models\\User',
+            placeholder: 'App\\Models\\Order',
             required: true,
         ));
-        $titleField = text(
-            label: 'Primary display field',
-            default: 'email',
-            required: true,
+        $className = $this->qualifyResourceClassName(
+            $nameArgument ?: text(
+                label: 'Resource class name',
+                default: $this->defaultResourceClassForModelClass($modelClass),
+            ),
         );
+        $titleField = trim(text(
+            label: 'Primary display field',
+            default: 'id',
+        )) ?: 'id';
         $secondaryField = trim(text(
             label: 'Secondary field (optional)',
+            placeholder: 'status',
         ));
         $navigationGroup = trim(text(
             label: 'Navigation group (optional)',
         ));
-        $includeDetail = confirm('Include detail screen?');
+        $includeDetail = confirm('Include detail screen?', default: false);
 
         $targetDirectory = app_path('Flashboard');
         $targetPath = "$targetDirectory/$className.php";
@@ -89,6 +96,21 @@ final class MakeResourceCommand extends \Illuminate\Console\Command
     private function qualifyResourceClassName(string $className): string
     {
         return str_ends_with($className, 'Resource') ? $className : $className . 'Resource';
+    }
+
+    private function defaultResourceClassForModelClass(string $modelClass): string
+    {
+        $resourceBaseName = str(class_basename($modelClass))
+            ->plural()
+            ->studly()
+            ->toString();
+
+        return ($resourceBaseName !== '' ? $resourceBaseName : 'Models') . 'Resource';
+    }
+
+    private function looksLikeModelClass(string $value): bool
+    {
+        return str_contains($value, '\\') && !str_ends_with($value, 'Resource');
     }
 
     private function renderStub(
@@ -127,6 +149,7 @@ final class MakeResourceCommand extends \Illuminate\Console\Command
                 '{{ imports }}',
                 '{{ class }}',
                 '{{ navigation_group_method }}',
+                '{{ primary_table_columns }}',
                 '{{ title_field }}',
                 '{{ title_label }}',
                 '{{ title_field_suffix }}',
@@ -142,8 +165,9 @@ final class MakeResourceCommand extends \Illuminate\Console\Command
                 implode(PHP_EOL, array_map(static fn (string $import): string => 'use ' . $import . ';', $imports)),
                 $className,
                 $this->renderNavigationGroupMethod($navigationGroup),
+                $this->primaryTableColumns($titleField),
                 $titleField,
-                str($titleField)->headline()->toString(),
+                $this->fieldLabel($titleField),
                 $this->fieldModifierSuffix($titleField),
                 $this->secondaryFormField($secondaryField),
                 $this->secondaryTableColumn($secondaryField),
@@ -152,6 +176,27 @@ final class MakeResourceCommand extends \Illuminate\Console\Command
             ],
             $stub,
         );
+    }
+
+    private function primaryTableColumns(string $titleField): string
+    {
+        if ($titleField === 'id') {
+            return implode(PHP_EOL, [
+                "            TextColumn::make('id')",
+                "                ->label('ID')",
+                '                ->sortable(),',
+            ]);
+        }
+
+        return implode(PHP_EOL, [
+            "            TextColumn::make('id')",
+            "                ->label('ID')",
+            '                ->sortable(),',
+            "            TextColumn::make('$titleField')",
+            "                ->label('" . $this->fieldLabel($titleField) . "')",
+            '                ->sortable()',
+            '                ->searchable(),',
+        ]);
     }
 
     private function renderNavigationGroupMethod(string $navigationGroup): string
@@ -249,7 +294,7 @@ final class MakeResourceCommand extends \Illuminate\Console\Command
             ],
             [
                 $titleField,
-                str($titleField)->headline()->value(),
+                $this->fieldLabel($titleField),
                 $this->secondaryDetailEntry($secondaryField),
             ],
             $this->stubContents('resource-detail-method.stub'),
@@ -277,6 +322,13 @@ final class MakeResourceCommand extends \Illuminate\Console\Command
         return str_starts_with($path, $basePath)
             ? substr($path, strlen($basePath))
             : $path;
+    }
+
+    private function fieldLabel(string $field): string
+    {
+        return $field === 'id'
+            ? 'ID'
+            : str($field)->headline()->toString();
     }
 
     private function stubContents(string $stub): string

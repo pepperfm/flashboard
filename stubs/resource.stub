@@ -17,13 +17,7 @@ final class {{ class }} extends Resource
 {{ navigation_group_method }}    public static function table(TableContract $table): TableContract
     {
         return $table->columns([
-            TextColumn::make('id')
-                ->label('ID')
-                ->sortable(),
-            TextColumn::make('{{ title_field }}')
-                ->label('{{ title_label }}')
-                ->sortable()
-                ->searchable(),
+{{ primary_table_columns }}
 {{ secondary_table_column }}        ]);
     }
 
