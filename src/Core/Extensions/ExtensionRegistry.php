@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace Pepperfm\Flashboard\Core\Extensions;
 
+use Illuminate\Container\Attributes\Singleton;
 use Pepperfm\Flashboard\Contracts\Extensions\ActionExtensionContract;
 use Pepperfm\Flashboard\Contracts\Extensions\PayloadExtensionContract;
 use Pepperfm\Flashboard\Contracts\Extensions\QueryExtensionContract;
 use Pepperfm\Flashboard\Contracts\Resources\Resource;
 
+#[Singleton]
 final class ExtensionRegistry
 {
     /**

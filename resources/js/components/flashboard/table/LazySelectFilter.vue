@@ -3,6 +3,7 @@ import { refDebounced, useInfiniteScroll } from '@vueuse/core'
 import { computed, onMounted, ref, watch } from 'vue'
 
 type TableFilterOptionValue = string | number | boolean
+type TableFilterModelValue = TableFilterOptionValue | TableFilterOptionValue[] | null | undefined
 
 type TableFilterOptionShape = {
   label?: string
@@ -12,6 +13,7 @@ type TableFilterOptionShape = {
 type LazyTableFilterShape = {
   key: string
   label?: string
+  multiple?: boolean
   options_per_page?: number
   options_url?: string
 }
@@ -27,7 +29,7 @@ type LazyOptionsResponse = {
 type LazyOptionsRequest = {
   page: number
   replace: boolean
-  selected?: TableFilterOptionValue | null
+  selected?: TableFilterModelValue
   token: number
 }
 
@@ -37,11 +39,11 @@ type SelectMenuExpose = {
 
 const props = defineProps<{
   filter: LazyTableFilterShape
-  modelValue: TableFilterOptionValue | null
+  modelValue: TableFilterModelValue
 }>()
 
 const emit = defineEmits<{
-  'update:modelValue': [value: TableFilterOptionValue | null | undefined]
+  'update:modelValue': [value: TableFilterModelValue]
 }>()
 
 const DEFAULT_PER_PAGE = 15
@@ -77,15 +79,20 @@ const items = computed<TableFilterOptionShape[]>(() => {
   return []
 })
 
-const selectedValue = computed<TableFilterOptionValue | null>(() => {
-  if (!hasValue(props.modelValue)) {
+const selectedValue = computed<TableFilterModelValue>(() => {
+  const selectedValues = normalizeModelValue(props.modelValue)
+
+  if (props.filter.multiple === true) {
+    return selectedValues.map((selected) => matchedItemValue(selected) ?? selected)
+  }
+
+  const selected = selectedValues[0]
+
+  if (!hasValue(selected)) {
     return null
   }
 
-  const matchingItem = items.value
-    .find((item) => String(item.value) === String(props.modelValue))
-
-  return matchingItem?.value ?? props.modelValue
+  return matchedItemValue(selected) ?? selected
 })
 
 const viewportElement = computed<HTMLElement | null>(() => {
@@ -119,7 +126,7 @@ watch(debouncedSearchTerm, () => {
 watch(
   () => props.modelValue,
   (value) => {
-    if (hasValue(value) && !hasLoadedValue(value)) {
+    if (normalizeModelValue(value).some((selected) => !hasLoadedValue(selected))) {
       scheduleLoadPage(1, true, value)
     }
   },
@@ -145,11 +152,11 @@ async function loadNextPage() {
   scheduleLoadPage(nextPage.value, false)
 }
 
-function scheduleLoadPage(page: number, replace: boolean, selected?: TableFilterOptionValue | null) {
+function scheduleLoadPage(page: number, replace: boolean, selected?: TableFilterModelValue) {
   queuedRequest = {
     page,
     replace,
-    selected,
+    selected: selected ?? (replace ? props.modelValue : undefined),
     token: ++requestToken,
   }
 
@@ -205,8 +212,14 @@ async function loadPage(request: LazyOptionsRequest) {
       url.searchParams.set('search', debouncedSearchTerm.value.trim())
     }
 
-    if (hasValue(request.selected)) {
-      url.searchParams.set('selected', String(request.selected))
+    const selectedValues = normalizeModelValue(request.selected)
+
+    if (selectedValues.length === 1) {
+      url.searchParams.set('selected', String(selectedValues[0]))
+    } else {
+      for (const selected of selectedValues) {
+        url.searchParams.append('selected[]', String(selected))
+      }
     }
 
     const payload = await requestOptions(url.toString())
@@ -366,6 +379,38 @@ function hasLoadedValue(value: TableFilterOptionValue | null | undefined): boole
     .some((item) => String(item.value) === String(value))
 }
 
+function matchedItemValue(value: TableFilterOptionValue): TableFilterOptionValue | undefined {
+  return items.value
+    .find((item) => String(item.value) === String(value))
+    ?.value
+}
+
+function normalizeModelValue(value: TableFilterModelValue): TableFilterOptionValue[] {
+  if (!Array.isArray(value)) {
+    return hasValue(value) ? [value] : []
+  }
+
+  const valuesByKey = new Map<string, TableFilterOptionValue>()
+
+  for (const item of value) {
+    if (hasValue(item)) {
+      valuesByKey.set(String(item), item)
+    }
+  }
+
+  return Array.from(valuesByKey.values())
+}
+
+function emitModelValue(value: TableFilterModelValue) {
+  if (props.filter.multiple === true) {
+    emit('update:modelValue', normalizeModelValue(value))
+
+    return
+  }
+
+  emit('update:modelValue', normalizeModelValue(value)[0] ?? undefined)
+}
+
 function hasValue(value: TableFilterOptionValue | null | undefined): value is TableFilterOptionValue {
   return value !== null && value !== undefined && value !== ''
 }
@@ -383,6 +428,7 @@ function hasValue(value: TableFilterOptionValue | null | undefined): value is Ta
     :items="items"
     :loading="isLoading"
     :model-value="selectedValue"
+    :multiple="filter.multiple === true"
     :placeholder="filter.label ?? filter.key"
     :reset-search-term-on-blur="false"
     :search-input="{
@@ -391,7 +437,7 @@ function hasValue(value: TableFilterOptionValue | null | undefined): value is Ta
       placeholder: 'Search',
     }"
     value-key="value"
-    @update:model-value="emit('update:modelValue', $event)"
+    @update:model-value="emitModelValue($event)"
   >
     <template v-if="loadFailed" #empty>
       Could not load options.

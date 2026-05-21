@@ -6,6 +6,8 @@ namespace Pepperfm\Flashboard\Tests\Feature;
 
 use Illuminate\Config\Repository;
 use Pepperfm\Flashboard\Contracts\Panel\PanelDefinitionContract;
+use Pepperfm\Flashboard\Core\Panel\FlashboardManager;
+use Pepperfm\Flashboard\Core\Registry\PanelRegistry;
 use Pepperfm\Flashboard\Flashboard;
 use Pepperfm\Flashboard\Integration\Laravel\FlashboardServiceProvider;
 use Pepperfm\Flashboard\Tests\TestCase;
@@ -49,5 +51,22 @@ final class FlashboardServiceProviderConfigTest extends TestCase
 
         self::assertSame('panel', $panel->path());
         self::assertSame('panel.', $panel->routeNamePrefix());
+    }
+
+    public function test_attribute_singleton_services_are_shared_after_provider_register(): void
+    {
+        $app = new \Illuminate\Foundation\Application(__DIR__ . '/../../..');
+        $app->instance('config', new Repository([
+            'flashboard' => [
+                'path' => 'admin',
+                'route_name_prefix' => 'flashboard.',
+            ],
+        ]));
+
+        $provider = new FlashboardServiceProvider($app);
+        $provider->register();
+
+        self::assertSame($app->make(PanelRegistry::class), $app->make(PanelRegistry::class));
+        self::assertSame($app->make(FlashboardManager::class), $app->make(FlashboardManager::class));
     }
 }

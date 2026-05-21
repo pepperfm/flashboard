@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Pepperfm\Flashboard\Core\Runtime\Actions;
 
+use Illuminate\Container\Attributes\Singleton;
 use Pepperfm\Flashboard\Contracts\Actions\ActionContract;
 
+#[Singleton]
 final class ActionExecutor
 {
     /**

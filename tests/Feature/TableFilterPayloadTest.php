@@ -84,6 +84,57 @@ final class TableFilterPayloadTest extends TestCase
         ], $payload->filters()[0]['options']);
     }
 
+    public function test_select_filters_can_be_marked_multiple(): void
+    {
+        $payload = new TablePayload(
+            Table::make()
+                ->filters([
+                    SelectFilter::make('status')
+                        ->label('Status')
+                        ->multiple()
+                        ->options([
+                            'draft' => 'Draft',
+                            'published' => 'Published',
+                        ]),
+                ])
+                ->toArray(),
+        );
+
+        self::assertSame([
+            [
+                'key' => 'status',
+                'label' => 'Status',
+                'type' => 'select',
+                'multiple' => true,
+                'options' => [
+                    'draft' => 'Draft',
+                    'published' => 'Published',
+                ],
+            ],
+        ], $payload->filters());
+    }
+
+    public function test_select_filters_do_not_serialize_multiple_when_disabled(): void
+    {
+        $payload = new TablePayload(
+            Table::make()
+                ->filters([
+                    SelectFilter::make('status')
+                        ->label('Status')
+                        ->multiple(false),
+                ])
+                ->toArray(),
+        );
+
+        self::assertSame([
+            [
+                'key' => 'status',
+                'label' => 'Status',
+                'type' => 'select',
+            ],
+        ], $payload->filters());
+    }
+
     public function test_select_filters_can_be_marked_lazy_without_serializing_resolvers(): void
     {
         $payload = new TablePayload(
@@ -136,6 +187,31 @@ final class TableFilterPayloadTest extends TestCase
                 'query_column' => 'id',
                 'option_value_column' => 'id',
                 'option_label_column' => 'sku',
+            ],
+        ], $payload->filters());
+    }
+
+    public function test_lazy_select_filters_can_be_marked_multiple(): void
+    {
+        $payload = new TablePayload(
+            Table::make()
+                ->filters([
+                    SelectFilter::make('status')
+                        ->label('Status')
+                        ->lazy(perPage: 15)
+                        ->multiple(),
+                ])
+                ->toArray(),
+        );
+
+        self::assertSame([
+            [
+                'key' => 'status',
+                'label' => 'Status',
+                'type' => 'select',
+                'lazy' => true,
+                'options_per_page' => 15,
+                'multiple' => true,
             ],
         ], $payload->filters());
     }

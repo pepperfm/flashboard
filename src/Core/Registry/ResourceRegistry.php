@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Pepperfm\Flashboard\Core\Registry;
 
+use Illuminate\Container\Attributes\Singleton;
 use Pepperfm\Flashboard\Contracts\Resources\Resource;
 
+#[Singleton]
 final class ResourceRegistry
 {
     /**

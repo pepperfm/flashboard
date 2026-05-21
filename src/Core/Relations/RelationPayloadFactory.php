@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace Pepperfm\Flashboard\Core\Relations;
 
+use Illuminate\Container\Attributes\Singleton;
 use Illuminate\Database\Eloquent\Model;
 use Pepperfm\Flashboard\Contracts\Resources\Resource;
 use Pepperfm\Flashboard\Contracts\Resources\Relations\RelationDefinitionContract;
 
+#[Singleton]
 final class RelationPayloadFactory
 {
     /**

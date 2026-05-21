@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 return [
-    'name' => env('FLASHBOARD_NAME', env('APP_NAME', 'Laravel').' Admin'),
+    'name' => env('FLASHBOARD_NAME', env('APP_NAME', 'Laravel') . ' Admin'),
     'path' => env('FLASHBOARD_PATH', 'admin'),
     'route_name_prefix' => 'flashboard.',
     'guard' => env('FLASHBOARD_GUARD'),

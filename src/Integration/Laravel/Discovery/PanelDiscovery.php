@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Pepperfm\Flashboard\Integration\Laravel\Discovery;
 
+use Illuminate\Container\Attributes\Singleton;
 use Illuminate\Support\Arr;
 use Pepperfm\Flashboard\Flashboard;
 use Pepperfm\Flashboard\Contracts\Panel\PanelProviderContract;
@@ -12,6 +13,7 @@ use Pepperfm\Flashboard\Core\Registry\PanelRegistry;
 use Pepperfm\Flashboard\Core\Registry\ResourceRegistry;
 use Pepperfm\Flashboard\Integration\Laravel\FlashboardPanelProvider;
 
+#[Singleton]
 final readonly class PanelDiscovery
 {
     public function __construct(

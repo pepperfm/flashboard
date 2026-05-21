@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace Pepperfm\Flashboard\Core\Runtime\Context;
 
+use Illuminate\Container\Attributes\Singleton;
 use Pepperfm\Flashboard\Contracts\Panel\PanelDefinitionContract;
 use Pepperfm\Flashboard\Contracts\Panel\PanelLifecycleStage;
 use Pepperfm\Flashboard\Core\Runtime\Lifecycle\LifecycleManager;
 use Pepperfm\Flashboard\Core\Runtime\Metadata\RuntimeMetadataFactory;
 use Pepperfm\Flashboard\Core\Runtime\Resolvers\ScreenResolver;
 
+#[Singleton]
 final readonly class RuntimeContextFactory
 {
     public function __construct(

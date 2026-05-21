@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Pepperfm\Flashboard\Core\Runtime\Resolvers;
 
+use Illuminate\Container\Attributes\Singleton;
 use Illuminate\Support\Arr;
 use Pepperfm\Flashboard\Contracts\Panel\PanelDefinitionContract;
 use Pepperfm\Flashboard\Core\Pages\DashboardPage;
@@ -12,6 +13,7 @@ use Pepperfm\Flashboard\Core\Registry\ResourceRegistry;
 use Pepperfm\Flashboard\Core\Runtime\Screens\ResolvedScreen;
 use Pepperfm\Flashboard\Core\Runtime\Screens\ScreenKind;
 
+#[Singleton]
 final readonly class ScreenResolver
 {
     public function __construct(

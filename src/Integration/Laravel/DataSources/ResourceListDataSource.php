@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Pepperfm\Flashboard\Integration\Laravel\DataSources;
 
+use Illuminate\Container\Attributes\Singleton;
 use Illuminate\Support\Arr;
 use Pepperfm\Flashboard\Contracts\Resources\Resource;
 use Pepperfm\Flashboard\Core\Authorization\Visibility\ScreenAccessResolver;
@@ -13,8 +14,11 @@ use Pepperfm\Flashboard\Core\Resources\ResourceSurfaceResolver;
 use Pepperfm\Flashboard\Core\Runtime\Assemblers\TablePayloadAssembler;
 use Pepperfm\Flashboard\Integration\Laravel\Auth\PanelAuthenticator;
 
+#[Singleton]
 final readonly class ResourceListDataSource
 {
+    private const int MAX_FILTER_VALUES = 200;
+
     public function __construct(
         private TablePayloadAssembler $tablePayloadAssembler,
         private ScreenAccessResolver $screenAccessResolver,
@@ -47,7 +51,7 @@ final readonly class ResourceListDataSource
         $searchableColumns = $table->searchableColumns();
         $sortableColumns = $table->sortableColumns();
         $tableFilters = $this->tableFilters($resourceClass, $table->filters());
-        $filterColumns = $this->filterColumns($tableFilters);
+        $filterDefinitions = $this->filterDefinitions($tableFilters);
 
         if ($search !== '' && $searchableColumns !== []) {
             $query->where(function (\Illuminate\Database\Eloquent\Builder $builder) use (
@@ -67,15 +71,31 @@ final readonly class ResourceListDataSource
 
         if (is_array($filters)) {
             foreach ($filters as $key => $value) {
-                if (!is_string($key) || $value === null || $value === '') {
+                if (!is_string($key) || !array_key_exists($key, $filterDefinitions)) {
                     continue;
                 }
 
-                if (!array_key_exists($key, $filterColumns)) {
+                $filterDefinition = $filterDefinitions[$key];
+
+                if ($filterDefinition['multiple']) {
+                    $values = $this->filterValues($value);
+
+                    if ($values === []) {
+                        continue;
+                    }
+
+                    $query->whereIn($filterDefinition['column'], $values);
+
                     continue;
                 }
 
-                $query->where($filterColumns[$key], $value);
+                $scalarValue = $this->filterValue($value);
+
+                if ($scalarValue === null) {
+                    continue;
+                }
+
+                $query->where($filterDefinition['column'], $scalarValue);
             }
         }
 
@@ -148,7 +168,7 @@ final readonly class ResourceListDataSource
                 ),
             ],
             'filters' => $tableFilters,
-            'active_filters' => is_array($filters) ? $this->activeFilters($filters, $filterColumns) : [],
+            'active_filters' => is_array($filters) ? $this->activeFilters($filters, $filterDefinitions) : [],
             'scopes' => $table->scopes(),
             'search' => $search,
             'sort' => $sort,
@@ -172,11 +192,11 @@ final readonly class ResourceListDataSource
     /**
      * @param list<array<string, mixed>> $filters
      *
-     * @return array<string, string>
+     * @return array<string, array{column: string, multiple: bool}>
      */
-    private function filterColumns(array $filters): array
+    private function filterDefinitions(array $filters): array
     {
-        $columns = [];
+        $definitions = [];
 
         foreach ($filters as $filter) {
             $key = Arr::get($filter, 'key');
@@ -191,10 +211,13 @@ final readonly class ResourceListDataSource
                 continue;
             }
 
-            $columns[$key] = $queryColumn;
+            $definitions[$key] = [
+                'column' => $queryColumn,
+                'multiple' => Arr::get($filter, 'multiple') === true,
+            ];
         }
 
-        return $columns;
+        return $definitions;
     }
 
     /**
@@ -226,22 +249,74 @@ final readonly class ResourceListDataSource
 
     /**
      * @param array<array-key, mixed> $filters
-     * @param array<string, string> $filterColumns
+     * @param array<string, array{column: string, multiple: bool}> $filterDefinitions
      *
      * @return array<string, mixed>
      */
-    private function activeFilters(array $filters, array $filterColumns): array
+    private function activeFilters(array $filters, array $filterDefinitions): array
     {
         $activeFilters = [];
 
         foreach ($filters as $key => $value) {
-            if (!is_string($key) || !array_key_exists($key, $filterColumns)) {
+            if (!is_string($key) || !array_key_exists($key, $filterDefinitions)) {
                 continue;
             }
 
-            $activeFilters[$key] = $value;
+            if ($filterDefinitions[$key]['multiple']) {
+                $values = $this->filterValues($value);
+
+                if ($values !== []) {
+                    $activeFilters[$key] = $values;
+                }
+
+                continue;
+            }
+
+            $scalarValue = $this->filterValue($value);
+
+            if ($scalarValue !== null) {
+                $activeFilters[$key] = $scalarValue;
+            }
         }
 
         return $activeFilters;
+    }
+
+    /**
+     * @return list<string|int|float|bool>
+     */
+    private function filterValues(mixed $value): array
+    {
+        $values = is_array($value) ? $value : [$value];
+        $normalized = [];
+
+        foreach ($values as $item) {
+            $scalarValue = $this->filterValue($item);
+
+            if ($scalarValue === null) {
+                continue;
+            }
+
+            if (array_key_exists((string) $scalarValue, $normalized)) {
+                continue;
+            }
+
+            $normalized[(string) $scalarValue] = $scalarValue;
+
+            if (count($normalized) >= self::MAX_FILTER_VALUES) {
+                break;
+            }
+        }
+
+        return array_values($normalized);
+    }
+
+    private function filterValue(mixed $value): string|int|float|bool|null
+    {
+        if (!is_scalar($value) || $value === '') {
+            return null;
+        }
+
+        return $value;
     }
 }

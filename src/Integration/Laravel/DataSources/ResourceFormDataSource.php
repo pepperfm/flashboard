@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Pepperfm\Flashboard\Integration\Laravel\DataSources;
 
+use Illuminate\Container\Attributes\Singleton;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Arr;
 use Pepperfm\Flashboard\Contracts\Forms\FormSchemaNodeKind;
@@ -15,6 +16,7 @@ use Pepperfm\Flashboard\Core\Runtime\Assemblers\FormPayloadAssembler;
 use Pepperfm\Flashboard\Core\Forms\Builders\Form;
 use Pepperfm\Flashboard\Integration\Laravel\Auth\PanelAuthenticator;
 
+#[Singleton]
 final readonly class ResourceFormDataSource
 {
     public function __construct(

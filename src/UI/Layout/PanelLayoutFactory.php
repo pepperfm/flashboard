@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Pepperfm\Flashboard\UI\Layout;
 
+use Illuminate\Container\Attributes\Singleton;
 use Illuminate\Support\Arr;
 use Pepperfm\Flashboard\Core\Runtime\Context\RuntimeRequestContext;
 use Pepperfm\Flashboard\UI\Notifications\NotificationCenter;
@@ -11,6 +12,7 @@ use Pepperfm\Flashboard\UI\Overlays\OverlayFactory;
 use Pepperfm\Flashboard\UI\States\ScreenStateFactory;
 use Pepperfm\Flashboard\UI\Theme\ThemePreset;
 
+#[Singleton]
 final readonly class PanelLayoutFactory
 {
     public function __construct(

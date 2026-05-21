@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Pepperfm\Flashboard\Integration\Laravel\Discovery;
 
+use Illuminate\Container\Attributes\Singleton;
 use Pepperfm\Flashboard\Flashboard;
 use Pepperfm\Flashboard\Integration\Laravel\FlashboardPanelProvider;
 
+#[Singleton]
 final readonly class PanelConfigurationResolver
 {
     public function __construct(

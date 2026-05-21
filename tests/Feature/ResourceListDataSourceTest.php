@@ -73,6 +73,79 @@ final class ResourceListDataSourceTest extends TestCase
         self::assertSame('draft', $payload['rows'][0]['attributes']['status']);
     }
 
+    public function test_resource_lists_apply_multiple_filters_with_where_in(): void
+    {
+        $payload = $this->dataSource()->resolve(
+            LazyFilterOptionsResource::class,
+            \Illuminate\Http\Request::create('/', 'GET', [
+                'filters' => [
+                    'statuses' => ['draft', 'published'],
+                ],
+            ]),
+        );
+
+        self::assertSame(['statuses' => ['draft', 'published']], $payload['active_filters']);
+        self::assertCount(2, $payload['rows']);
+        self::assertSame(
+            ['draft', 'published'],
+            array_map(static fn (array $row): string => $row['attributes']['status'], $payload['rows']),
+        );
+    }
+
+    public function test_resource_lists_accept_scalar_input_for_multiple_filters(): void
+    {
+        $payload = $this->dataSource()->resolve(
+            LazyFilterOptionsResource::class,
+            \Illuminate\Http\Request::create('/', 'GET', [
+                'filters' => [
+                    'statuses' => 'draft',
+                ],
+            ]),
+        );
+
+        self::assertSame(['statuses' => ['draft']], $payload['active_filters']);
+        self::assertCount(1, $payload['rows']);
+        self::assertSame('draft', $payload['rows'][0]['attributes']['status']);
+    }
+
+    public function test_resource_lists_ignore_empty_multiple_filter_values(): void
+    {
+        $payload = $this->dataSource()->resolve(
+            LazyFilterOptionsResource::class,
+            \Illuminate\Http\Request::create('/', 'GET', [
+                'filters' => [
+                    'statuses' => ['', null, []],
+                ],
+            ]),
+        );
+
+        self::assertSame([], $payload['active_filters']);
+        self::assertCount(2, $payload['rows']);
+    }
+
+    public function test_resource_lists_limit_multiple_filter_values(): void
+    {
+        $values = array_merge(
+            ['draft'],
+            array_map(static fn (int $index): string => 'missing-' . $index, range(1, 250)),
+            ['published'],
+        );
+
+        $payload = $this->dataSource()->resolve(
+            LazyFilterOptionsResource::class,
+            \Illuminate\Http\Request::create('/', 'GET', [
+                'filters' => [
+                    'statuses' => $values,
+                ],
+            ]),
+        );
+
+        self::assertCount(200, $payload['active_filters']['statuses']);
+        self::assertSame('missing-199', $payload['active_filters']['statuses'][199]);
+        self::assertCount(1, $payload['rows']);
+        self::assertSame('draft', $payload['rows'][0]['attributes']['status']);
+    }
+
     public function test_lazy_filters_receive_options_url_in_resource_list_payload(): void
     {
         $payload = $this->dataSource()->resolve(

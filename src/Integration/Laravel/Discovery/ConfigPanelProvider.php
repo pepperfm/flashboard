@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Pepperfm\Flashboard\Integration\Laravel\Discovery;
 
+use Illuminate\Container\Attributes\Singleton;
 use Illuminate\Support\Arr;
 use Pepperfm\Flashboard\Flashboard;
 use Pepperfm\Flashboard\Core\Panel\DiscoveryTarget;
@@ -14,6 +15,7 @@ use Pepperfm\Flashboard\Contracts\Panel\PanelProviderContract;
 use Pepperfm\Flashboard\Contracts\Resources\Resource;
 use Pepperfm\Flashboard\Core\Pages\DashboardPage;
 
+#[Singleton]
 final class ConfigPanelProvider implements PanelProviderContract
 {
     use ResolvesConfiguredDiscovery;

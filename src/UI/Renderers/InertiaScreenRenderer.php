@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace Pepperfm\Flashboard\UI\Renderers;
 
+use Illuminate\Container\Attributes\Singleton;
 use Pepperfm\Flashboard\Contracts\Panel\PanelDefinitionContract;
 use Pepperfm\Flashboard\UI\Contracts\ScreenRendererContract;
 use Pepperfm\Flashboard\UI\Panel\PanelShell;
 
+#[Singleton]
 final class InertiaScreenRenderer implements ScreenRendererContract
 {
     public function render(

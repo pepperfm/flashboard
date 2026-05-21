@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace Pepperfm\Flashboard\Integration\Laravel\Discovery;
 
+use Illuminate\Container\Attributes\Singleton;
 use Pepperfm\Flashboard\Contracts\Pages\PageDefinitionContract;
 use Pepperfm\Flashboard\Contracts\Resources\Resource;
 use Pepperfm\Flashboard\Core\Panel\DiscoveryTarget;
 use ReflectionClass;
 
+#[Singleton]
 final readonly class AutoDiscoveryScanner
 {
     public function __construct(

@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace Pepperfm\Flashboard\Integration\Laravel\Persistence;
 
+use Illuminate\Container\Attributes\Singleton;
 use Illuminate\Database\Eloquent\Model;
 use Pepperfm\Flashboard\Contracts\Resources\Resource;
 use Pepperfm\Flashboard\Core\Hooks\RuntimeHookDispatcher;
 use Pepperfm\Flashboard\Core\Forms\Builders\Form;
 
+#[Singleton]
 final readonly class ResourceFormPersister
 {
     public function __construct(

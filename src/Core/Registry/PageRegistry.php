@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Pepperfm\Flashboard\Core\Registry;
 
+use Illuminate\Container\Attributes\Singleton;
 use Pepperfm\Flashboard\Contracts\Pages\PageDefinitionContract;
 
+#[Singleton]
 final class PageRegistry
 {
     /**

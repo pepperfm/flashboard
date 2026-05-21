@@ -39,6 +39,15 @@ class SelectFilter extends Filter
             ->attribute('option_value_column', $column);
     }
 
+    public function multiple(bool $condition = true): static
+    {
+        if (!$condition) {
+            return $this;
+        }
+
+        return $this->attribute('multiple', true);
+    }
+
     /**
      * @param array<array-key, mixed> $options
      */

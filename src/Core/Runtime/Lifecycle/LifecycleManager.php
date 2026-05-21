@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace Pepperfm\Flashboard\Core\Runtime\Lifecycle;
 
+use Illuminate\Container\Attributes\Singleton;
 use Pepperfm\Flashboard\Contracts\Panel\PanelDefinitionContract;
 use Pepperfm\Flashboard\Contracts\Panel\PanelLifecycleStage;
 use Pepperfm\Flashboard\Core\Registry\PanelRegistry;
 
+#[Singleton]
 final readonly class LifecycleManager
 {
     public function __construct(

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Pepperfm\Flashboard\Core\Runtime\Assemblers;
 
+use Illuminate\Container\Attributes\Singleton;
 use Illuminate\Support\Arr;
 use Pepperfm\Flashboard\Contracts\Actions\ActionContract;
 use Pepperfm\Flashboard\Contracts\Pages\CustomPageContract;
@@ -23,6 +24,7 @@ use Pepperfm\Flashboard\Integration\Laravel\DataSources\ResourceDetailDataSource
 use Pepperfm\Flashboard\Integration\Laravel\DataSources\ResourceListDataSource;
 use Pepperfm\Flashboard\Integration\Laravel\DataSources\ResourceFormDataSource;
 
+#[Singleton]
 final readonly class ScreenPayloadAssembler
 {
     public function __construct(

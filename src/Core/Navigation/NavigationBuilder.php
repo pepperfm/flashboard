@@ -4,12 +4,14 @@ declare(strict_types=1);
 
 namespace Pepperfm\Flashboard\Core\Navigation;
 
+use Illuminate\Container\Attributes\Singleton;
 use Pepperfm\Flashboard\Contracts\Panel\PanelDefinitionContract;
 use Pepperfm\Flashboard\Core\Authorization\Visibility\ScreenAccessResolver;
 use Pepperfm\Flashboard\Core\Navigation\Builders\NavigationItem;
 use Pepperfm\Flashboard\Core\Registry\PageRegistry;
 use Pepperfm\Flashboard\Core\Registry\ResourceRegistry;
 
+#[Singleton]
 final readonly class NavigationBuilder
 {
     public function __construct(

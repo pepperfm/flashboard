@@ -4,6 +4,9 @@ declare(strict_types=1);
 
 namespace Pepperfm\Flashboard\UI\Notifications;
 
+use Illuminate\Container\Attributes\Singleton;
+
+#[Singleton]
 final class NotificationCenter
 {
     /**

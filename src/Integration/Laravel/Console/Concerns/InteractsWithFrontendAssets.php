@@ -17,7 +17,6 @@ trait InteractsWithFrontendAssets
     private function requestedPackageManager(Filesystem $files): string
     {
         $explicitPackageManager = $this->explicitPackageManagerOption();
-
         if ($explicitPackageManager !== null) {
             return $explicitPackageManager;
         }

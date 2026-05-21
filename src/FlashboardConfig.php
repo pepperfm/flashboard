@@ -66,84 +66,84 @@ final class FlashboardConfig
 
     private ?bool $reportBoot = null;
 
-    public function name(string $name): self
+    public function name(string $name): static
     {
         $this->name = $name;
 
         return $this;
     }
 
-    public function path(string $path): self
+    public function path(string $path): static
     {
         $this->path = $path;
 
         return $this;
     }
 
-    public function routeNamePrefix(string $routeNamePrefix): self
+    public function routeNamePrefix(string $routeNamePrefix): static
     {
         $this->routeNamePrefix = $routeNamePrefix;
 
         return $this;
     }
 
-    public function guard(?string $guard): self
+    public function guard(?string $guard): static
     {
         $this->guard = $guard;
 
         return $this;
     }
 
-    public function webMiddleware(string ...$middleware): self
+    public function webMiddleware(string ...$middleware): static
     {
         $this->webMiddleware = self::normalizeValues($middleware);
 
         return $this;
     }
 
-    public function authMiddleware(string ...$middleware): self
+    public function authMiddleware(string ...$middleware): static
     {
         $this->authMiddleware = self::normalizeValues($middleware);
 
         return $this;
     }
 
-    public function loginPath(string $loginPath): self
+    public function loginPath(string $loginPath): static
     {
         $this->loginPath = $loginPath;
 
         return $this;
     }
 
-    public function logoutPath(string $logoutPath): self
+    public function logoutPath(string $logoutPath): static
     {
         $this->logoutPath = $logoutPath;
 
         return $this;
     }
 
-    public function usernameField(string $usernameField): self
+    public function usernameField(string $usernameField): static
     {
         $this->usernameField = $usernameField;
 
         return $this;
     }
 
-    public function passwordField(string $passwordField): self
+    public function passwordField(string $passwordField): static
     {
         $this->passwordField = $passwordField;
 
         return $this;
     }
 
-    public function rememberKey(string $rememberKey): self
+    public function rememberKey(string $rememberKey): static
     {
         $this->rememberKey = $rememberKey;
 
         return $this;
     }
 
-    public function provider(string $providerClass): self
+    public function provider(string $providerClass): static
     {
         $this->providerClasses[] = $providerClass;
         $this->providerClasses = array_values(array_unique($this->providerClasses));
@@ -154,7 +154,7 @@ final class FlashboardConfig
     /**
      * @param list<class-string> $providerClasses
      */
-    public function providers(array $providerClasses): self
+    public function providers(array $providerClasses): static
     {
         foreach ($providerClasses as $providerClass) {
             $this->provider($providerClass);
@@ -163,7 +163,7 @@ final class FlashboardConfig
         return $this;
     }
 
-    public function resource(string $resourceClass): self
+    public function resource(string $resourceClass): static
     {
         $this->resourceClasses[] = $resourceClass;
         $this->resourceClasses = array_values(array_unique($this->resourceClasses));
@@ -174,7 +174,7 @@ final class FlashboardConfig
     /**
      * @param list<class-string> $resourceClasses
      */
-    public function resources(array $resourceClasses): self
+    public function resources(array $resourceClasses): static
     {
         foreach ($resourceClasses as $resourceClass) {
             $this->resource($resourceClass);
@@ -183,7 +183,7 @@ final class FlashboardConfig
         return $this;
     }
 
-    public function page(string $pageClass): self
+    public function page(string $pageClass): static
     {
         $this->pageClasses[] = $pageClass;
         $this->pageClasses = array_values(array_unique($this->pageClasses));
@@ -191,29 +191,29 @@ final class FlashboardConfig
         return $this;
     }
 
-    public function discover(?string $in = null, ?string $namespace = null): self
+    public function discover(?string $in = null, ?string $namespace = null): static
     {
         return $this->addDiscoveryTarget($in, $namespace, DiscoveryScope::Both);
     }
 
-    public function discoverResources(?string $in = null, ?string $namespace = null): self
+    public function discoverResources(?string $in = null, ?string $namespace = null): static
     {
         return $this->addDiscoveryTarget($in, $namespace, DiscoveryScope::Resources);
     }
 
-    public function discoverPages(?string $in = null, ?string $namespace = null): self
+    public function discoverPages(?string $in = null, ?string $namespace = null): static
     {
         return $this->addDiscoveryTarget($in, $namespace, DiscoveryScope::Pages);
     }
 
-    public function withoutDiscovery(): self
+    public function withoutDiscovery(): static
     {
         $this->autoDiscoveryEnabled = false;
 
         return $this;
     }
 
-    public function except(string ...$classes): self
+    public function except(string ...$classes): static
     {
         $this->excludedDiscoveryClasses = array_values(array_unique(array_merge(
             $this->excludedDiscoveryClasses,
@@ -226,7 +226,7 @@ final class FlashboardConfig
     /**
      * @param list<class-string> $pageClasses
      */
-    public function pages(array $pageClasses): self
+    public function pages(array $pageClasses): static
     {
         foreach ($pageClasses as $pageClass) {
             $this->page($pageClass);
@@ -235,7 +235,7 @@ final class FlashboardConfig
         return $this;
     }
 
-    public function reportBoot(bool $reportBoot = true): self
+    public function reportBoot(bool $reportBoot = true): static
     {
         $this->reportBoot = $reportBoot;
 
@@ -311,7 +311,7 @@ final class FlashboardConfig
         return $config;
     }
 
-    public function reset(): self
+    public function reset(): static
     {
         $this->name = null;
         $this->path = null;
@@ -335,7 +335,7 @@ final class FlashboardConfig
         return $this;
     }
 
-    private function addDiscoveryTarget(?string $directory, ?string $namespace, DiscoveryScope $scope): self
+    private function addDiscoveryTarget(?string $directory, ?string $namespace, DiscoveryScope $scope): static
     {
         $this->discoveryTargets[] = DiscoveryTarget::make(
             directory: $directory ?? app_path('Flashboard'),

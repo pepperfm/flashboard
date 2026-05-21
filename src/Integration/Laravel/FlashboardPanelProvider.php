@@ -98,6 +98,6 @@ abstract class FlashboardPanelProvider extends \Illuminate\Support\ServiceProvid
      */
     private function resolvedConfiguration(): array
     {
-        return $this->resolvePanelConfig([]);
+        return $this->resolvePanelConfig();
     }
 }

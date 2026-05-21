@@ -102,6 +102,30 @@ final class ResourceFilterOptionsDataSourceTest extends TestCase
         ], $payload['items'][0]);
     }
 
+    public function test_default_lazy_select_options_hydrate_multiple_selected_values(): void
+    {
+        $payload = $this->dataSource()->resolve(
+            LazyFilterOptionsResource::class,
+            'statuses',
+            \Illuminate\Http\Request::create('/', 'GET', [
+                'page' => 1,
+                'per_page' => 1,
+                'selected' => ['published', 'review'],
+            ]),
+        );
+
+        self::assertSame([
+            [
+                'label' => 'published',
+                'value' => 'published',
+            ],
+            [
+                'label' => 'review',
+                'value' => 'review',
+            ],
+        ], array_slice($payload['items'], 0, 2));
+    }
+
     public function test_lazy_select_options_can_use_separate_label_and_value_columns(): void
     {
         $payload = $this->dataSource()->resolve(
@@ -160,6 +184,41 @@ final class ResourceFilterOptionsDataSourceTest extends TestCase
         ], $payload['items']);
         self::assertTrue($payload['meta']['has_more']);
         self::assertSame(4, $payload['meta']['next_page']);
+    }
+
+    public function test_custom_lazy_select_resolver_receives_selected_values(): void
+    {
+        $payload = $this->dataSource()->resolve(
+            LazyFilterOptionsResource::class,
+            'sku_multi',
+            \Illuminate\Http\Request::create('/', 'GET', [
+                'selected' => [42, 43],
+            ]),
+        );
+
+        self::assertSame([
+            [
+                'label' => 'SKU selected 42|43 first 42',
+                'value' => 100,
+            ],
+        ], $payload['items']);
+    }
+
+    public function test_lazy_select_options_limit_selected_values(): void
+    {
+        $payload = $this->dataSource()->resolve(
+            LazyFilterOptionsResource::class,
+            'sku_multi',
+            \Illuminate\Http\Request::create('/', 'GET', [
+                'selected' => range(1, 205),
+            ]),
+        );
+
+        $label = $payload['items'][0]['label'];
+
+        self::assertStringContainsString('SKU selected 1|2', $label);
+        self::assertStringContainsString('|200 first 1', $label);
+        self::assertStringNotContainsString('|201', $label);
     }
 
     public function test_non_lazy_filters_are_not_served_by_the_lazy_options_data_source(): void

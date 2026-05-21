@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Pepperfm\Flashboard\Integration\Laravel\Auth;
 
+use Illuminate\Container\Attributes\Singleton;
 use Illuminate\Database\Eloquent\Model;
 use Pepperfm\Flashboard\Contracts\Resources\Resource;
 
+#[Singleton]
 final class PolicyBridge
 {
     /**

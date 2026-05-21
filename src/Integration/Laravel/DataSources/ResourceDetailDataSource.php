@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Pepperfm\Flashboard\Integration\Laravel\DataSources;
 
+use Illuminate\Container\Attributes\Singleton;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Arr;
 use Pepperfm\Flashboard\Contracts\Resources\Resource;
@@ -14,6 +15,7 @@ use Pepperfm\Flashboard\Core\Detail\Builders\Detail;
 use Pepperfm\Flashboard\Core\Relations\RelationPayloadFactory;
 use Pepperfm\Flashboard\Integration\Laravel\Auth\PanelAuthenticator;
 
+#[Singleton]
 final readonly class ResourceDetailDataSource
 {
     public function __construct(

@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Pepperfm\Flashboard\Core\Hooks;
 
+use Illuminate\Container\Attributes\Singleton;
 use Pepperfm\Flashboard\Contracts\Extensions\RuntimeHookContract;
 use Pepperfm\Flashboard\Contracts\Resources\Resource;
 
+#[Singleton]
 final class RuntimeHookDispatcher
 {
     /**

@@ -10,6 +10,7 @@ final readonly class SelectFilterOptionsQuery
 {
     /**
      * @param class-string $resourceClass
+     * @param list<string|int|bool> $selectedValues
      */
     public function __construct(
         public string $resourceClass,
@@ -21,6 +22,7 @@ final readonly class SelectFilterOptionsQuery
         public mixed $selected = null,
         public ?Authenticatable $user = null,
         public ?object $request = null,
+        public array $selectedValues = [],
     ) {
     }
 

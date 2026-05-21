@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace Pepperfm\Flashboard\Core\Runtime\Assemblers;
 
+use Illuminate\Container\Attributes\Singleton;
 use Pepperfm\Flashboard\Contracts\Resources\Resource;
 use Pepperfm\Flashboard\Core\Runtime\Payloads\TablePayload;
 use Pepperfm\Flashboard\Core\Tables\Builders\Table;
 
+#[Singleton]
 final class TablePayloadAssembler
 {
     /**

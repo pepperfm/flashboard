@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Pepperfm\Flashboard\Integration\Laravel\DataSources;
 
+use Illuminate\Container\Attributes\Singleton;
 use Illuminate\Support\Arr;
 use Pepperfm\Flashboard\Contracts\Resources\Resource;
 use Pepperfm\Flashboard\Contracts\Tables\Filters\SelectFilterOptionsQuery;
@@ -14,9 +15,11 @@ use Pepperfm\Flashboard\Core\Tables\Filters\SelectFilter;
 use Pepperfm\Flashboard\Integration\Laravel\Auth\PanelAuthenticator;
 use Pepperfm\Flashboard\Support\Schema\SchemaNodeNormalizer;
 
+#[Singleton]
 final readonly class ResourceFilterOptionsDataSource
 {
     private const int MAX_PER_PAGE = 100;
+    private const int MAX_SELECTED_VALUES = 200;
 
     public function __construct(
         private TablePayloadAssembler $tablePayloadAssembler,
@@ -52,7 +55,8 @@ final readonly class ResourceFilterOptionsDataSource
             )),
         );
         $search = trim((string) $request->query('search', ''));
-        $selected = $this->scalarValue($request->query('selected'));
+        $selectedValues = $this->scalarValues($request->query('selected'));
+        $selected = $selectedValues[0] ?? null;
 
         $optionsQuery = new SelectFilterOptionsQuery(
             resourceClass: $resourceClass,
@@ -64,6 +68,7 @@ final readonly class ResourceFilterOptionsDataSource
             selected: $selected,
             user: $this->authenticator->user(),
             request: $request,
+            selectedValues: $selectedValues,
         );
 
         if ($selectFilter instanceof SelectFilter && $selectFilter->hasLazyOptionsResolver()) {
@@ -128,17 +133,22 @@ final readonly class ResourceFilterOptionsDataSource
             $options,
         )));
 
-        if ($optionsQuery->selected !== null) {
-            $selectedItem = $this->selectedOption(
+        if ($optionsQuery->selectedValues !== []) {
+            $selectedItems = $this->selectedOptions(
                 $resourceClass,
                 $optionValueColumn,
                 $optionLabelColumn,
-                $optionsQuery->selected,
+                $optionsQuery->selectedValues,
             );
+            $missingSelectedItems = [];
 
-            if ($selectedItem !== null && !$this->hasOptionValue($items, $selectedItem['value'])) {
-                array_unshift($items, $selectedItem);
+            foreach ($selectedItems as $selectedItem) {
+                if (!$this->hasOptionValue($items, $selectedItem['value'])) {
+                    $missingSelectedItems[] = $selectedItem;
+                }
             }
+
+            $items = array_merge($missingSelectedItems, $items);
         }
 
         return SelectFilterOptionsResult::make(
@@ -190,32 +200,42 @@ final readonly class ResourceFilterOptionsDataSource
 
     /**
      * @param class-string<Resource> $resourceClass
+     * @param list<string|int|bool> $selectedValues
      *
-     * @return array{label: string, value: string|int|bool}|null
+     * @return list<array{label: string, value: string|int|bool}>
      */
-    private function selectedOption(
+    private function selectedOptions(
         string $resourceClass,
         string $optionValueColumn,
         string $optionLabelColumn,
-        string|int|bool $selected,
-    ): ?array {
-        $record = $this->extensionRegistry->extendQuery($resourceClass, $resourceClass::query())
+        array $selectedValues,
+    ): array {
+        $records = $this->extensionRegistry->extendQuery($resourceClass, $resourceClass::query())
             ->select([
                 $optionValueColumn . ' as flashboard_option_value',
                 $optionLabelColumn . ' as flashboard_option_label',
             ])
-            ->where($optionValueColumn, $selected)
+            ->whereIn($optionValueColumn, $selectedValues)
             ->whereNotNull($optionValueColumn)
-            ->first();
+            ->get();
+        $itemsByValue = [];
 
-        if (!is_object($record)) {
-            return $this->optionFromRow($selected, $selected);
+        foreach ($records as $record) {
+            $item = $this->optionFromRow(
+                data_get($record, 'flashboard_option_value'),
+                data_get($record, 'flashboard_option_label'),
+            );
+
+            if ($item !== null) {
+                $itemsByValue[(string) $item['value']] = $item;
+            }
         }
 
-        return $this->optionFromRow(
-            data_get($record, 'flashboard_option_value') ?? $selected,
-            data_get($record, 'flashboard_option_label') ?? $selected,
-        );
+        return array_values(array_filter(array_map(
+            fn (string|int|bool $selected): ?array => $itemsByValue[(string) $selected]
+                ?? $this->optionFromRow($selected, $selected),
+            $selectedValues,
+        )));
     }
 
     /**
@@ -256,5 +276,34 @@ final readonly class ResourceFilterOptionsDataSource
         }
 
         return null;
+    }
+
+    /**
+     * @return list<string|int|bool>
+     */
+    private function scalarValues(mixed $value): array
+    {
+        $values = is_array($value) ? $value : [$value];
+        $normalized = [];
+
+        foreach ($values as $item) {
+            $scalarValue = $this->scalarValue($item);
+
+            if ($scalarValue === null) {
+                continue;
+            }
+
+            if (array_key_exists((string) $scalarValue, $normalized)) {
+                continue;
+            }
+
+            $normalized[(string) $scalarValue] = $scalarValue;
+
+            if (count($normalized) >= self::MAX_SELECTED_VALUES) {
+                break;
+            }
+        }
+
+        return array_values($normalized);
     }
 }

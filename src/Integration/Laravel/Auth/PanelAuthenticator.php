@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace Pepperfm\Flashboard\Integration\Laravel\Auth;
 
+use Illuminate\Container\Attributes\Singleton;
 use Illuminate\Contracts\Auth\Factory;
 use Illuminate\Contracts\Auth\StatefulGuard;
 use Illuminate\Support\Arr;
 
+#[Singleton]
 final readonly class PanelAuthenticator
 {
     public function __construct(

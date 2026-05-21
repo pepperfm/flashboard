@@ -31,6 +31,11 @@ final class LazyFilterOptionsResource extends Resource
                     'draft' => 'Draft',
                     'published' => 'Published',
                 ]),
+                SelectFilter::make('statuses')
+                    ->label('Statuses')
+                    ->queryColumn('status')
+                    ->lazy(perPage: 2)
+                    ->multiple(),
                 SelectFilter::make('status_id')
                     ->label('Status by ID')
                     ->lazy(perPage: 2)
@@ -53,6 +58,22 @@ final class LazyFilterOptionsResource extends Resource
                         ], true, $query->page + 1),
                         perPage: 5,
                     ),
+                SelectFilter::make('sku_multi')
+                    ->label('SKU multi')
+                    ->queryColumn('id')
+                    ->lazy(
+                        static fn (SelectFilterOptionsQuery $query): SelectFilterOptionsResult => SelectFilterOptionsResult::make([
+                            [
+                                'label' => sprintf(
+                                    'SKU selected %s first %s',
+                                    implode('|', array_map('strval', $query->selectedValues)),
+                                    (string) $query->selected,
+                                ),
+                                'value' => 100,
+                            ],
+                        ]),
+                    )
+                    ->multiple(),
                 SelectFilter::make('eager')->label('Eager')->options([
                     'yes' => 'Yes',
                 ]),

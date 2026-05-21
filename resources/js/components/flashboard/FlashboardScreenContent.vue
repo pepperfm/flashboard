@@ -24,6 +24,7 @@ type TableColumnShape = {
 }
 
 type TableFilterOptionValue = string | number | boolean
+type TableFilterModelValue = TableFilterOptionValue | TableFilterOptionValue[] | null | undefined
 
 type TableFilterOptionShape = {
   label?: string
@@ -34,6 +35,7 @@ type TableFilterShape = {
   key: string
   lazy?: boolean
   label?: string
+  multiple?: boolean
   options?: TableFilterOptionShape[] | Record<string, TableFilterOptionValue>
   options_per_page?: number
   options_url?: string
@@ -81,7 +83,7 @@ type PayloadShape = {
   actions?: ActionShape[]
   table?: {
     dataset?: {
-      active_filters?: Record<string, TableFilterOptionValue | null | undefined>
+      active_filters?: Record<string, TableFilterModelValue>
       columns?: TableColumnShape[]
       filters?: TableFilterShape[]
       rows?: Array<{
@@ -179,7 +181,7 @@ const tableFilters = computed(() => props.payload.table?.dataset?.filters ?? [])
 const hasTableFilters = computed(() => tableFilters.value.length > 0)
 const hasActiveTableFilters = computed(() =>
   Object.values(props.payload.table?.dataset?.active_filters ?? {})
-    .some((value) => value !== null && value !== undefined && value !== ''),
+    .some((value) => tableFilterModelHasValue(value)),
 )
 
 watch(
@@ -315,14 +317,18 @@ function visitPage(page: number) {
   )
 }
 
-function activeTableFilterValue(filterKey: string): TableFilterOptionValue | null {
+function activeTableFilterValue(filterKey: string): TableFilterModelValue {
   const value = props.payload.table?.dataset?.active_filters?.[filterKey]
 
-  if (value === undefined || value === '') {
+  if (!tableFilterModelHasValue(value)) {
     return null
   }
 
   return value
+}
+
+function activeTableFilterScalarValue(filterKey: string): TableFilterOptionValue | null {
+  return normalizeTableFilterModelValue(activeTableFilterValue(filterKey))[0] ?? null
 }
 
 function normalizeTableFilterOptions(filter: TableFilterShape): TableFilterOptionShape[] {
@@ -338,6 +344,10 @@ function normalizeTableFilterOptions(filter: TableFilterShape): TableFilterOptio
         label: String(label),
         value,
       }))
+
+  if (filter.multiple === true) {
+    return normalizedOptions
+  }
 
   return [
     {
@@ -363,19 +373,46 @@ function searchableTableFilterOptions(filter: TableFilterShape): TableFilterOpti
 }
 
 function selectedTableFilterLabel(filter: TableFilterShape): string | null {
-  const selectedValue = activeTableFilterValue(filter.key)
+  const selectedValues = normalizeTableFilterModelValue(activeTableFilterValue(filter.key))
 
-  if (selectedValue === null) {
+  if (selectedValues.length === 0) {
     return null
   }
 
-  const selectedOption = normalizeTableFilterOptions(filter)
-    .find((option) => String(option.value ?? '') === String(selectedValue))
+  const options = normalizeTableFilterOptions(filter)
+  const selectedLabels = selectedValues.map((selectedValue) => {
+    const selectedOption = options
+      .find((option) => String(option.value ?? '') === String(selectedValue))
 
-  return selectedOption?.label ? String(selectedOption.label) : String(selectedValue)
+    return selectedOption?.label ? String(selectedOption.label) : String(selectedValue)
+  })
+
+  if (selectedLabels.length > 2) {
+    return `${selectedLabels.length} selected`
+  }
+
+  return selectedLabels.join(', ')
 }
 
 function selectTableFilterOption(filter: TableFilterShape, value: TableFilterOptionValue | null | undefined) {
+  if (filter.multiple === true) {
+    if (!tableFilterScalarHasValue(value)) {
+      tableFilterPopoverOpen[filter.key] = false
+      updateTableFilter(filter.key, [])
+
+      return
+    }
+
+    const currentValues = normalizeTableFilterModelValue(activeTableFilterValue(filter.key))
+    const nextValues = isTableFilterOptionSelected(filter, value)
+      ? currentValues.filter((currentValue) => String(currentValue) !== String(value))
+      : [...currentValues, value]
+
+    updateTableFilter(filter.key, nextValues)
+
+    return
+  }
+
   tableFilterPopoverOpen[filter.key] = false
   updateTableFilter(filter.key, value)
 }
@@ -383,11 +420,11 @@ function selectTableFilterOption(filter: TableFilterShape, value: TableFilterOpt
 function tableFilterOptionClass(filter: TableFilterShape, option: TableFilterOptionShape): Record<string, boolean> {
   return {
     'table-filter-option': true,
-    'table-filter-option--active': String(activeTableFilterValue(filter.key) ?? '') === String(option.value ?? ''),
+    'table-filter-option--active': isTableFilterOptionSelected(filter, option.value),
   }
 }
 
-function updateTableFilter(filterKey: string, value: TableFilterOptionValue | null | undefined) {
+function updateTableFilter(filterKey: string, value: TableFilterModelValue) {
   if (typeof window === 'undefined') {
     return
   }
@@ -396,9 +433,13 @@ function updateTableFilter(filterKey: string, value: TableFilterOptionValue | nu
 
   const url = new URL(window.location.href)
 
-  if (value === null || value === undefined || value === '') {
-    url.searchParams.delete(`filters[${filterKey}]`)
-  } else {
+  deleteTableFilterQueryParams(url, filterKey)
+
+  if (Array.isArray(value)) {
+    for (const item of normalizeTableFilterModelValue(value)) {
+      url.searchParams.append(`filters[${filterKey}][]`, String(item))
+    }
+  } else if (tableFilterScalarHasValue(value)) {
     url.searchParams.set(`filters[${filterKey}]`, String(value))
   }
 
@@ -413,6 +454,50 @@ function updateTableFilter(filterKey: string, value: TableFilterOptionValue | nu
       replace: true,
     },
   )
+}
+
+function deleteTableFilterQueryParams(url: URL, filterKey: string) {
+  const scalarKey = `filters[${filterKey}]`
+  const arrayKeyPrefix = `filters[${filterKey}][`
+
+  for (const key of Array.from(url.searchParams.keys())) {
+    if (key === scalarKey || key.startsWith(arrayKeyPrefix)) {
+      url.searchParams.delete(key)
+    }
+  }
+}
+
+function normalizeTableFilterModelValue(value: TableFilterModelValue): TableFilterOptionValue[] {
+  if (!Array.isArray(value)) {
+    return tableFilterScalarHasValue(value) ? [value] : []
+  }
+
+  const valuesByKey = new Map<string, TableFilterOptionValue>()
+
+  for (const item of value) {
+    if (tableFilterScalarHasValue(item)) {
+      valuesByKey.set(String(item), item)
+    }
+  }
+
+  return Array.from(valuesByKey.values())
+}
+
+function tableFilterModelHasValue(value: TableFilterModelValue): boolean {
+  return normalizeTableFilterModelValue(value).length > 0
+}
+
+function tableFilterScalarHasValue(value: TableFilterOptionValue | null | undefined): value is TableFilterOptionValue {
+  return value !== null && value !== undefined && value !== ''
+}
+
+function isTableFilterOptionSelected(filter: TableFilterShape, value: TableFilterOptionValue | null | undefined): boolean {
+  if (!tableFilterScalarHasValue(value)) {
+    return !tableFilterModelHasValue(activeTableFilterValue(filter.key))
+  }
+
+  return normalizeTableFilterModelValue(activeTableFilterValue(filter.key))
+    .some((selectedValue) => String(selectedValue) === String(value))
 }
 
 function resetTableFilters() {
@@ -621,6 +706,7 @@ function formatValue(value: unknown): string {
             class="w-full"
             :items="normalizeTableFilterOptions(filter)"
             :model-value="activeTableFilterValue(filter.key)"
+            :multiple="filter.multiple === true"
             :placeholder="filter.label ?? filter.key"
             @update:model-value="updateTableFilter(filter.key, $event)"
           />
@@ -656,7 +742,7 @@ function formatValue(value: unknown): string {
                     :class="tableFilterOptionClass(filter, option)"
                     color="neutral"
                     type="button"
-                    :variant="String(activeTableFilterValue(filter.key) ?? '') === String(option.value ?? '') ? 'soft' : 'ghost'"
+                    :variant="isTableFilterOptionSelected(filter, option.value) ? 'soft' : 'ghost'"
                     @click="selectTableFilterOption(filter, option.value)"
                   >
                     {{ option.label ?? option.value }}
@@ -673,7 +759,7 @@ function formatValue(value: unknown): string {
           <UInput
             v-else
             class="w-full"
-            :model-value="activeTableFilterValue(filter.key)"
+            :model-value="activeTableFilterScalarValue(filter.key)"
             :placeholder="filter.label ?? filter.key"
             @update:model-value="updateTableFilter(filter.key, $event)"
           />

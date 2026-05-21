@@ -255,7 +255,6 @@ final class MakeResourceCommand extends \Illuminate\Console\Command
         if ($this->isEmailField($field)) {
             $suffix .= PHP_EOL . '                    ->email()';
         }
-
         if ($this->usesTextareaRenderer($field)) {
             $suffix .= PHP_EOL . '                    ->renderer(FieldRenderer::Textarea)';
         }
@@ -311,7 +310,7 @@ final class MakeResourceCommand extends \Illuminate\Console\Command
 
         return implode(PHP_EOL, [
             "            TextEntry::make('$secondaryField')",
-            "                ->label('{$label}'),",
+            "                ->label('$label'),",
         ]) . PHP_EOL;
     }
 

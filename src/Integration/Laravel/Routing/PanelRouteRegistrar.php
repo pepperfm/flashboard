@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Pepperfm\Flashboard\Integration\Laravel\Routing;
 
+use Illuminate\Container\Attributes\Singleton;
 use Illuminate\Support\Facades\Route;
 use Pepperfm\Flashboard\Core\Registry\PageRegistry;
 use Pepperfm\Flashboard\Core\Registry\ResourceRegistry;
@@ -16,6 +17,7 @@ use Pepperfm\Flashboard\Integration\Laravel\Http\Controllers\PanelScreenControll
 use Pepperfm\Flashboard\Integration\Laravel\Http\Controllers\ResourceFilterOptionsController;
 use Pepperfm\Flashboard\Integration\Laravel\Http\Controllers\ResourceFormController;
 
+#[Singleton]
 final readonly class PanelRouteRegistrar
 {
     public function __construct(

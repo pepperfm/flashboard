@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace Pepperfm\Flashboard\Core\Authorization\Visibility;
 
+use Illuminate\Container\Attributes\Singleton;
 use Illuminate\Database\Eloquent\Model;
 use Pepperfm\Flashboard\Contracts\Pages\PageDefinitionContract;
 use Pepperfm\Flashboard\Contracts\Resources\Resource;
 use Pepperfm\Flashboard\Integration\Laravel\Auth\PolicyBridge;
 
+#[Singleton]
 final readonly class ScreenAccessResolver
 {
     public function __construct(

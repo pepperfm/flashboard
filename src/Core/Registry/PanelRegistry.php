@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Pepperfm\Flashboard\Core\Registry;
 
+use Illuminate\Container\Attributes\Singleton;
 use Pepperfm\Flashboard\Contracts\Panel\PanelDefinitionContract;
 use Pepperfm\Flashboard\Contracts\Panel\PanelProviderContract;
 
+#[Singleton]
 final class PanelRegistry
 {
     /**
