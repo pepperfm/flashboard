@@ -96,14 +96,14 @@ final class FlashboardConfig
 
     public function webMiddleware(string ...$middleware): static
     {
-        $this->webMiddleware = self::normalizeValues($middleware);
+        $this->webMiddleware = static::normalizeValues($middleware);
 
         return $this;
     }
 
     public function authMiddleware(string ...$middleware): static
     {
-        $this->authMiddleware = self::normalizeValues($middleware);
+        $this->authMiddleware = static::normalizeValues($middleware);
 
         return $this;
     }
@@ -217,7 +217,7 @@ final class FlashboardConfig
     {
         $this->excludedDiscoveryClasses = array_values(array_unique(array_merge(
             $this->excludedDiscoveryClasses,
-            self::normalizeValues($classes),
+            static::normalizeValues($classes),
         )));
 
         return $this;
@@ -283,15 +283,15 @@ final class FlashboardConfig
             $config['auth']['remember_key'] = $this->rememberKey;
         }
 
-        $config['discovery']['providers'] = self::mergeClasses(
+        $config['discovery']['providers'] = static::mergeClasses(
             (array) ($config['discovery']['providers'] ?? []),
             $this->providerClasses,
         );
-        $config['discovery']['resources'] = self::mergeClasses(
+        $config['discovery']['resources'] = static::mergeClasses(
             (array) ($config['discovery']['resources'] ?? []),
             $this->resourceClasses,
         );
-        $config['discovery']['pages'] = self::mergeClasses(
+        $config['discovery']['pages'] = static::mergeClasses(
             (array) ($config['discovery']['pages'] ?? []),
             $this->pageClasses,
         );
@@ -401,7 +401,6 @@ final class FlashboardConfig
     private function normalizeRouteNamePrefix(string $routeNamePrefix): string
     {
         $routeNamePrefix = trim($routeNamePrefix);
-
         if ($routeNamePrefix === '') {
             return 'flashboard.';
         }

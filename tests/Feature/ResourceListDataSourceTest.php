@@ -49,10 +49,14 @@ final class ResourceListDataSourceTest extends TestCase
         $this->database->schema()->create('lazy_filter_option_records', static function (\Illuminate\Database\Schema\Blueprint $table): void {
             $table->increments('id');
             $table->string('status');
+            $table->string('status_label');
         });
 
         foreach (['draft', 'published'] as $status) {
-            LazyFilterOptionRecord::query()->create(['status' => $status]);
+            LazyFilterOptionRecord::query()->create([
+                'status' => $status,
+                'status_label' => str($status)->headline()->value(),
+            ]);
         }
     }
 
@@ -115,6 +119,87 @@ final class ResourceListDataSourceTest extends TestCase
             \Illuminate\Http\Request::create('/', 'GET', [
                 'filters' => [
                     'statuses' => ['', null, []],
+                ],
+            ]),
+        );
+
+        self::assertSame([], $payload['active_filters']);
+        self::assertCount(2, $payload['rows']);
+    }
+
+    public function test_resource_lists_apply_exact_input_filters(): void
+    {
+        $payload = $this->dataSource()->resolve(
+            LazyFilterOptionsResource::class,
+            \Illuminate\Http\Request::create('/', 'GET', [
+                'filters' => [
+                    'status_label' => 'Draft',
+                ],
+            ]),
+        );
+
+        self::assertSame(['status_label' => 'Draft'], $payload['active_filters']);
+        self::assertCount(1, $payload['rows']);
+        self::assertSame('draft', $payload['rows'][0]['attributes']['status']);
+    }
+
+    public function test_resource_lists_apply_contains_input_filters_to_query_column(): void
+    {
+        $payload = $this->dataSource()->resolve(
+            LazyFilterOptionsResource::class,
+            \Illuminate\Http\Request::create('/', 'GET', [
+                'filters' => [
+                    'status_text' => 'publish',
+                ],
+            ]),
+        );
+
+        self::assertSame(['status_text' => 'publish'], $payload['active_filters']);
+        self::assertCount(1, $payload['rows']);
+        self::assertSame('published', $payload['rows'][0]['attributes']['status']);
+    }
+
+    public function test_resource_lists_treat_contains_input_filter_wildcards_as_literals(): void
+    {
+        LazyFilterOptionRecord::query()->create([
+            'status' => '50%_discount',
+            'status_label' => '50 percent discount',
+        ]);
+
+        $percentPayload = $this->dataSource()->resolve(
+            LazyFilterOptionsResource::class,
+            \Illuminate\Http\Request::create('/', 'GET', [
+                'filters' => [
+                    'status_text' => '%',
+                ],
+            ]),
+        );
+
+        self::assertSame(['status_text' => '%'], $percentPayload['active_filters']);
+        self::assertCount(1, $percentPayload['rows']);
+        self::assertSame('50%_discount', $percentPayload['rows'][0]['attributes']['status']);
+
+        $underscorePayload = $this->dataSource()->resolve(
+            LazyFilterOptionsResource::class,
+            \Illuminate\Http\Request::create('/', 'GET', [
+                'filters' => [
+                    'status_text' => '_',
+                ],
+            ]),
+        );
+
+        self::assertSame(['status_text' => '_'], $underscorePayload['active_filters']);
+        self::assertCount(1, $underscorePayload['rows']);
+        self::assertSame('50%_discount', $underscorePayload['rows'][0]['attributes']['status']);
+    }
+
+    public function test_resource_lists_ignore_empty_input_filter_values(): void
+    {
+        $payload = $this->dataSource()->resolve(
+            LazyFilterOptionsResource::class,
+            \Illuminate\Http\Request::create('/', 'GET', [
+                'filters' => [
+                    'status_text' => '',
                 ],
             ]),
         );

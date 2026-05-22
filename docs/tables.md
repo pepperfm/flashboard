@@ -16,6 +16,9 @@ public static function table(\Pepperfm\Flashboard\Contracts\Tables\TableContract
             \Pepperfm\Flashboard\Core\Tables\Filters\SelectFilter::make('status')
                 ->label('Status')
                 ->lazy(),
+            \Pepperfm\Flashboard\Core\Tables\Filters\InputFilter::make('email')
+                ->label('Email')
+                ->contains(),
             \Pepperfm\Flashboard\Core\Tables\Filters\SelectFilter::make('sku')
                 ->label('SKU')
                 ->queryColumn('id')
@@ -36,10 +39,45 @@ Typed columns and filters are the preferred public API. Legacy array definitions
 - sort across columns marked `sortable`
 - table filter controls rendered above resource index tables, with searchable select filters and a reset action when filters are active
 - simple filter key/value pairs from the request, such as `filters[status]=active`
+- input filters from the request, such as `filters[email]=john`, with exact matching by default and opt-in `contains()` matching
 - multi-value select filters from the request, such as `filters[status][]=draft&filters[status][]=published`, applied with `whereIn()`
 - select option keys are submitted as filter values, and `queryColumn()` can target a different database column
 - lazy select filters load options from a protected backend endpoint with server-side search and scroll pagination
 - Eloquent pagination with query-string preservation
+
+## Input Filters
+
+Call `InputFilter::make()` when a filter should accept operator-entered text for one declared query column:
+
+```php
+\Pepperfm\Flashboard\Core\Tables\Filters\InputFilter::make('email')
+    ->label('Email');
+```
+
+Input filters use scalar URL state:
+
+```text
+filters[email]=john@example.com
+```
+
+By default, input filters apply exact matching with `where($column, $value)`. Use `contains()` when the input should match any part of the column value:
+
+```php
+\Pepperfm\Flashboard\Core\Tables\Filters\InputFilter::make('email')
+    ->label('Email')
+    ->contains();
+```
+
+`contains()` applies a column-scoped `LIKE` query. Use `queryColumn()` when the public filter key should differ from the database column:
+
+```php
+\Pepperfm\Flashboard\Core\Tables\Filters\InputFilter::make('customer')
+    ->label('Customer email')
+    ->queryColumn('customers.email')
+    ->contains();
+```
+
+Use global table search for broad matching across multiple searchable columns. Use `InputFilter` when the operator should filter one specific column and keep that filter in the URL.
 
 ## Searchable Select Filters
 

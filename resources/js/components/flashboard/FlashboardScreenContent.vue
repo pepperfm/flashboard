@@ -4,7 +4,7 @@ import SimpleFormShell from '@/components/flashboard/forms/layout/SimpleFormShel
 import LazySelectFilter from '@/components/flashboard/table/LazySelectFilter.vue'
 import type { FormContainerLayoutShape } from '@/components/flashboard/forms/layout/resolveFormLayout'
 import type { FormFieldShape, FormNodeShape } from '@/components/flashboard/forms/renderers/resolveFormFieldRenderer'
-import { computed, h, reactive, resolveComponent, watch } from 'vue'
+import { computed, h, onBeforeUnmount, reactive, resolveComponent, watch } from 'vue'
 
 type ActionShape = {
   key: string
@@ -31,10 +31,13 @@ type TableFilterOptionShape = {
   value?: TableFilterOptionValue
 }
 
+type TableFilterMatchMode = 'contains' | 'exact'
+
 type TableFilterShape = {
   key: string
   lazy?: boolean
   label?: string
+  match?: TableFilterMatchMode
   multiple?: boolean
   options?: TableFilterOptionShape[] | Record<string, TableFilterOptionValue>
   options_per_page?: number
@@ -140,7 +143,11 @@ const props = defineProps<{
   payload: PayloadShape
 }>()
 
+const TABLE_INPUT_FILTER_AUTOSUBMIT_DELAY_MS = 1000
+
 const form = useForm<Record<string, unknown>>({})
+const tableInputFilterTimers = new Map<string, ReturnType<typeof setTimeout>>()
+const tableInputFilterValues = reactive<Record<string, string>>({})
 const tableFilterPopoverOpen = reactive<Record<string, boolean>>({})
 const tableFilterSearchTerms = reactive<Record<string, string>>({})
 
@@ -185,6 +192,15 @@ const hasActiveTableFilters = computed(() =>
 )
 
 watch(
+  () => [
+    props.payload.table?.dataset?.active_filters,
+    props.payload.table?.dataset?.filters,
+  ],
+  () => syncTableInputFilterValues(),
+  { deep: true, immediate: true },
+)
+
+watch(
   () => props.payload.form?.state,
   (state) => {
     form.defaults((state ?? {}) as Record<string, unknown>)
@@ -198,6 +214,14 @@ watch(
   },
   { immediate: true },
 )
+
+onBeforeUnmount(() => {
+  for (const timer of tableInputFilterTimers.values()) {
+    clearTimeout(timer)
+  }
+
+  tableInputFilterTimers.clear()
+})
 
 function rowActionButton(action: RowActionConfig) {
   const UButton = resolveComponent('UButton')
@@ -329,6 +353,69 @@ function activeTableFilterValue(filterKey: string): TableFilterModelValue {
 
 function activeTableFilterScalarValue(filterKey: string): TableFilterOptionValue | null {
   return normalizeTableFilterModelValue(activeTableFilterValue(filterKey))[0] ?? null
+}
+
+function syncTableInputFilterValues() {
+  const inputFilterKeys = new Set<string>()
+
+  for (const filter of tableFilters.value) {
+    if (filter.type !== 'input') {
+      continue
+    }
+
+    inputFilterKeys.add(filter.key)
+    tableInputFilterValues[filter.key] = String(activeTableFilterScalarValue(filter.key) ?? '')
+  }
+
+  for (const filterKey of Object.keys(tableInputFilterValues)) {
+    if (!inputFilterKeys.has(filterKey)) {
+      clearTableInputFilterTimer(filterKey)
+      delete tableInputFilterValues[filterKey]
+    }
+  }
+}
+
+function updateInputFilterDraft(filterKey: string, value: TableFilterOptionValue | null | undefined) {
+  tableInputFilterValues[filterKey] = value === null || value === undefined ? '' : String(value)
+  scheduleTableInputFilterApply(filterKey)
+}
+
+function scheduleTableInputFilterApply(filterKey: string) {
+  clearTableInputFilterTimer(filterKey)
+
+  tableInputFilterTimers.set(
+    filterKey,
+    setTimeout(() => {
+      tableInputFilterTimers.delete(filterKey)
+      applyTableInputFilter(filterKey)
+    }, TABLE_INPUT_FILTER_AUTOSUBMIT_DELAY_MS),
+  )
+}
+
+function clearTableInputFilterTimer(filterKey: string) {
+  const timer = tableInputFilterTimers.get(filterKey)
+
+  if (timer === undefined) {
+    return
+  }
+
+  clearTimeout(timer)
+  tableInputFilterTimers.delete(filterKey)
+}
+
+function applyTableInputFilter(filterKey: string) {
+  clearTableInputFilterTimer(filterKey)
+
+  const nextValue = (tableInputFilterValues[filterKey] ?? '').trim()
+  const currentValue = String(activeTableFilterScalarValue(filterKey) ?? '')
+
+  if (nextValue === currentValue) {
+    tableInputFilterValues[filterKey] = currentValue
+
+    return
+  }
+
+  updateTableFilter(filterKey, nextValue)
 }
 
 function normalizeTableFilterOptions(filter: TableFilterShape): TableFilterOptionShape[] {
@@ -694,8 +781,21 @@ function formatValue(value: unknown): string {
           :name="`filters.${filter.key}`"
           class="table-filter-field"
         >
+          <UInput
+            v-if="filter.type === 'input'"
+            autocomplete="off"
+            class="w-full"
+            enterkeyhint="search"
+            :model-value="tableInputFilterValues[filter.key] ?? ''"
+            :placeholder="filter.label ?? filter.key"
+            type="search"
+            @blur="applyTableInputFilter(filter.key)"
+            @keyup.enter="applyTableInputFilter(filter.key)"
+            @update:model-value="updateInputFilterDraft(filter.key, $event)"
+          />
+
           <LazySelectFilter
-            v-if="filter.type === 'select' && filter.lazy === true"
+            v-else-if="filter.type === 'select' && filter.lazy === true"
             :filter="filter"
             :model-value="activeTableFilterValue(filter.key)"
             @update:model-value="updateTableFilter(filter.key, $event)"

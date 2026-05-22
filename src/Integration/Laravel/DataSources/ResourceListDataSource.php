@@ -12,11 +12,14 @@ use Pepperfm\Flashboard\Core\Extensions\ExtensionRegistry;
 use Pepperfm\Flashboard\Core\Hooks\RuntimeHookDispatcher;
 use Pepperfm\Flashboard\Core\Resources\ResourceSurfaceResolver;
 use Pepperfm\Flashboard\Core\Runtime\Assemblers\TablePayloadAssembler;
+use Pepperfm\Flashboard\Core\Tables\Filters\InputFilter;
 use Pepperfm\Flashboard\Integration\Laravel\Auth\PanelAuthenticator;
 
 #[Singleton]
 final readonly class ResourceListDataSource
 {
+    private const string LIKE_ESCAPE_CHARACTER = '\\';
+
     private const int MAX_FILTER_VALUES = 200;
 
     public function __construct(
@@ -92,6 +95,12 @@ final readonly class ResourceListDataSource
                 $scalarValue = $this->filterValue($value);
 
                 if ($scalarValue === null) {
+                    continue;
+                }
+
+                if ($this->usesContainsMatch($filterDefinition)) {
+                    $this->applyContainsFilter($query, $filterDefinition['column'], (string) $scalarValue);
+
                     continue;
                 }
 
@@ -192,7 +201,7 @@ final readonly class ResourceListDataSource
     /**
      * @param list<array<string, mixed>> $filters
      *
-     * @return array<string, array{column: string, multiple: bool}>
+     * @return array<string, array{column: string, match: string, multiple: bool, type: string}>
      */
     private function filterDefinitions(array $filters): array
     {
@@ -213,11 +222,37 @@ final readonly class ResourceListDataSource
 
             $definitions[$key] = [
                 'column' => $queryColumn,
+                'match' => $this->filterMatch($filter),
                 'multiple' => Arr::get($filter, 'multiple') === true,
+                'type' => $this->filterType($filter),
             ];
         }
 
         return $definitions;
+    }
+
+    /**
+     * @param array<string, mixed> $filter
+     */
+    private function filterMatch(array $filter): string
+    {
+        $match = Arr::get($filter, 'match', InputFilter::MATCH_EXACT);
+
+        if (!is_string($match) || $match === '') {
+            return InputFilter::MATCH_EXACT;
+        }
+
+        return $match;
+    }
+
+    /**
+     * @param array<string, mixed> $filter
+     */
+    private function filterType(array $filter): string
+    {
+        $type = Arr::get($filter, 'type', '');
+
+        return is_string($type) ? $type : '';
     }
 
     /**
@@ -249,7 +284,7 @@ final readonly class ResourceListDataSource
 
     /**
      * @param array<array-key, mixed> $filters
-     * @param array<string, array{column: string, multiple: bool}> $filterDefinitions
+     * @param array<string, array{column: string, match: string, multiple: bool, type: string}> $filterDefinitions
      *
      * @return array<string, mixed>
      */
@@ -318,5 +353,49 @@ final readonly class ResourceListDataSource
         }
 
         return $value;
+    }
+
+    private function applyContainsFilter(
+        \Illuminate\Database\Eloquent\Builder $query,
+        string $column,
+        string $value,
+    ): void {
+        $query->whereRaw(
+            $query->getQuery()->getGrammar()->wrap($column)
+            . ' like ? escape '
+            . $this->quotedLikeEscapeCharacter($query),
+            ['%' . $this->escapeLikeValue($value) . '%'],
+        );
+    }
+
+    private function quotedLikeEscapeCharacter(\Illuminate\Database\Eloquent\Builder $query): string
+    {
+        $connection = $query->getModel()->getConnection();
+
+        if (!$connection instanceof \Illuminate\Database\Connection) {
+            return "'\\\\'";
+        }
+
+        $quoted = $connection->getPdo()->quote(self::LIKE_ESCAPE_CHARACTER);
+
+        return is_string($quoted) ? $quoted : "'\\\\'";
+    }
+
+    private function escapeLikeValue(string $value): string
+    {
+        return strtr($value, [
+            self::LIKE_ESCAPE_CHARACTER => self::LIKE_ESCAPE_CHARACTER . self::LIKE_ESCAPE_CHARACTER,
+            '%' => self::LIKE_ESCAPE_CHARACTER . '%',
+            '_' => self::LIKE_ESCAPE_CHARACTER . '_',
+        ]);
+    }
+
+    /**
+     * @param array{column: string, match: string, multiple: bool, type: string} $filterDefinition
+     */
+    private function usesContainsMatch(array $filterDefinition): bool
+    {
+        return $filterDefinition['type'] === InputFilter::TYPE
+            && $filterDefinition['match'] === InputFilter::MATCH_CONTAINS;
     }
 }

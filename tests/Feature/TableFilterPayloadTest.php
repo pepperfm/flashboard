@@ -6,11 +6,80 @@ namespace Pepperfm\Flashboard\Tests\Feature;
 
 use Pepperfm\Flashboard\Core\Runtime\Payloads\TablePayload;
 use Pepperfm\Flashboard\Core\Tables\Builders\Table;
+use Pepperfm\Flashboard\Core\Tables\Filters\InputFilter;
 use Pepperfm\Flashboard\Core\Tables\Filters\SelectFilter;
 use Pepperfm\Flashboard\Tests\TestCase;
 
 final class TableFilterPayloadTest extends TestCase
 {
+    public function test_input_filters_are_exposed_in_table_payload(): void
+    {
+        $payload = new TablePayload(
+            Table::make()
+                ->filters([
+                    InputFilter::make('email')->label('Email'),
+                ])
+                ->toArray(),
+        );
+
+        self::assertSame(
+            [
+                [
+                    'key' => 'email',
+                    'label' => 'Email',
+                    'type' => 'input',
+                ],
+            ],
+            $payload->filters(),
+        );
+    }
+
+    public function test_input_filters_can_be_marked_as_contains_matches(): void
+    {
+        $payload = new TablePayload(
+            Table::make()
+                ->filters([
+                    InputFilter::make('email')
+                        ->label('Email')
+                        ->contains(),
+                ])
+                ->toArray(),
+        );
+
+        self::assertSame([
+            [
+                'key' => 'email',
+                'label' => 'Email',
+                'type' => 'input',
+                'match' => 'contains',
+            ],
+        ], $payload->filters());
+    }
+
+    public function test_input_filters_can_target_a_different_query_column(): void
+    {
+        $payload = new TablePayload(
+            Table::make()
+                ->filters([
+                    InputFilter::make('email')
+                        ->label('Email')
+                        ->queryColumn('users.email')
+                        ->exact(),
+                ])
+                ->toArray(),
+        );
+
+        self::assertSame([
+            [
+                'key' => 'email',
+                'label' => 'Email',
+                'type' => 'input',
+                'query_column' => 'users.email',
+                'match' => 'exact',
+            ],
+        ], $payload->filters());
+    }
+
     public function test_select_filters_are_exposed_in_table_payload(): void
     {
         $payload = new TablePayload(

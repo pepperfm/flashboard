@@ -29,15 +29,15 @@ abstract class Resource
     public static function key(): string
     {
         $class = class_basename(static::class);
-        $baseName = str($class)->before(static::DEFAULT_SUFFIX)->toString();
+        $baseName = str($class)->before(static::DEFAULT_SUFFIX)->value();
         $value = $baseName === '' ? $class : $baseName;
 
-        return str($value)->snake()->toString();
+        return str($value)->snake()->value();
     }
 
     public static function name(): string
     {
-        return str(static::key())->headline()->toString();
+        return str(static::key())->headline()->value();
     }
 
     public static function navigationLabel(): string

@@ -9,6 +9,7 @@ use Pepperfm\Flashboard\Contracts\Tables\Filters\SelectFilterOptionsQuery;
 use Pepperfm\Flashboard\Contracts\Tables\Filters\SelectFilterOptionsResult;
 use Pepperfm\Flashboard\Contracts\Tables\TableContract;
 use Pepperfm\Flashboard\Core\Tables\Columns\TextColumn;
+use Pepperfm\Flashboard\Core\Tables\Filters\InputFilter;
 use Pepperfm\Flashboard\Core\Tables\Filters\SelectFilter;
 use Pepperfm\Flashboard\Tests\Fixtures\Models\LazyFilterOptionRecord;
 
@@ -36,6 +37,11 @@ final class LazyFilterOptionsResource extends Resource
                     ->queryColumn('status')
                     ->lazy(perPage: 2)
                     ->multiple(),
+                InputFilter::make('status_label')->label('Status label'),
+                InputFilter::make('status_text')
+                    ->label('Status text')
+                    ->queryColumn('status')
+                    ->contains(),
                 SelectFilter::make('status_id')
                     ->label('Status by ID')
                     ->lazy(perPage: 2)
