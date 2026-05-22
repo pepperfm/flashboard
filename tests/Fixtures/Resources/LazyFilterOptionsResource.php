@@ -26,8 +26,8 @@ final class LazyFilterOptionsResource extends Resource
     {
         return $table
             ->columns([
-                TextColumn::make('id')->label('ID'),
-                TextColumn::make('status')->label('Status'),
+                TextColumn::make('id')->label('ID')->sortable(),
+                TextColumn::make('status')->label('Status')->searchable()->sortable(),
                 DateColumn::make('published_on')->label('Published on'),
                 DateColumn::make('reviewed_at')->label('Reviewed at')->format('d.m.Y'),
             ])

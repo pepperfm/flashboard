@@ -49,31 +49,21 @@ final readonly class ResourceListDataSource
             'search' => $request->query('search'),
             'filters' => $request->query('filters'),
         ]);
+        $user = $this->authenticator->user();
+        $columns = $this->visibleColumns($resourceClass, $table->columns(), $user);
         $search = trim((string) $request->query('search', ''));
         $sort = (string) $request->query('sort', '');
         $direction = strtolower((string) $request->query('direction', 'asc')) === 'desc' ? 'desc' : 'asc';
         $perPage = max(1, (int) $request->query('per_page', (string) $table->pagination()));
         $filters = $request->query('filters', []);
 
-        $searchableColumns = $table->searchableColumns();
-        $sortableColumns = $table->sortableColumns();
+        $searchableColumns = $this->searchableColumns($columns);
+        $sortableColumns = $this->sortableColumns($columns);
         $tableFilters = $this->tableFilters($resourceClass, $table->filters());
         $filterDefinitions = $this->filterDefinitions($tableFilters);
 
         if ($search !== '' && $searchableColumns !== []) {
-            $query->where(function (\Illuminate\Database\Eloquent\Builder $builder) use (
-                $searchableColumns,
-                $search
-            ): void {
-                foreach ($searchableColumns as $index => $column) {
-                    if ($index === 0) {
-                        $builder->where($column, 'like', "%$search%");
-                        continue;
-                    }
-
-                    $builder->orWhere($column, 'like', "%$search%");
-                }
-            });
+            $this->applyGlobalSearch($query, $searchableColumns, $search);
         }
 
         if (is_array($filters)) {
@@ -129,25 +119,7 @@ final readonly class ResourceListDataSource
         }
 
         $paginator = $query->paginate($perPage);
-        $user = $this->authenticator->user();
         $hasDetailSurface = $this->resourceSurfaceResolver->hasDetailSurfaceForResource($resourceClass);
-        $columns = array_values(array_map(
-            fn(array $column): array => array_merge($column, [
-                'key' => (string) $column['key'],
-                'label' => (string) ($column['label'] ?? str($this->getColumnKey($column))->headline()->value()),
-                'sortable' => (bool) ($column['sortable'] ?? false),
-                'searchable' => (bool) ($column['searchable'] ?? false),
-            ]),
-            $table->columns(),
-        ));
-        $columns = array_values(array_filter(
-            $columns,
-            fn(array $column): bool => $this->screenAccessResolver->canViewField(
-                $resourceClass,
-                (string) $column['key'],
-                $user,
-            ),
-        ));
 
         $rows = [];
 
@@ -212,6 +184,69 @@ final readonly class ResourceListDataSource
     private function getColumnKey(?array $column = null): string
     {
         return (string) Arr::get($column, 'key', 'value');
+    }
+
+    /**
+     * @param class-string<Resource> $resourceClass
+     * @param list<array<string, mixed>> $columns
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function visibleColumns(
+        string $resourceClass,
+        array $columns,
+        ?\Illuminate\Contracts\Auth\Authenticatable $user,
+    ): array {
+        $normalizedColumns = array_values(array_map(
+            fn(array $column): array => array_merge($column, [
+                'key' => (string) $column['key'],
+                'label' => (string) ($column['label'] ?? str($this->getColumnKey($column))->headline()->value()),
+                'sortable' => (bool) ($column['sortable'] ?? false),
+                'searchable' => (bool) ($column['searchable'] ?? false),
+            ]),
+            $columns,
+        ));
+
+        return array_values(array_filter(
+            $normalizedColumns,
+            fn(array $column): bool => $this->screenAccessResolver->canViewField(
+                $resourceClass,
+                (string) $column['key'],
+                $user,
+            ),
+        ));
+    }
+
+    /**
+     * @param list<array<string, mixed>> $columns
+     *
+     * @return list<string>
+     */
+    private function searchableColumns(array $columns): array
+    {
+        return array_values(array_map(
+            static fn (array $column): string => (string) $column['key'],
+            array_values(array_filter(
+                $columns,
+                static fn (array $column): bool => $column['searchable'] === true,
+            )),
+        ));
+    }
+
+    /**
+     * @param list<array<string, mixed>> $columns
+     *
+     * @return list<string>
+     */
+    private function sortableColumns(array $columns): array
+    {
+        return array_values(array_map(
+            static fn (array $column): string => (string) $column['key'],
+            array_values(array_filter(
+                $columns,
+                static fn (array $column): bool => $column['sortable'] === true,
+            )),
+        ));
     }
 
     /**
@@ -455,11 +490,37 @@ final readonly class ResourceListDataSource
         string $value,
     ): void {
         $query->whereRaw(
-            $query->getQuery()->getGrammar()->wrap($column)
-            . ' like ? escape '
-            . $this->quotedLikeEscapeCharacter($query),
+            $this->likeExpression($query, $column),
             ['%' . $this->escapeLikeValue($value) . '%'],
         );
+    }
+
+    /**
+     * @param list<string> $columns
+     */
+    private function applyGlobalSearch(
+        \Illuminate\Database\Eloquent\Builder $query,
+        array $columns,
+        string $value,
+    ): void {
+        $search = '%' . $this->escapeLikeValue($value) . '%';
+
+        $query->where(function (\Illuminate\Database\Eloquent\Builder $builder) use ($columns, $search): void {
+            foreach ($columns as $index => $column) {
+                $builder->whereRaw(
+                    $this->likeExpression($builder, $column),
+                    [$search],
+                    $index === 0 ? 'and' : 'or',
+                );
+            }
+        });
+    }
+
+    private function likeExpression(\Illuminate\Database\Eloquent\Builder $query, string $column): string
+    {
+        return $query->getQuery()->getGrammar()->wrap($column)
+            . ' like ? escape '
+            . $this->quotedLikeEscapeCharacter($query);
     }
 
     private function quotedLikeEscapeCharacter(\Illuminate\Database\Eloquent\Builder $query): string

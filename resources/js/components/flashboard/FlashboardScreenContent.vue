@@ -5,7 +5,7 @@ import DatePickerFilter from '@/components/flashboard/table/DatePickerFilter.vue
 import LazySelectFilter from '@/components/flashboard/table/LazySelectFilter.vue'
 import type { FormContainerLayoutShape } from '@/components/flashboard/forms/layout/resolveFormLayout'
 import type { FormFieldShape, FormNodeShape } from '@/components/flashboard/forms/renderers/resolveFormFieldRenderer'
-import { computed, h, onBeforeUnmount, reactive, resolveComponent, watch } from 'vue'
+import { computed, h, onBeforeUnmount, reactive, ref, resolveComponent, watch } from 'vue'
 
 type ActionShape = {
   key: string
@@ -90,6 +90,7 @@ type PayloadShape = {
     dataset?: {
       active_filters?: Record<string, TableFilterModelValue>
       columns?: TableColumnShape[]
+      direction?: TableSortDirection | string
       filters?: TableFilterShape[]
       rows?: Array<{
         id: string | number
@@ -99,6 +100,8 @@ type PayloadShape = {
       routes?: {
         create?: string
       }
+      search?: string
+      sort?: string
       pagination?: {
         current_page?: number
         last_page?: number
@@ -140,6 +143,8 @@ type RowActionConfig = {
   icon: string
 }
 
+type TableSortDirection = 'asc' | 'desc'
+
 const props = defineProps<{
   breadcrumbs?: Array<{ href: string; label: string }>
   payload: PayloadShape
@@ -151,6 +156,8 @@ const tableInputFilterTimers = new Map<string, ReturnType<typeof setTimeout>>()
 const tableInputFilterValues = reactive<Record<string, string>>({})
 const tableFilterPopoverOpen = reactive<Record<string, boolean>>({})
 const tableFilterSearchTerms = reactive<Record<string, string>>({})
+const tableSearchValue = ref('')
+let tableSearchTimer: ReturnType<typeof setTimeout> | null = null
 
 const pagination = computed(() => props.payload.table?.dataset?.pagination)
 const hasPagination = computed(() => (pagination.value?.last_page ?? 1) > 1)
@@ -181,24 +188,37 @@ const visibleDetailSections = computed(() =>
     }))
     .filter((section) => (section.schema?.length ?? 0) > 0),
 )
-const dataTableColumns = computed(() => props.payload.table?.dataset?.columns ?? [])
+const tableDataset = computed(() => props.payload.table?.dataset)
+const dataTableColumns = computed(() => tableDataset.value?.columns ?? [])
+const searchableTableColumns = computed(() => dataTableColumns.value.filter((column) => column.searchable === true))
+const hasSearchableTableColumns = computed(() => searchableTableColumns.value.length > 0)
+const activeTableSearch = computed(() => String(tableDataset.value?.search ?? ''))
+const activeTableSort = computed(() => String(tableDataset.value?.sort ?? ''))
+const activeTableDirection = computed<TableSortDirection>(() => tableDataset.value?.direction === 'desc' ? 'desc' : 'asc')
 const dataColumnWidth = computed(() =>
   `calc((100% - var(--fb-table-actions-width)) / ${Math.max(dataTableColumns.value.length, 1)})`,
 )
-const tableFilters = computed(() => props.payload.table?.dataset?.filters ?? [])
+const tableFilters = computed(() => tableDataset.value?.filters ?? [])
 const hasTableFilters = computed(() => tableFilters.value.length > 0)
 const hasActiveTableFilters = computed(() =>
-  Object.values(props.payload.table?.dataset?.active_filters ?? {})
+  Object.values(tableDataset.value?.active_filters ?? {})
     .some((value) => tableFilterModelHasValue(value)),
 )
+const hasActiveTableSearch = computed(() => activeTableSearch.value.trim() !== '')
 
 watch(
   () => [
-    props.payload.table?.dataset?.active_filters,
-    props.payload.table?.dataset?.filters,
+    tableDataset.value?.active_filters,
+    tableDataset.value?.filters,
   ],
   () => syncTableInputFilterValues(),
   { deep: true, immediate: true },
+)
+
+watch(
+  () => tableDataset.value?.search,
+  () => syncTableSearchValue(),
+  { immediate: true },
 )
 
 watch(
@@ -222,6 +242,7 @@ onBeforeUnmount(() => {
   }
 
   tableInputFilterTimers.clear()
+  clearTableSearchTimer()
 })
 
 function rowActionButton(action: RowActionConfig) {
@@ -257,11 +278,88 @@ function tableCellTitle(value: unknown): string | undefined {
   return title === '' ? undefined : title
 }
 
+function sortDirectionForColumn(column: TableColumnShape): TableSortDirection | null {
+  if (column.sortable !== true || activeTableSort.value !== column.key) {
+    return null
+  }
+
+  return activeTableDirection.value
+}
+
+function sortableHeaderIcon(column: TableColumnShape): string {
+  const direction = sortDirectionForColumn(column)
+
+  if (direction === 'asc') {
+    return 'i-lucide-arrow-up'
+  }
+
+  if (direction === 'desc') {
+    return 'i-lucide-arrow-down'
+  }
+
+  return 'i-lucide-arrow-up-down'
+}
+
+function nextSortDirectionForColumn(column: TableColumnShape): TableSortDirection | null {
+  const direction = sortDirectionForColumn(column)
+
+  if (direction === null) {
+    return 'asc'
+  }
+
+  if (direction === 'asc') {
+    return 'desc'
+  }
+
+  return null
+}
+
+function sortableHeaderLabel(column: TableColumnShape): string {
+  const nextDirection = nextSortDirectionForColumn(column)
+
+  if (nextDirection === 'asc') {
+    return `Sort ${column.label} ascending`
+  }
+
+  if (nextDirection === 'desc') {
+    return `Sort ${column.label} descending`
+  }
+
+  return `Clear ${column.label} sorting`
+}
+
+function renderTableHeader(column: TableColumnShape) {
+  if (column.sortable !== true) {
+    return column.label
+  }
+
+  const UButton = resolveComponent('UButton')
+  const direction = sortDirectionForColumn(column)
+
+  return h(UButton, {
+    'aria-label': sortableHeaderLabel(column),
+    active: direction !== null,
+    class: {
+      'table-sort-button': true,
+      'table-sort-button--active': direction !== null,
+    },
+    color: direction === null ? 'neutral' : 'primary',
+    icon: sortableHeaderIcon(column),
+    label: column.label,
+    size: 'xs',
+    title: sortableHeaderLabel(column),
+    trailing: true,
+    variant: 'ghost',
+    onClick: () => toggleTableSort(column),
+  })
+}
+
 const tableColumns = computed(() =>
   [
     ...dataTableColumns.value.map((column) => ({
       accessorKey: column.key,
-      header: column.label,
+      enableSorting: false,
+      header: () => renderTableHeader(column),
       meta: {
         style: {
           th: { width: dataColumnWidth.value },
@@ -331,11 +429,11 @@ function visit(href?: string) {
 }
 
 function visitPage(page: number) {
-  if (typeof window === 'undefined') {
+  const url = tableStateUrl()
+
+  if (url === null) {
     return
   }
-
-  const url = new URL(window.location.href)
 
   if (page <= 1) {
     url.searchParams.delete('page')
@@ -343,19 +441,11 @@ function visitPage(page: number) {
     url.searchParams.set('page', String(page))
   }
 
-  router.get(
-    url.toString(),
-    {},
-    {
-      preserveScroll: true,
-      preserveState: true,
-      replace: true,
-    },
-  )
+  visitTableState(url)
 }
 
 function activeTableFilterValue(filterKey: string): TableFilterModelValue {
-  const value = props.payload.table?.dataset?.active_filters?.[filterKey]
+  const value = tableDataset.value?.active_filters?.[filterKey]
 
   if (!tableFilterModelHasValue(value)) {
     return null
@@ -429,6 +519,53 @@ function applyTableInputFilter(filterKey: string) {
   }
 
   updateTableFilter(filterKey, nextValue)
+}
+
+function syncTableSearchValue() {
+  tableSearchValue.value = activeTableSearch.value
+}
+
+function updateTableSearchDraft(value: string | number | null | undefined) {
+  tableSearchValue.value = value === null || value === undefined ? '' : String(value)
+  scheduleTableSearchApply()
+}
+
+function scheduleTableSearchApply() {
+  clearTableSearchTimer()
+
+  tableSearchTimer = setTimeout(() => {
+    tableSearchTimer = null
+    applyTableSearch()
+  }, TABLE_INPUT_FILTER_AUTOSUBMIT_DELAY_MS)
+}
+
+function clearTableSearchTimer() {
+  if (tableSearchTimer === null) {
+    return
+  }
+
+  clearTimeout(tableSearchTimer)
+  tableSearchTimer = null
+}
+
+function applyTableSearch() {
+  clearTableSearchTimer()
+
+  const nextValue = tableSearchValue.value.trim()
+  const currentValue = activeTableSearch.value.trim()
+
+  if (nextValue === currentValue) {
+    tableSearchValue.value = currentValue
+
+    return
+  }
+
+  updateTableSearch(nextValue)
+}
+
+function clearTableSearch() {
+  tableSearchValue.value = ''
+  updateTableSearch('')
 }
 
 function normalizeTableFilterOptions(filter: TableFilterShape): TableFilterOptionShape[] {
@@ -525,13 +662,13 @@ function tableFilterOptionClass(filter: TableFilterShape, option: TableFilterOpt
 }
 
 function updateTableFilter(filterKey: string, value: TableFilterModelValue) {
-  if (typeof window === 'undefined') {
+  const url = tableStateUrl()
+
+  if (url === null) {
     return
   }
 
   tableFilterSearchTerms[filterKey] = ''
-
-  const url = new URL(window.location.href)
 
   deleteTableFilterQueryParams(url, filterKey)
 
@@ -545,6 +682,60 @@ function updateTableFilter(filterKey: string, value: TableFilterModelValue) {
 
   url.searchParams.delete('page')
 
+  visitTableState(url)
+}
+
+function updateTableSearch(value: string) {
+  const url = tableStateUrl()
+
+  if (url === null) {
+    return
+  }
+
+  if (value === '') {
+    url.searchParams.delete('search')
+  } else {
+    url.searchParams.set('search', value)
+  }
+
+  url.searchParams.delete('page')
+  visitTableState(url)
+}
+
+function toggleTableSort(column: TableColumnShape) {
+  if (column.sortable !== true) {
+    return
+  }
+
+  const url = tableStateUrl()
+
+  if (url === null) {
+    return
+  }
+
+  const nextDirection = nextSortDirectionForColumn(column)
+
+  if (nextDirection === null) {
+    url.searchParams.delete('sort')
+    url.searchParams.delete('direction')
+  } else {
+    url.searchParams.set('sort', column.key)
+    url.searchParams.set('direction', nextDirection)
+  }
+
+  url.searchParams.delete('page')
+  visitTableState(url)
+}
+
+function tableStateUrl(): URL | null {
+  if (typeof window === 'undefined') {
+    return null
+  }
+
+  return new URL(window.location.href)
+}
+
+function visitTableState(url: URL) {
   router.get(
     url.toString(),
     {},
@@ -601,11 +792,11 @@ function isTableFilterOptionSelected(filter: TableFilterShape, value: TableFilte
 }
 
 function resetTableFilters() {
-  if (typeof window === 'undefined') {
+  const url = tableStateUrl()
+
+  if (url === null) {
     return
   }
-
-  const url = new URL(window.location.href)
 
   Array.from(url.searchParams.keys())
     .filter((key) => key.startsWith('filters[') || key === 'filters')
@@ -613,15 +804,7 @@ function resetTableFilters() {
 
   url.searchParams.delete('page')
 
-  router.get(
-    url.toString(),
-    {},
-    {
-      preserveScroll: true,
-      preserveState: true,
-      replace: true,
-    },
-  )
+  visitTableState(url)
 }
 
 function updateFieldValue(fieldKey: string, value: unknown) {
@@ -786,7 +969,40 @@ function formatValue(value: unknown): string {
         </div>
       </template>
 
-      <div v-if="hasTableFilters" class="table-toolbar">
+      <div v-if="hasSearchableTableColumns || hasTableFilters" class="table-toolbar">
+        <UFormField
+          v-if="hasSearchableTableColumns"
+          class="table-search-field"
+          label="Search"
+          name="search"
+        >
+          <UInput
+            autocomplete="off"
+            class="w-full"
+            enterkeyhint="search"
+            icon="i-lucide-search"
+            :model-value="tableSearchValue"
+            placeholder="Search"
+            type="search"
+            @blur="applyTableSearch"
+            @keyup.enter="applyTableSearch"
+            @update:model-value="updateTableSearchDraft"
+          >
+            <template v-if="hasActiveTableSearch || tableSearchValue !== ''" #trailing>
+              <UButton
+                aria-label="Clear search"
+                color="neutral"
+                icon="i-lucide-x"
+                size="xs"
+                square
+                title="Clear search"
+                variant="ghost"
+                @click.stop.prevent="clearTableSearch"
+              />
+            </template>
+          </UInput>
+        </UFormField>
+
         <UFormField
           v-for="filter in tableFilters"
           :key="filter.key"
@@ -1142,6 +1358,19 @@ function formatValue(value: unknown): string {
   white-space: nowrap;
 }
 
+:deep(.table-sort-button) {
+  max-width: 100%;
+  min-width: 0;
+  padding-inline: 0;
+  justify-content: flex-start;
+}
+
+:deep(.table-sort-button span) {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
 .table-toolbar {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
@@ -1149,6 +1378,7 @@ function formatValue(value: unknown): string {
   padding: 1rem 0;
 }
 
+.table-search-field,
 .table-filter-field {
   min-width: 0;
 }

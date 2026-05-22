@@ -34,7 +34,7 @@ final class OrdersResource extends Resource
         return $table
             ->columns([
                 TextColumn::make('id')->label('ID')->sortable(),
-                BadgeColumn::make('status')->label('Status')->searchable(),
+                BadgeColumn::make('status')->label('Status')->searchable()->sortable(),
             ])
             ->filters([
                 SelectFilter::make('status')->label('Status')->lazy(),
@@ -70,6 +70,8 @@ final class AdminPanelProvider extends FlashboardPanelProvider
 
 Any `*Resource` class placed in `app/Flashboard` will be picked up automatically by provider `discover()`.
 Use `->resource(OrdersResource::class)` only when you want explicit registration in the provider.
+
+In table definitions, column-level `searchable()` adds the column to the global resource table search, and column-level `sortable()` renders a clickable server-side sort header. This is separate from `SelectFilter::searchable()`, which only changes the option picker for that filter.
 
 ## Discovery Variants
 

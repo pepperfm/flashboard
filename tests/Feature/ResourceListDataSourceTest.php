@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Pepperfm\Flashboard\Tests\Feature;
 
+use Illuminate\Contracts\Auth\Access\Gate;
 use Illuminate\Contracts\Auth\Factory;
 use Illuminate\Contracts\Auth\Guard;
 use Illuminate\Contracts\Auth\StatefulGuard;
@@ -18,6 +19,7 @@ use Pepperfm\Flashboard\Integration\Laravel\Auth\PolicyBridge;
 use Pepperfm\Flashboard\Integration\Laravel\DataSources\ResourceListDataSource;
 use Pepperfm\Flashboard\Tests\Fixtures\Models\LazyFilterOptionRecord;
 use Pepperfm\Flashboard\Tests\Fixtures\Resources\LazyFilterOptionsResource;
+use Pepperfm\Flashboard\Tests\Fixtures\Resources\VisibilityRestrictedListResource;
 use Pepperfm\Flashboard\Tests\TestCase;
 
 final class ResourceListDataSourceTest extends TestCase
@@ -75,6 +77,163 @@ final class ResourceListDataSourceTest extends TestCase
                 'reviewed_at' => $record['reviewed_at'],
             ]);
         }
+    }
+
+    public function test_resource_lists_apply_global_search_to_searchable_columns(): void
+    {
+        $payload = $this->dataSource()->resolve(
+            LazyFilterOptionsResource::class,
+            \Illuminate\Http\Request::create('/', 'GET', [
+                'search' => 'publish',
+            ]),
+        );
+
+        self::assertSame('publish', $payload['search']);
+        self::assertCount(1, $payload['rows']);
+        self::assertSame('published', $payload['rows'][0]['attributes']['status']);
+    }
+
+    public function test_resource_lists_do_not_search_non_searchable_columns(): void
+    {
+        $payload = $this->dataSource()->resolve(
+            LazyFilterOptionsResource::class,
+            \Illuminate\Http\Request::create('/', 'GET', [
+                'search' => '2026-05-21',
+            ]),
+        );
+
+        self::assertSame('2026-05-21', $payload['search']);
+        self::assertCount(0, $payload['rows']);
+    }
+
+    public function test_resource_lists_treat_global_search_wildcards_as_literals(): void
+    {
+        LazyFilterOptionRecord::query()->create([
+            'status' => '50%_discount',
+            'status_label' => 'Discount status',
+        ]);
+
+        $percentPayload = $this->dataSource()->resolve(
+            LazyFilterOptionsResource::class,
+            \Illuminate\Http\Request::create('/', 'GET', [
+                'search' => '%',
+            ]),
+        );
+
+        self::assertSame('%', $percentPayload['search']);
+        self::assertCount(1, $percentPayload['rows']);
+        self::assertSame('50%_discount', $percentPayload['rows'][0]['attributes']['status']);
+
+        $underscorePayload = $this->dataSource()->resolve(
+            LazyFilterOptionsResource::class,
+            \Illuminate\Http\Request::create('/', 'GET', [
+                'search' => '_',
+            ]),
+        );
+
+        self::assertSame('_', $underscorePayload['search']);
+        self::assertCount(1, $underscorePayload['rows']);
+        self::assertSame('50%_discount', $underscorePayload['rows'][0]['attributes']['status']);
+    }
+
+    public function test_resource_lists_do_not_search_hidden_searchable_columns(): void
+    {
+        $this->bindGateDenying('view-hidden');
+        LazyFilterOptionRecord::query()
+            ->where('status', 'draft')
+            ->update(['status_label' => 'secret-only']);
+
+        $payload = $this->dataSource()->resolve(
+            VisibilityRestrictedListResource::class,
+            \Illuminate\Http\Request::create('/', 'GET', [
+                'search' => 'secret-only',
+            ]),
+        );
+
+        self::assertSame(['id', 'status'], array_column($payload['columns'], 'key'));
+        self::assertSame('secret-only', $payload['search']);
+        self::assertCount(0, $payload['rows']);
+    }
+
+    public function test_resource_lists_do_not_sort_hidden_sortable_columns(): void
+    {
+        $this->bindGateDenying('view-hidden');
+        LazyFilterOptionRecord::query()
+            ->where('status', 'draft')
+            ->update(['status_label' => 'zzz-hidden']);
+        LazyFilterOptionRecord::query()
+            ->where('status', 'published')
+            ->update(['status_label' => 'aaa-hidden']);
+
+        $payload = $this->dataSource()->resolve(
+            VisibilityRestrictedListResource::class,
+            \Illuminate\Http\Request::create('/', 'GET', [
+                'sort' => 'status_label',
+                'direction' => 'asc',
+            ]),
+        );
+
+        self::assertSame(['id', 'status'], array_column($payload['columns'], 'key'));
+        self::assertSame('status_label', $payload['sort']);
+        self::assertSame('asc', $payload['direction']);
+        self::assertSame(
+            [1, 2],
+            array_map(static fn (array $row): int => (int) $row['id'], $payload['rows']),
+        );
+    }
+
+    public function test_resource_lists_apply_sort_only_to_sortable_columns(): void
+    {
+        $payload = $this->dataSource()->resolve(
+            LazyFilterOptionsResource::class,
+            \Illuminate\Http\Request::create('/', 'GET', [
+                'sort' => 'status',
+                'direction' => 'desc',
+            ]),
+        );
+
+        self::assertSame('status', $payload['sort']);
+        self::assertSame('desc', $payload['direction']);
+        self::assertSame(
+            ['published', 'draft'],
+            array_map(static fn (array $row): string => $row['attributes']['status'], $payload['rows']),
+        );
+    }
+
+    public function test_resource_lists_ignore_undeclared_sort_columns(): void
+    {
+        $payload = $this->dataSource()->resolve(
+            LazyFilterOptionsResource::class,
+            \Illuminate\Http\Request::create('/', 'GET', [
+                'sort' => 'published_on',
+                'direction' => 'desc',
+            ]),
+        );
+
+        self::assertSame('published_on', $payload['sort']);
+        self::assertSame('desc', $payload['direction']);
+        self::assertSame(
+            ['draft', 'published'],
+            array_map(static fn (array $row): string => $row['attributes']['status'], $payload['rows']),
+        );
+    }
+
+    public function test_resource_lists_fall_back_to_ascending_sort_direction(): void
+    {
+        $payload = $this->dataSource()->resolve(
+            LazyFilterOptionsResource::class,
+            \Illuminate\Http\Request::create('/', 'GET', [
+                'sort' => 'id',
+                'direction' => 'sideways',
+            ]),
+        );
+
+        self::assertSame('id', $payload['sort']);
+        self::assertSame('asc', $payload['direction']);
+        self::assertSame(
+            [1, 2],
+            array_map(static fn (array $row): int => (int) $row['id'], $payload['rows']),
+        );
     }
 
     public function test_resource_lists_apply_only_declared_filter_keys(): void
@@ -445,6 +604,108 @@ final class ResourceListDataSourceTest extends TestCase
 
             public function shouldUse($name): void
             {
+            }
+        });
+    }
+
+    private function bindGateDenying(string $deniedAbility): void
+    {
+        $this->app->instance(Gate::class, new class($deniedAbility) implements Gate
+        {
+            public function __construct(private readonly string $deniedAbility)
+            {
+            }
+
+            public function has($ability): bool
+            {
+                return true;
+            }
+
+            public function define($ability, $callback): static
+            {
+                return $this;
+            }
+
+            public function resource($name, $class, ?array $abilities = null): static
+            {
+                return $this;
+            }
+
+            public function policy($class, $policy): static
+            {
+                return $this;
+            }
+
+            public function before(callable $callback): static
+            {
+                return $this;
+            }
+
+            public function after(callable $callback): static
+            {
+                return $this;
+            }
+
+            public function allows($ability, $arguments = []): bool
+            {
+                return $ability !== $this->deniedAbility;
+            }
+
+            public function denies($ability, $arguments = []): bool
+            {
+                return !$this->allows($ability, $arguments);
+            }
+
+            public function check($abilities, $arguments = []): bool
+            {
+                foreach ((array) $abilities as $ability) {
+                    if (!$this->allows($ability, $arguments)) {
+                        return false;
+                    }
+                }
+
+                return true;
+            }
+
+            public function any($abilities, $arguments = []): bool
+            {
+                foreach ((array) $abilities as $ability) {
+                    if ($this->allows($ability, $arguments)) {
+                        return true;
+                    }
+                }
+
+                return false;
+            }
+
+            public function authorize($ability, $arguments = []): \Illuminate\Auth\Access\Response
+            {
+                return $this->inspect($ability, $arguments);
+            }
+
+            public function inspect($ability, $arguments = []): \Illuminate\Auth\Access\Response
+            {
+                return new \Illuminate\Auth\Access\Response($this->allows($ability, $arguments));
+            }
+
+            public function raw($ability, $arguments = []): bool
+            {
+                return $this->allows($ability, $arguments);
+            }
+
+            public function getPolicyFor($class): mixed
+            {
+                return null;
+            }
+
+            public function forUser($user): static
+            {
+                return $this;
+            }
+
+            public function abilities(): array
+            {
+                return [];
             }
         });
     }

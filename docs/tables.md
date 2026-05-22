@@ -10,7 +10,7 @@ public static function table(\Pepperfm\Flashboard\Contracts\Tables\TableContract
     return $table
         ->columns([
             \Pepperfm\Flashboard\Core\Tables\Columns\TextColumn::make('id')->label('ID')->sortable(),
-            \Pepperfm\Flashboard\Core\Tables\Columns\BadgeColumn::make('status')->label('Status')->searchable(),
+            \Pepperfm\Flashboard\Core\Tables\Columns\BadgeColumn::make('status')->label('Status')->searchable()->sortable(),
             \Pepperfm\Flashboard\Core\Tables\Columns\DateColumn::make('created_at')->label('Created')->format('d.m.Y')->sortable(),
         ])
         ->filters([
@@ -54,12 +54,49 @@ Date columns render the payload value as-is by default. Use `format()` when the 
 
 The format string uses PHP date format tokens. Empty values still render as the normal empty placeholder, and unrecognized string values fall back to their original value.
 
+## Column Search And Sorting
+
+Call `searchable()` on a table column when it should participate in the global table search:
+
+```php
+\Pepperfm\Flashboard\Core\Tables\Columns\TextColumn::make('email')
+    ->label('Email')
+    ->searchable();
+```
+
+When at least one visible column is searchable, Flashboard renders one search input above the resource table. The input writes scalar URL state:
+
+```text
+search=john
+```
+
+The backend applies global search only across columns marked `searchable`. Search changes reset `page` and preserve active filters and sorting.
+
+Call `sortable()` on a table column when its header should become a server-side sort control:
+
+```php
+\Pepperfm\Flashboard\Core\Tables\Columns\TextColumn::make('id')
+    ->label('ID')
+    ->sortable();
+```
+
+Sortable headers cycle through ascending, descending, and unsorted URL state:
+
+```text
+sort=id&direction=asc
+sort=id&direction=desc
+```
+
+Sort changes reset `page` and preserve active filters and search. The backend ignores unsupported sort keys, so query strings cannot sort by columns that were not marked `sortable`.
+
+Column-level `searchable()` is separate from select-filter `searchable()`. A searchable column contributes to the global table search; a searchable select filter changes how that one filter's options are picked.
+
 ## Query Behavior
 
 `ResourceListDataSource` currently supports:
 
-- search across columns marked `searchable`
-- sort across columns marked `sortable`
+- global search UI and backend search across columns marked `searchable`
+- clickable sortable headers and backend sort across columns marked `sortable`
 - table filter controls rendered above resource index tables, with searchable select filters and a reset action when filters are active
 - simple filter key/value pairs from the request, such as `filters[status]=active`
 - input filters from the request, such as `filters[email]=john`, with exact matching by default and opt-in `contains()` matching

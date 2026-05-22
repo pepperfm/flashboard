@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 0.1.8 - 2026-05-22
+
+- expose column-level `searchable()` as global resource table search and `sortable()` as server-side sortable headers in the Inertia UI
+- preserve filters/search/sort URL state while resetting pagination for table state changes
+- restrict resource list search and sort queries to visible columns and treat global search wildcards as literal input
+- document column search and sorting behavior in package and companion docs
+
 ## 0.1.7 - 2026-05-22
 
 - add date table filters with Nuxt UI date picker controls and strict backend `whereDate()` filtering
