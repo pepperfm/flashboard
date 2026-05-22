@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+## 0.1.7 - 2026-05-22
+
+- add date table filters with Nuxt UI date picker controls and strict backend `whereDate()` filtering
+- add `DateColumn` with opt-in PHP date formatting through `format()`
+- add input-filter throttled autosubmit behavior and keep active table reset controls inline with totals
+- document date columns, date filters, and improve docs MCP search for multi-token queries
+
 ## 0.1.4 - 2026-05-22
 
 - add multiple select table filters with lazy backend loading, selected-value hydration, capped `whereIn()` input, and docs

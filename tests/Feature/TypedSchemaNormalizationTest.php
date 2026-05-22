@@ -20,6 +20,7 @@ use Pepperfm\Flashboard\Core\Runtime\Payloads\DetailPayload;
 use Pepperfm\Flashboard\Core\Runtime\Payloads\FormPayload;
 use Pepperfm\Flashboard\Core\Runtime\Payloads\TablePayload;
 use Pepperfm\Flashboard\Core\Tables\Columns\BadgeColumn;
+use Pepperfm\Flashboard\Core\Tables\Columns\DateColumn;
 use Pepperfm\Flashboard\Core\Tables\Columns\TextColumn;
 use Pepperfm\Flashboard\Core\Tables\Builders\Table;
 use Pepperfm\Flashboard\Core\Forms\Builders\Form;
@@ -42,6 +43,47 @@ final class TypedSchemaNormalizationTest extends TestCase
         self::assertSame(['id', 'status'], array_column($payload->columns(), 'key'));
         self::assertSame(['status'], $payload->searchableColumns());
         self::assertSame(['id'], $payload->sortableColumns());
+    }
+
+    public function test_date_columns_are_exposed_in_table_payload(): void
+    {
+        $payload = new TablePayload(
+            Table::make()
+                ->columns([
+                    DateColumn::make('created_at')->label('Created')->sortable(),
+                ])
+                ->toArray(),
+        );
+
+        self::assertSame([
+            [
+                'key' => 'created_at',
+                'label' => 'Created',
+                'type' => 'date',
+                'sortable' => true,
+            ],
+        ], $payload->columns());
+        self::assertSame(['created_at'], $payload->sortableColumns());
+    }
+
+    public function test_date_columns_can_expose_a_php_date_format(): void
+    {
+        $payload = new TablePayload(
+            Table::make()
+                ->columns([
+                    DateColumn::make('created_at')->label('Created')->format('d.m.Y'),
+                ])
+                ->toArray(),
+        );
+
+        self::assertSame([
+            [
+                'key' => 'created_at',
+                'label' => 'Created',
+                'type' => 'date',
+                'format' => 'd.m.Y',
+            ],
+        ], $payload->columns());
     }
 
     public function test_form_builder_flattens_typed_sections_into_runtime_fields(): void

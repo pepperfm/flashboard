@@ -6,12 +6,57 @@ namespace Pepperfm\Flashboard\Tests\Feature;
 
 use Pepperfm\Flashboard\Core\Runtime\Payloads\TablePayload;
 use Pepperfm\Flashboard\Core\Tables\Builders\Table;
+use Pepperfm\Flashboard\Core\Tables\Filters\DateFilter;
 use Pepperfm\Flashboard\Core\Tables\Filters\InputFilter;
 use Pepperfm\Flashboard\Core\Tables\Filters\SelectFilter;
 use Pepperfm\Flashboard\Tests\TestCase;
 
 final class TableFilterPayloadTest extends TestCase
 {
+    public function test_date_filters_are_exposed_in_table_payload(): void
+    {
+        $payload = new TablePayload(
+            Table::make()
+                ->filters([
+                    DateFilter::make('created_at')->label('Created'),
+                ])
+                ->toArray(),
+        );
+
+        self::assertSame(
+            [
+                [
+                    'key' => 'created_at',
+                    'label' => 'Created',
+                    'type' => 'date',
+                ],
+            ],
+            $payload->filters(),
+        );
+    }
+
+    public function test_date_filters_can_target_a_different_query_column(): void
+    {
+        $payload = new TablePayload(
+            Table::make()
+                ->filters([
+                    DateFilter::make('published')
+                        ->label('Published')
+                        ->queryColumn('posts.published_at'),
+                ])
+                ->toArray(),
+        );
+
+        self::assertSame([
+            [
+                'key' => 'published',
+                'label' => 'Published',
+                'type' => 'date',
+                'query_column' => 'posts.published_at',
+            ],
+        ], $payload->filters());
+    }
+
     public function test_input_filters_are_exposed_in_table_payload(): void
     {
         $payload = new TablePayload(

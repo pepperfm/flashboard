@@ -11,6 +11,7 @@ public static function table(\Pepperfm\Flashboard\Contracts\Tables\TableContract
         ->columns([
             \Pepperfm\Flashboard\Core\Tables\Columns\TextColumn::make('id')->label('ID')->sortable(),
             \Pepperfm\Flashboard\Core\Tables\Columns\BadgeColumn::make('status')->label('Status')->searchable(),
+            \Pepperfm\Flashboard\Core\Tables\Columns\DateColumn::make('created_at')->label('Created')->format('d.m.Y')->sortable(),
         ])
         ->filters([
             \Pepperfm\Flashboard\Core\Tables\Filters\SelectFilter::make('status')
@@ -19,6 +20,8 @@ public static function table(\Pepperfm\Flashboard\Contracts\Tables\TableContract
             \Pepperfm\Flashboard\Core\Tables\Filters\InputFilter::make('email')
                 ->label('Email')
                 ->contains(),
+            \Pepperfm\Flashboard\Core\Tables\Filters\DateFilter::make('created_at')
+                ->label('Created'),
             \Pepperfm\Flashboard\Core\Tables\Filters\SelectFilter::make('sku')
                 ->label('SKU')
                 ->queryColumn('id')
@@ -31,6 +34,26 @@ public static function table(\Pepperfm\Flashboard\Contracts\Tables\TableContract
 
 Typed columns and filters are the preferred public API. Legacy array definitions continue to work while the package migrates the rest of the DSL to the concept-first object style.
 
+## Date Columns
+
+Call `DateColumn::make()` when a column represents a date-like value:
+
+```php
+\Pepperfm\Flashboard\Core\Tables\Columns\DateColumn::make('created_at')
+    ->label('Created')
+    ->sortable();
+```
+
+Date columns render the payload value as-is by default. Use `format()` when the backend should format a date value before it reaches the table:
+
+```php
+\Pepperfm\Flashboard\Core\Tables\Columns\DateColumn::make('created_at')
+    ->label('Created')
+    ->format('d.m.Y');
+```
+
+The format string uses PHP date format tokens. Empty values still render as the normal empty placeholder, and unrecognized string values fall back to their original value.
+
 ## Query Behavior
 
 `ResourceListDataSource` currently supports:
@@ -40,6 +63,7 @@ Typed columns and filters are the preferred public API. Legacy array definitions
 - table filter controls rendered above resource index tables, with searchable select filters and a reset action when filters are active
 - simple filter key/value pairs from the request, such as `filters[status]=active`
 - input filters from the request, such as `filters[email]=john`, with exact matching by default and opt-in `contains()` matching
+- date filters from the request, such as `filters[created_at]=2026-05-22`, applied with exact day matching through `whereDate()`
 - multi-value select filters from the request, such as `filters[status][]=draft&filters[status][]=published`, applied with `whereIn()`
 - select option keys are submitted as filter values, and `queryColumn()` can target a different database column
 - lazy select filters load options from a protected backend endpoint with server-side search and scroll pagination
@@ -78,6 +102,33 @@ By default, input filters apply exact matching with `where($column, $value)`. Us
 ```
 
 Use global table search for broad matching across multiple searchable columns. Use `InputFilter` when the operator should filter one specific column and keep that filter in the URL.
+
+## Date Filters
+
+Call `DateFilter::make()` when a filter should select one exact calendar day:
+
+```php
+\Pepperfm\Flashboard\Core\Tables\Filters\DateFilter::make('created_at')
+    ->label('Created');
+```
+
+Date filters render as a Nuxt UI date picker with an input, popover, and calendar. They use scalar URL state:
+
+```text
+filters[created_at]=2026-05-22
+```
+
+The backend accepts only strict `YYYY-MM-DD` values and applies them with `whereDate($column, '=', $date)`, so both date and datetime columns can be matched by day. Empty, array, non-string, and invalid dates such as `2026-02-30` are ignored and do not appear in `active_filters`.
+
+Use `queryColumn()` when the public filter key should differ from the database column:
+
+```php
+\Pepperfm\Flashboard\Core\Tables\Filters\DateFilter::make('reviewed_date')
+    ->label('Reviewed date')
+    ->queryColumn('reviewed_at');
+```
+
+`DateFilter` is intentionally single-date only. Date ranges should use a separate API, such as a future `DateRangeFilter`, so the URL shape and query behavior stay explicit.
 
 ## Searchable Select Filters
 

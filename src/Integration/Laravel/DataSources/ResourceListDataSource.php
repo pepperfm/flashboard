@@ -12,6 +12,8 @@ use Pepperfm\Flashboard\Core\Extensions\ExtensionRegistry;
 use Pepperfm\Flashboard\Core\Hooks\RuntimeHookDispatcher;
 use Pepperfm\Flashboard\Core\Resources\ResourceSurfaceResolver;
 use Pepperfm\Flashboard\Core\Runtime\Assemblers\TablePayloadAssembler;
+use Pepperfm\Flashboard\Core\Tables\Columns\DateColumn;
+use Pepperfm\Flashboard\Core\Tables\Filters\DateFilter;
 use Pepperfm\Flashboard\Core\Tables\Filters\InputFilter;
 use Pepperfm\Flashboard\Integration\Laravel\Auth\PanelAuthenticator;
 
@@ -19,6 +21,8 @@ use Pepperfm\Flashboard\Integration\Laravel\Auth\PanelAuthenticator;
 final readonly class ResourceListDataSource
 {
     private const string LIKE_ESCAPE_CHARACTER = '\\';
+
+    private const string ISO_DATE_PATTERN = '/^\d{4}-\d{2}-\d{2}$/';
 
     private const int MAX_FILTER_VALUES = 200;
 
@@ -79,6 +83,18 @@ final readonly class ResourceListDataSource
                 }
 
                 $filterDefinition = $filterDefinitions[$key];
+
+                if ($this->usesDateFilter($filterDefinition)) {
+                    $dateValue = $this->filterDateValue($value);
+
+                    if ($dateValue === null) {
+                        continue;
+                    }
+
+                    $query->whereDate($filterDefinition['column'], '=', $dateValue);
+
+                    continue;
+                }
 
                 if ($filterDefinition['multiple']) {
                     $values = $this->filterValues($value);
@@ -161,7 +177,7 @@ final readonly class ResourceListDataSource
 
             foreach ($columns as $column) {
                 $key = (string) $column['key'];
-                $row['attributes'][$key] = data_get($record, $key);
+                $row['attributes'][$key] = $this->columnValue($record, $column);
             }
 
             $rows[] = $row;
@@ -196,6 +212,52 @@ final readonly class ResourceListDataSource
     private function getColumnKey(?array $column = null): string
     {
         return (string) Arr::get($column, 'key', 'value');
+    }
+
+    /**
+     * @param array<string, mixed> $column
+     */
+    private function columnValue(\Illuminate\Database\Eloquent\Model $record, array $column): mixed
+    {
+        $key = $this->getColumnKey($column);
+        $value = data_get($record, $key);
+
+        if (!$this->usesDateColumnFormat($column)) {
+            return $value;
+        }
+
+        return $this->formatDateColumnValue($value, (string) $column['format']);
+    }
+
+    /**
+     * @param array<string, mixed> $column
+     */
+    private function usesDateColumnFormat(array $column): bool
+    {
+        return Arr::get($column, 'type') === DateColumn::TYPE
+            && is_string(Arr::get($column, 'format'))
+            && Arr::get($column, 'format') !== '';
+    }
+
+    private function formatDateColumnValue(mixed $value, string $format): mixed
+    {
+        if ($value === null || $value === '') {
+            return $value;
+        }
+
+        if ($value instanceof \DateTimeInterface) {
+            return $value->format($format);
+        }
+
+        if (!is_string($value)) {
+            return $value;
+        }
+
+        try {
+            return (new \DateTimeImmutable($value))->format($format);
+        } catch (\DateMalformedStringException) {
+            return $value;
+        }
     }
 
     /**
@@ -297,6 +359,16 @@ final readonly class ResourceListDataSource
                 continue;
             }
 
+            if ($this->usesDateFilter($filterDefinitions[$key])) {
+                $dateValue = $this->filterDateValue($value);
+
+                if ($dateValue !== null) {
+                    $activeFilters[$key] = $dateValue;
+                }
+
+                continue;
+            }
+
             if ($filterDefinitions[$key]['multiple']) {
                 $values = $this->filterValues($value);
 
@@ -355,6 +427,28 @@ final readonly class ResourceListDataSource
         return $value;
     }
 
+    private function filterDateValue(mixed $value): ?string
+    {
+        if (!is_string($value) || !preg_match(self::ISO_DATE_PATTERN, $value)) {
+            return null;
+        }
+
+        $date = \DateTimeImmutable::createFromFormat('!Y-m-d', $value);
+        $errors = \DateTimeImmutable::getLastErrors();
+
+        if (
+            $date === false
+            || (
+                is_array($errors)
+                && ($errors['warning_count'] > 0 || $errors['error_count'] > 0)
+            )
+        ) {
+            return null;
+        }
+
+        return $date->format('Y-m-d') === $value ? $value : null;
+    }
+
     private function applyContainsFilter(
         \Illuminate\Database\Eloquent\Builder $query,
         string $column,
@@ -397,5 +491,13 @@ final readonly class ResourceListDataSource
     {
         return $filterDefinition['type'] === InputFilter::TYPE
             && $filterDefinition['match'] === InputFilter::MATCH_CONTAINS;
+    }
+
+    /**
+     * @param array{column: string, match: string, multiple: bool, type: string} $filterDefinition
+     */
+    private function usesDateFilter(array $filterDefinition): bool
+    {
+        return $filterDefinition['type'] === DateFilter::TYPE;
     }
 }

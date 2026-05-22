@@ -50,12 +50,29 @@ final class ResourceListDataSourceTest extends TestCase
             $table->increments('id');
             $table->string('status');
             $table->string('status_label');
+            $table->date('published_on')->nullable();
+            $table->dateTime('reviewed_at')->nullable();
         });
 
-        foreach (['draft', 'published'] as $status) {
+        $records = [
+            [
+                'status' => 'draft',
+                'published_on' => '2026-05-21',
+                'reviewed_at' => '2026-05-20 09:00:00',
+            ],
+            [
+                'status' => 'published',
+                'published_on' => '2026-05-22',
+                'reviewed_at' => '2026-05-22 15:30:00',
+            ],
+        ];
+
+        foreach ($records as $record) {
             LazyFilterOptionRecord::query()->create([
-                'status' => $status,
-                'status_label' => str($status)->headline()->value(),
+                'status' => $record['status'],
+                'status_label' => str($record['status'])->headline()->value(),
+                'published_on' => $record['published_on'],
+                'reviewed_at' => $record['reviewed_at'],
             ]);
         }
     }
@@ -206,6 +223,95 @@ final class ResourceListDataSourceTest extends TestCase
 
         self::assertSame([], $payload['active_filters']);
         self::assertCount(2, $payload['rows']);
+    }
+
+    public function test_resource_lists_apply_date_filters(): void
+    {
+        $payload = $this->dataSource()->resolve(
+            LazyFilterOptionsResource::class,
+            \Illuminate\Http\Request::create('/', 'GET', [
+                'filters' => [
+                    'published_on' => '2026-05-22',
+                ],
+            ]),
+        );
+
+        self::assertSame(['published_on' => '2026-05-22'], $payload['active_filters']);
+        self::assertCount(1, $payload['rows']);
+        self::assertSame('published', $payload['rows'][0]['attributes']['status']);
+    }
+
+    public function test_resource_lists_apply_date_filters_to_query_column(): void
+    {
+        $payload = $this->dataSource()->resolve(
+            LazyFilterOptionsResource::class,
+            \Illuminate\Http\Request::create('/', 'GET', [
+                'filters' => [
+                    'reviewed_date' => '2026-05-22',
+                ],
+            ]),
+        );
+
+        self::assertSame(['reviewed_date' => '2026-05-22'], $payload['active_filters']);
+        self::assertCount(1, $payload['rows']);
+        self::assertSame('published', $payload['rows'][0]['attributes']['status']);
+    }
+
+    public function test_resource_lists_ignore_invalid_date_filter_values(): void
+    {
+        $payload = $this->dataSource()->resolve(
+            LazyFilterOptionsResource::class,
+            \Illuminate\Http\Request::create('/', 'GET', [
+                'filters' => [
+                    'published_on' => '2026-02-30',
+                    'reviewed_date' => 'tomorrow',
+                ],
+            ]),
+        );
+
+        self::assertSame([], $payload['active_filters']);
+        self::assertCount(2, $payload['rows']);
+    }
+
+    public function test_resource_lists_ignore_empty_date_filter_values(): void
+    {
+        $payload = $this->dataSource()->resolve(
+            LazyFilterOptionsResource::class,
+            \Illuminate\Http\Request::create('/', 'GET', [
+                'filters' => [
+                    'published_on' => '',
+                ],
+            ]),
+        );
+
+        self::assertSame([], $payload['active_filters']);
+        self::assertCount(2, $payload['rows']);
+    }
+
+    public function test_resource_lists_ignore_array_date_filter_values(): void
+    {
+        $payload = $this->dataSource()->resolve(
+            LazyFilterOptionsResource::class,
+            \Illuminate\Http\Request::create('/', 'GET', [
+                'filters' => [
+                    'published_on' => ['2026-05-22'],
+                ],
+            ]),
+        );
+
+        self::assertSame([], $payload['active_filters']);
+        self::assertCount(2, $payload['rows']);
+    }
+
+    public function test_date_columns_preserve_raw_values_unless_format_is_configured(): void
+    {
+        $payload = $this->dataSource()->resolve(
+            LazyFilterOptionsResource::class,
+            \Illuminate\Http\Request::create('/'),
+        );
+
+        self::assertSame('2026-05-21', $payload['rows'][0]['attributes']['published_on']);
+        self::assertSame('20.05.2026', $payload['rows'][0]['attributes']['reviewed_at']);
     }
 
     public function test_resource_lists_limit_multiple_filter_values(): void

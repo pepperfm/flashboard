@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { router, useForm } from '@inertiajs/vue3'
 import SimpleFormShell from '@/components/flashboard/forms/layout/SimpleFormShell.vue'
+import DatePickerFilter from '@/components/flashboard/table/DatePickerFilter.vue'
 import LazySelectFilter from '@/components/flashboard/table/LazySelectFilter.vue'
 import type { FormContainerLayoutShape } from '@/components/flashboard/forms/layout/resolveFormLayout'
 import type { FormFieldShape, FormNodeShape } from '@/components/flashboard/forms/renderers/resolveFormFieldRenderer'
@@ -16,6 +17,7 @@ type ActionShape = {
 }
 
 type TableColumnShape = {
+  format?: string
   key: string
   label: string
   searchable?: boolean
@@ -144,7 +146,6 @@ const props = defineProps<{
 }>()
 
 const TABLE_INPUT_FILTER_AUTOSUBMIT_DELAY_MS = 1000
-
 const form = useForm<Record<string, unknown>>({})
 const tableInputFilterTimers = new Map<string, ReturnType<typeof setTimeout>>()
 const tableInputFilterValues = reactive<Record<string, string>>({})
@@ -250,6 +251,12 @@ function renderTableValue(column: TableColumnShape, value: unknown) {
   return formatValue(value)
 }
 
+function tableCellTitle(value: unknown): string | undefined {
+  const title = formatValue(value)
+
+  return title === '' ? undefined : title
+}
+
 const tableColumns = computed(() =>
   [
     ...dataTableColumns.value.map((column) => ({
@@ -261,8 +268,14 @@ const tableColumns = computed(() =>
           td: { width: dataColumnWidth.value },
         },
       },
-      cell: ({ row }: { row: { original: Record<string, unknown> } }) =>
-        renderTableValue(column, row.original[column.key]),
+      cell: ({ row }: { row: { original: Record<string, unknown> } }) => {
+        const value = row.original[column.key]
+
+        return h('span', {
+          class: 'table-cell-value',
+          title: tableCellTitle(value),
+        }, renderTableValue(column, value))
+      },
     })),
     {
       id: '__actions',
@@ -751,14 +764,6 @@ function formatValue(value: unknown): string {
           </div>
 
           <div class="section-meta">
-            <UBadge
-              v-if="pagination?.total !== undefined"
-              color="neutral"
-              variant="subtle"
-            >
-              {{ pagination.total }} total
-            </UBadge>
-
             <UButton
               v-if="hasActiveTableFilters"
               color="neutral"
@@ -769,6 +774,14 @@ function formatValue(value: unknown): string {
             >
               Reset filters
             </UButton>
+
+            <UBadge
+              v-if="pagination?.total !== undefined"
+              color="neutral"
+              variant="subtle"
+            >
+              {{ pagination.total }} total
+            </UBadge>
           </div>
         </div>
       </template>
@@ -792,6 +805,13 @@ function formatValue(value: unknown): string {
             @blur="applyTableInputFilter(filter.key)"
             @keyup.enter="applyTableInputFilter(filter.key)"
             @update:model-value="updateInputFilterDraft(filter.key, $event)"
+          />
+
+          <DatePickerFilter
+            v-else-if="filter.type === 'date'"
+            :filter="filter"
+            :model-value="activeTableFilterScalarValue(filter.key)"
+            @update:model-value="updateTableFilter(filter.key, $event)"
           />
 
           <LazySelectFilter
@@ -1114,6 +1134,14 @@ function formatValue(value: unknown): string {
   --fb-table-actions-width: 7rem;
 }
 
+:deep(.table-cell-value) {
+  display: block;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .table-toolbar {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
@@ -1165,9 +1193,11 @@ function formatValue(value: unknown): string {
 }
 
 .section-meta {
-  display: grid;
-  justify-items: end;
-  gap: 0.35rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 0.5rem;
 }
 
 .section-kicker {

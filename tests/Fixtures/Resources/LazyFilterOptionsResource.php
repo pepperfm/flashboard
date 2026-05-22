@@ -8,7 +8,9 @@ use Pepperfm\Flashboard\Contracts\Resources\Resource;
 use Pepperfm\Flashboard\Contracts\Tables\Filters\SelectFilterOptionsQuery;
 use Pepperfm\Flashboard\Contracts\Tables\Filters\SelectFilterOptionsResult;
 use Pepperfm\Flashboard\Contracts\Tables\TableContract;
+use Pepperfm\Flashboard\Core\Tables\Columns\DateColumn;
 use Pepperfm\Flashboard\Core\Tables\Columns\TextColumn;
+use Pepperfm\Flashboard\Core\Tables\Filters\DateFilter;
 use Pepperfm\Flashboard\Core\Tables\Filters\InputFilter;
 use Pepperfm\Flashboard\Core\Tables\Filters\SelectFilter;
 use Pepperfm\Flashboard\Tests\Fixtures\Models\LazyFilterOptionRecord;
@@ -26,6 +28,8 @@ final class LazyFilterOptionsResource extends Resource
             ->columns([
                 TextColumn::make('id')->label('ID'),
                 TextColumn::make('status')->label('Status'),
+                DateColumn::make('published_on')->label('Published on'),
+                DateColumn::make('reviewed_at')->label('Reviewed at')->format('d.m.Y'),
             ])
             ->filters([
                 SelectFilter::make('status')->label('Status')->lazy(perPage: 2)->options([
@@ -42,6 +46,10 @@ final class LazyFilterOptionsResource extends Resource
                     ->label('Status text')
                     ->queryColumn('status')
                     ->contains(),
+                DateFilter::make('published_on')->label('Published on'),
+                DateFilter::make('reviewed_date')
+                    ->label('Reviewed date')
+                    ->queryColumn('reviewed_at'),
                 SelectFilter::make('status_id')
                     ->label('Status by ID')
                     ->lazy(perPage: 2)
