@@ -25,11 +25,6 @@ interface TableContract
     public function scopes(array $scopes): static;
 
     /**
-     * @param list<ActionContract|array<string, mixed>> $actions
-     */
-    public function actions(array $actions): static;
-
-    /**
      * @param list<ActionContract|array<string, mixed>> $bulkActions
      */
     public function bulkActions(array $bulkActions): static;

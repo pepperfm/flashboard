@@ -12,7 +12,9 @@ use Pepperfm\Flashboard\Contracts\Forms\FormContract;
 use Pepperfm\Flashboard\Contracts\Resources\Resource;
 use Pepperfm\Flashboard\Core\Authorization\Visibility\ScreenAccessResolver;
 use Pepperfm\Flashboard\Core\Extensions\ExtensionRegistry;
+use Pepperfm\Flashboard\Core\Forms\Fields\Checkbox;
 use Pepperfm\Flashboard\Core\Forms\Fields\TextInput;
+use Pepperfm\Flashboard\Core\Forms\Fields\Toggle;
 use Pepperfm\Flashboard\Core\Forms\Layout\Section;
 use Pepperfm\Flashboard\Core\Forms\Layout\Tab;
 use Pepperfm\Flashboard\Core\Forms\Layout\Tabs;
@@ -27,6 +29,48 @@ final class ResourceFormDataSourceTest extends TestCase
 {
     public function test_hidden_fields_are_pruned_from_the_schema_tree_and_flattened_fields(): void
     {
+        $this->fakeUrlGenerator();
+        $this->fakeGateForFieldVisibility();
+
+        $payload = $this->makeDataSource()->resolve($this->visibilityAwareResourceClass());
+
+        self::assertSame(['email', 'is_active'], array_column($payload['fields'], 'key'));
+        self::assertSame(['email'], array_column($payload['schema'][0]['schema'], 'key'));
+        self::assertSame(['is_active'], array_column($payload['schema'][1]['tabs'][0]['schema'], 'key'));
+    }
+
+    public function test_boolean_fields_default_to_false_without_overriding_explicit_defaults_or_record_state(): void
+    {
+        $this->fakeUrlGenerator();
+        $this->fakeGateForFieldVisibility();
+
+        $resourceClass = $this->booleanDefaultsResourceClass();
+        $createPayload = $this->makeDataSource()->resolve($resourceClass);
+
+        self::assertFalse($createPayload['state']['is_featured']);
+        self::assertTrue($createPayload['state']['is_active']);
+        self::assertArrayNotHasKey('name', $createPayload['state']);
+
+        $record = new class() extends \Illuminate\Database\Eloquent\Model
+        {
+            protected $guarded = [];
+        };
+        $record->forceFill([
+            'is_featured' => true,
+            'is_active' => false,
+            'name' => 'Published product',
+        ]);
+        $record->exists = true;
+
+        $editPayload = $this->makeDataSource()->resolve($resourceClass, $record);
+
+        self::assertTrue($editPayload['state']['is_featured']);
+        self::assertFalse($editPayload['state']['is_active']);
+        self::assertSame('Published product', $editPayload['state']['name']);
+    }
+
+    private function fakeUrlGenerator(): void
+    {
         $this->app->instance('url', new class()
         {
             public function route(string $name, array $parameters = [], bool $absolute = true): string
@@ -34,7 +78,10 @@ final class ResourceFormDataSourceTest extends TestCase
                 return '/' . ltrim($name, '/');
             }
         });
+    }
 
+    private function fakeGateForFieldVisibility(): void
+    {
         $this->app->instance(Gate::class, new class() implements Gate
         {
             public function has($ability): bool
@@ -129,8 +176,11 @@ final class ResourceFormDataSourceTest extends TestCase
                 return [];
             }
         });
+    }
 
-        $dataSource = new ResourceFormDataSource(
+    private function makeDataSource(): ResourceFormDataSource
+    {
+        return new ResourceFormDataSource(
             new FormPayloadAssembler(),
             new ScreenAccessResolver(new PolicyBridge()),
             new PanelAuthenticator(new class() implements Factory
@@ -216,12 +266,6 @@ final class ResourceFormDataSourceTest extends TestCase
             new ExtensionRegistry(),
             new ResourceSurfaceResolver(new ScreenAccessResolver(new PolicyBridge())),
         );
-
-        $payload = $dataSource->resolve($this->visibilityAwareResourceClass());
-
-        self::assertSame(['email', 'is_active'], array_column($payload['fields'], 'key'));
-        self::assertSame(['email'], array_column($payload['schema'][0]['schema'], 'key'));
-        self::assertSame(['is_active'], array_column($payload['schema'][1]['tabs'][0]['schema'], 'key'));
     }
 
     /**
@@ -263,6 +307,33 @@ final class ResourceFormDataSourceTest extends TestCase
                         ]),
                     ]),
                 ]);
+            }
+        });
+    }
+
+    /**
+     * @return class-string<Resource>
+     */
+    private function booleanDefaultsResourceClass(): string
+    {
+        return get_class(new class() extends Resource
+        {
+            public static function model(): string
+            {
+                return \Illuminate\Database\Eloquent\Model::class;
+            }
+
+            public static function form(FormContract $form): FormContract
+            {
+                return $form
+                    ->schema([
+                        TextInput::make('name')->label('Name'),
+                        Checkbox::make('is_featured')->label('Featured'),
+                        Toggle::make('is_active')->label('Is active'),
+                    ])
+                    ->defaults([
+                        'is_active' => true,
+                    ]);
             }
         });
     }

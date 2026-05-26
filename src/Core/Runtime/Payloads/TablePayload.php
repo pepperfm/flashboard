@@ -9,7 +9,6 @@ final readonly class TablePayload
     private const string KEY_COLUMNS = 'columns';
     private const string KEY_FILTERS = 'filters';
     private const string KEY_SCOPES = 'scopes';
-    private const string KEY_ACTIONS = 'actions';
     private const string KEY_BULK_ACTIONS = 'bulk_actions';
     private const string KEY_PAGINATION = 'pagination';
 
@@ -48,14 +47,6 @@ final readonly class TablePayload
     public function scopes(): array
     {
         return (array) $this->schema[self::KEY_SCOPES];
-    }
-
-    /**
-     * @return list<array<string, mixed>>
-     */
-    public function actions(): array
-    {
-        return (array) $this->schema[self::KEY_ACTIONS];
     }
 
     /**

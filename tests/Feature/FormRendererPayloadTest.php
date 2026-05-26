@@ -11,7 +11,10 @@ use Pepperfm\Flashboard\Contracts\Forms\FormLayoutJustify;
 use Pepperfm\Flashboard\Contracts\Forms\FormLayoutMode;
 use Pepperfm\Flashboard\Contracts\Forms\FormSchemaNodeKind;
 use Pepperfm\Flashboard\Core\Forms\Builders\Form;
+use Pepperfm\Flashboard\Core\Forms\Fields\Checkbox;
+use Pepperfm\Flashboard\Core\Forms\Fields\NumberInput;
 use Pepperfm\Flashboard\Core\Forms\Fields\Select;
+use Pepperfm\Flashboard\Core\Forms\Fields\Textarea;
 use Pepperfm\Flashboard\Core\Forms\Fields\TextInput;
 use Pepperfm\Flashboard\Core\Forms\Fields\Toggle;
 use Pepperfm\Flashboard\Core\Forms\Layout\Section;
@@ -48,10 +51,10 @@ final class FormRendererPayloadTest extends TestCase
             Form::make()
                 ->schema([
                     TextInput::make('title')->label('Title')->required(),
-                    TextInput::make('notes')
-                        ->label('Notes')
-                        ->renderer(FieldRenderer::Textarea),
+                    Textarea::make('notes')->label('Notes'),
+                    NumberInput::make('sort_order')->label('Sort order'),
                     Select::make('status')->label('Status')->options(['draft' => 'Draft']),
+                    Checkbox::make('is_featured')->label('Featured'),
                     Toggle::make('is_active')->label('Is active'),
                 ])
                 ->toArray(),
@@ -61,11 +64,15 @@ final class FormRendererPayloadTest extends TestCase
             [
                 'title' => FieldRenderer::Input->value,
                 'notes' => FieldRenderer::Textarea->value,
+                'sort_order' => FieldRenderer::Input->value,
                 'status' => FieldRenderer::Select->value,
+                'is_featured' => FieldRenderer::Checkbox->value,
                 'is_active' => FieldRenderer::Switch->value,
             ],
             array_column($payload->fields(), 'renderer', 'key'),
         );
+
+        self::assertSame('number', $payload->fields()[2]['input_type']);
     }
 
     public function test_grouped_form_payload_keeps_renderer_hints_inside_sections_and_tabs(): void

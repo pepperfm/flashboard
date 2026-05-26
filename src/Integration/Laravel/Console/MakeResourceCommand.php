@@ -11,8 +11,10 @@ use Pepperfm\Flashboard\Contracts\Forms\FormContract;
 use Pepperfm\Flashboard\Contracts\Resources\Resource;
 use Pepperfm\Flashboard\Contracts\Tables\TableContract;
 use Pepperfm\Flashboard\Core\Detail\Entries\TextEntry;
-use Pepperfm\Flashboard\Contracts\Forms\FieldRenderer;
+use Pepperfm\Flashboard\Core\Forms\Fields\Textarea;
 use Pepperfm\Flashboard\Core\Forms\Fields\TextInput;
+use Pepperfm\Flashboard\Core\Tables\Actions\DeleteAction;
+use Pepperfm\Flashboard\Core\Tables\Actions\EditAction;
 use Pepperfm\Flashboard\Core\Tables\Columns\TextColumn;
 
 use function Laravel\Prompts\confirm;
@@ -126,19 +128,22 @@ final class MakeResourceCommand extends \Illuminate\Console\Command
             Resource::class,
             FormContract::class,
             TableContract::class,
-            TextInput::class,
+            DeleteAction::class,
+            EditAction::class,
             TextColumn::class,
         ];
-
-        if ($this->usesTextareaRenderer($titleField) || $this->usesTextareaRenderer($secondaryField)) {
-            $imports[] = FieldRenderer::class;
-        }
+        $imports[] = $this->formFieldImport($titleField);
 
         if ($includeDetail) {
             $imports[] = DetailContract::class;
             $imports[] = TextEntry::class;
         }
 
+        if ($secondaryField !== '') {
+            $imports[] = $this->formFieldImport($secondaryField);
+        }
+
+        $imports = array_values(array_unique($imports));
         sort($imports);
 
         return str_replace(
@@ -151,8 +156,7 @@ final class MakeResourceCommand extends \Illuminate\Console\Command
                 '{{ navigation_group_method }}',
                 '{{ primary_table_columns }}',
                 '{{ title_field }}',
-                '{{ title_label }}',
-                '{{ title_field_suffix }}',
+                '{{ title_form_field }}',
                 '{{ secondary_form_field }}',
                 '{{ secondary_table_column }}',
                 '{{ secondary_form_rule }}',
@@ -167,8 +171,7 @@ final class MakeResourceCommand extends \Illuminate\Console\Command
                 $this->renderNavigationGroupMethod($navigationGroup),
                 $this->primaryTableColumns($titleField),
                 $titleField,
-                $this->fieldLabel($titleField),
-                $this->fieldModifierSuffix($titleField),
+                $this->formField($titleField, required: true),
                 $this->secondaryFormField($secondaryField),
                 $this->secondaryTableColumn($secondaryField),
                 $this->secondaryFormRule($secondaryField),
@@ -182,20 +185,20 @@ final class MakeResourceCommand extends \Illuminate\Console\Command
     {
         if ($titleField === 'id') {
             return implode(PHP_EOL, [
-                "            TextColumn::make('id')",
-                "                ->label('ID')",
-                '                ->sortable(),',
+                "                TextColumn::make('id')",
+                "                    ->label('ID')",
+                '                    ->sortable(),',
             ]);
         }
 
         return implode(PHP_EOL, [
-            "            TextColumn::make('id')",
-            "                ->label('ID')",
-            '                ->sortable(),',
-            "            TextColumn::make('$titleField')",
-            "                ->label('" . $this->fieldLabel($titleField) . "')",
-            '                ->sortable()',
-            '                ->searchable(),',
+            "                TextColumn::make('id')",
+            "                    ->label('ID')",
+            '                    ->sortable(),',
+            "                TextColumn::make('$titleField')",
+            "                    ->label('" . $this->fieldLabel($titleField) . "')",
+            '                    ->sortable()',
+            '                    ->searchable(),',
         ]);
     }
 
@@ -221,9 +224,9 @@ final class MakeResourceCommand extends \Illuminate\Console\Command
         $label = str($secondaryField)->headline()->toString();
 
         return implode(PHP_EOL, [
-            "            TextColumn::make('$secondaryField')",
-            "                ->label('$label')",
-            '                ->searchable(),',
+            "                TextColumn::make('$secondaryField')",
+            "                    ->label('$label')",
+            '                    ->searchable(),',
         ]) . PHP_EOL;
     }
 
@@ -239,27 +242,44 @@ final class MakeResourceCommand extends \Illuminate\Console\Command
     private function secondaryFormField(string $secondaryField): string
     {
         if ($secondaryField !== '') {
-            return implode(PHP_EOL, [
-                "                TextInput::make('$secondaryField')",
-                "                    ->label('" . str($secondaryField)->headline()->value() . "')" . $this->fieldModifierSuffix($secondaryField) . ',',
-            ]) . PHP_EOL;
+            return $this->formField($secondaryField, required: false) . PHP_EOL;
         }
 
         return '';
     }
 
-    private function fieldModifierSuffix(string $field): string
+    private function formField(string $field, bool $required): string
     {
-        $suffix = '';
+        $lines = [
+            '                ' . $this->formFieldClass($field) . "::make('$field')",
+            "                    ->label('" . $this->fieldLabel($field) . "')",
+        ];
 
         if ($this->isEmailField($field)) {
-            $suffix .= PHP_EOL . '                    ->email()';
-        }
-        if ($this->usesTextareaRenderer($field)) {
-            $suffix .= PHP_EOL . '                    ->renderer(FieldRenderer::Textarea)';
+            $lines[] = '                    ->email()';
         }
 
-        return $suffix;
+        if ($required) {
+            $lines[] = '                    ->required()';
+        }
+
+        $lastIndex = array_key_last($lines);
+        $lines[$lastIndex] .= ',';
+
+        return implode(PHP_EOL, $lines);
+    }
+
+    /**
+     * @return class-string
+     */
+    private function formFieldImport(string $field): string
+    {
+        return $this->usesTextareaField($field) ? Textarea::class : TextInput::class;
+    }
+
+    private function formFieldClass(string $field): string
+    {
+        return class_basename($this->formFieldImport($field));
     }
 
     private function isEmailField(string $field): bool
@@ -267,7 +287,7 @@ final class MakeResourceCommand extends \Illuminate\Console\Command
         return str_contains(strtolower($field), 'email');
     }
 
-    private function usesTextareaRenderer(string $field): bool
+    private function usesTextareaField(string $field): bool
     {
         if ($field === '') {
             return false;

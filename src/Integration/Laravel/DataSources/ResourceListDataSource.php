@@ -7,11 +7,13 @@ namespace Pepperfm\Flashboard\Integration\Laravel\DataSources;
 use Illuminate\Container\Attributes\Singleton;
 use Illuminate\Support\Arr;
 use Pepperfm\Flashboard\Contracts\Resources\Resource;
+use Pepperfm\Flashboard\Contracts\Tables\TableActionContract;
 use Pepperfm\Flashboard\Core\Authorization\Visibility\ScreenAccessResolver;
 use Pepperfm\Flashboard\Core\Extensions\ExtensionRegistry;
 use Pepperfm\Flashboard\Core\Hooks\RuntimeHookDispatcher;
 use Pepperfm\Flashboard\Core\Resources\ResourceSurfaceResolver;
 use Pepperfm\Flashboard\Core\Runtime\Assemblers\TablePayloadAssembler;
+use Pepperfm\Flashboard\Core\Tables\Actions\TableAction;
 use Pepperfm\Flashboard\Core\Tables\Columns\DateColumn;
 use Pepperfm\Flashboard\Core\Tables\Filters\DateFilter;
 use Pepperfm\Flashboard\Core\Tables\Filters\InputFilter;
@@ -120,6 +122,7 @@ final readonly class ResourceListDataSource
 
         $paginator = $query->paginate($perPage);
         $hasDetailSurface = $this->resourceSurfaceResolver->hasDetailSurfaceForResource($resourceClass);
+        $configuredRowActions = $this->configuredRowActions($this->resourceRowActions($resourceClass));
 
         $rows = [];
 
@@ -128,22 +131,23 @@ final readonly class ResourceListDataSource
                 continue;
             }
 
+            $canViewRecord = $hasDetailSurface && $this->screenAccessResolver->canViewRecord($resourceClass, $user, $record);
+            $canEditRecord = $this->screenAccessResolver->canEditRecord($resourceClass, $user, $record);
+            $rowActions = $this->rowActions(
+                $resourceClass,
+                $record,
+                $configuredRowActions,
+                $hasDetailSurface,
+                $user,
+            );
+
             $row = [
                 'id' => $record->getKey(),
                 'attributes' => [],
+                'actions' => $rowActions,
                 'links' => [
-                    'detail' => $hasDetailSurface
-                        ? route(
-                            config('flashboard.route_name_prefix', 'flashboard.')
-                            . 'resources.' . $resourceClass::key() . '.detail',
-                            ['record' => $record->getKey()],
-                        )
-                        : null,
-                    'edit' => route(
-                        config('flashboard.route_name_prefix', 'flashboard.')
-                        . 'resources.' . $resourceClass::key() . '.edit',
-                        ['record' => $record->getKey()],
-                    ),
+                    'detail' => $canViewRecord ? $this->resourceRoute($resourceClass, 'detail', $record->getKey()) : null,
+                    'edit' => $canEditRecord ? $this->resourceRoute($resourceClass, 'edit', $record->getKey()) : null,
                 ],
             ];
 
@@ -184,6 +188,209 @@ final readonly class ResourceListDataSource
     private function getColumnKey(?array $column = null): string
     {
         return (string) Arr::get($column, 'key', 'value');
+    }
+
+    /**
+     * @param class-string<Resource> $resourceClass
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function resourceRowActions(string $resourceClass): array
+    {
+        $rowActions = [];
+
+        foreach ($resourceClass::actions() as $action) {
+            if ($action instanceof TableActionContract) {
+                $rowActions[] = $action->toArray();
+
+                continue;
+            }
+
+            if (is_array($action)) {
+                $rowActions[] = $action;
+            }
+        }
+
+        return $rowActions;
+    }
+
+    /**
+     * @param list<array<string, mixed>> $actions
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function configuredRowActions(array $actions): array
+    {
+        return array_values(array_filter(
+            $actions,
+            static fn(array $action): bool => Arr::get($action, 'visible', true) !== false,
+        ));
+    }
+
+    /**
+     * @param class-string<Resource> $resourceClass
+     * @param list<array<string, mixed>> $actions
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function rowActions(
+        string $resourceClass,
+        \Illuminate\Database\Eloquent\Model $record,
+        array $actions,
+        bool $hasDetailSurface,
+        ?\Illuminate\Contracts\Auth\Authenticatable $user,
+    ): array {
+        $rowActions = [];
+
+        foreach ($actions as $action) {
+            $key = Arr::get($action, 'key');
+
+            if (!is_string($key) || $key === '') {
+                continue;
+            }
+
+            $rowAction = match ($key) {
+                TableAction::KEY_VIEW => $this->viewRowAction($resourceClass, $record, $action, $hasDetailSurface, $user),
+                TableAction::KEY_EDIT => $this->editRowAction($resourceClass, $record, $action, $user),
+                TableAction::KEY_DELETE => $this->deleteRowAction($resourceClass, $record, $action, $user),
+                default => $this->customRowAction($action),
+            };
+
+            if ($rowAction !== null) {
+                $rowActions[] = $rowAction;
+            }
+        }
+
+        return $rowActions;
+    }
+
+    /**
+     * @param class-string<Resource> $resourceClass
+     * @param array<string, mixed> $action
+     *
+     * @return array<string, mixed>|null
+     */
+    private function viewRowAction(
+        string $resourceClass,
+        \Illuminate\Database\Eloquent\Model $record,
+        array $action,
+        bool $hasDetailSurface,
+        ?\Illuminate\Contracts\Auth\Authenticatable $user,
+    ): ?array {
+        if (!$hasDetailSurface || !$this->screenAccessResolver->canViewRecord($resourceClass, $user, $record)) {
+            return null;
+        }
+
+        return $this->builtInRowAction($action, [
+            'key' => TableAction::KEY_VIEW,
+            'label' => 'View',
+            'icon' => 'i-lucide-eye',
+            'method' => TableAction::METHOD_GET,
+            'url' => $this->resourceRoute($resourceClass, 'detail', $record->getKey()),
+        ]);
+    }
+
+    /**
+     * @param class-string<Resource> $resourceClass
+     * @param array<string, mixed> $action
+     *
+     * @return array<string, mixed>|null
+     */
+    private function editRowAction(
+        string $resourceClass,
+        \Illuminate\Database\Eloquent\Model $record,
+        array $action,
+        ?\Illuminate\Contracts\Auth\Authenticatable $user,
+    ): ?array {
+        if (!$this->screenAccessResolver->canEditRecord($resourceClass, $user, $record)) {
+            return null;
+        }
+
+        return $this->builtInRowAction($action, [
+            'key' => TableAction::KEY_EDIT,
+            'label' => 'Edit',
+            'icon' => 'i-lucide-pencil',
+            'method' => TableAction::METHOD_GET,
+            'url' => $this->resourceRoute($resourceClass, 'edit', $record->getKey()),
+        ]);
+    }
+
+    /**
+     * @param class-string<Resource> $resourceClass
+     * @param array<string, mixed> $action
+     *
+     * @return array<string, mixed>|null
+     */
+    private function deleteRowAction(
+        string $resourceClass,
+        \Illuminate\Database\Eloquent\Model $record,
+        array $action,
+        ?\Illuminate\Contracts\Auth\Authenticatable $user,
+    ): ?array {
+        if (!$this->screenAccessResolver->canDeleteRecord($resourceClass, $user, $record)) {
+            return null;
+        }
+
+        return array_merge($this->builtInRowAction($action, [
+            'key' => TableAction::KEY_DELETE,
+            'label' => 'Delete',
+            'icon' => 'i-lucide-trash-2',
+            'color' => 'error',
+            'method' => TableAction::METHOD_DELETE,
+            'requires_confirmation' => true,
+            'url' => $this->resourceRoute($resourceClass, 'destroy', $record->getKey()),
+        ]), [
+            'requires_confirmation' => true,
+        ]);
+    }
+
+    /**
+     * @param array<string, mixed> $action
+     * @param array<string, mixed> $defaults
+     *
+     * @return array<string, mixed>
+     */
+    private function builtInRowAction(array $action, array $defaults): array
+    {
+        return array_merge($defaults, $action, [
+            'key' => $defaults['key'],
+            'method' => $defaults['method'],
+            'url' => $defaults['url'],
+            'kind' => (string) Arr::get($action, 'kind', TableAction::KIND_BUILT_IN),
+            'visible' => true,
+        ]);
+    }
+
+    /**
+     * @param array<string, mixed> $action
+     *
+     * @return array<string, mixed>|null
+     */
+    private function customRowAction(array $action): ?array
+    {
+        $url = Arr::get($action, 'url');
+
+        if (!is_string($url) || $url === '') {
+            return null;
+        }
+
+        return array_merge($action, [
+            'method' => strtolower((string) Arr::get($action, 'method', TableAction::METHOD_GET)),
+            'requires_confirmation' => (bool) Arr::get($action, 'requires_confirmation', false),
+            'visible' => true,
+        ]);
+    }
+
+    /**
+     * @param class-string<Resource> $resourceClass
+     */
+    private function resourceRoute(string $resourceClass, string $route, mixed $recordKey): string
+    {
+        return route(
+            config('flashboard.route_name_prefix', 'flashboard.')
+            . 'resources.' . $resourceClass::key() . '.' . $route,
+            ['record' => $recordKey],
+        );
     }
 
     /**

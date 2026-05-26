@@ -8,12 +8,16 @@ import type { FormFieldShape, FormNodeShape } from '@/components/flashboard/form
 import { computed, h, onBeforeUnmount, reactive, ref, resolveComponent, watch } from 'vue'
 
 type ActionShape = {
+  color?: string | null
+  icon?: string | null
+  kind?: string
   key: string
   label?: string
   method?: string
   requires_confirmation?: boolean
   success_message?: string | null
   url?: string
+  visible?: boolean
 }
 
 type TableColumnShape = {
@@ -93,6 +97,7 @@ type PayloadShape = {
       direction?: TableSortDirection | string
       filters?: TableFilterShape[]
       rows?: Array<{
+        actions?: ActionShape[]
         id: string | number
         attributes: Record<string, unknown>
         links?: { detail?: string; edit?: string }
@@ -135,12 +140,6 @@ type PayloadShape = {
       index?: string | null
     }
   } | null
-}
-
-type RowActionConfig = {
-  ariaLabel: string
-  href: string
-  icon: string
 }
 
 type TableSortDirection = 'asc' | 'desc'
@@ -195,8 +194,21 @@ const hasSearchableTableColumns = computed(() => searchableTableColumns.value.le
 const activeTableSearch = computed(() => String(tableDataset.value?.search ?? ''))
 const activeTableSort = computed(() => String(tableDataset.value?.sort ?? ''))
 const activeTableDirection = computed<TableSortDirection>(() => tableDataset.value?.direction === 'desc' ? 'desc' : 'asc')
+const tableRows = computed(() =>
+  (props.payload.table?.dataset?.rows ?? []).map((row) => ({
+    _id: row.id,
+    ...row.attributes,
+    __actions: normalizeRowActions(row.actions, row.links),
+    __links: row.links ?? {},
+  })),
+)
+const hasTableRowActions = computed(() =>
+  tableRows.value.some((row) => (row.__actions as ActionShape[]).length > 0),
+)
 const dataColumnWidth = computed(() =>
-  `calc((100% - var(--fb-table-actions-width)) / ${Math.max(dataTableColumns.value.length, 1)})`,
+  hasTableRowActions.value
+    ? `calc((100% - var(--fb-table-actions-width)) / ${Math.max(dataTableColumns.value.length, 1)})`
+    : `calc(100% / ${Math.max(dataTableColumns.value.length, 1)})`,
 )
 const tableFilters = computed(() => tableDataset.value?.filters ?? [])
 const hasTableFilters = computed(() => tableFilters.value.length > 0)
@@ -245,18 +257,82 @@ onBeforeUnmount(() => {
   clearTableSearchTimer()
 })
 
-function rowActionButton(action: RowActionConfig) {
+function rowActionButton(action: ActionShape) {
   const UButton = resolveComponent('UButton')
+  const label = rowActionLabel(action)
 
   return h(UButton, {
-    'aria-label': action.ariaLabel,
-    color: 'neutral',
-    icon: action.icon,
+    'aria-label': label,
+    color: action.color ?? 'neutral',
+    icon: action.icon ?? fallbackRowActionIcon(action.key),
+    size: 'xs',
     square: true,
-    title: action.ariaLabel,
+    title: label,
     variant: 'ghost',
-    onClick: () => visit(action.href),
+    onClick: () => runAction(action),
   })
+}
+
+function rowActionLabel(action: ActionShape): string {
+  return action.label ?? action.key
+}
+
+function fallbackRowActionIcon(actionKey: string): string {
+  if (actionKey === 'view') {
+    return 'i-lucide-eye'
+  }
+
+  if (actionKey === 'edit') {
+    return 'i-lucide-pencil'
+  }
+
+  if (actionKey === 'delete') {
+    return 'i-lucide-trash-2'
+  }
+
+  return 'i-lucide-circle-dot'
+}
+
+function normalizeRowActions(
+  actions: ActionShape[] | undefined,
+  links?: { detail?: string; edit?: string },
+): ActionShape[] {
+  if (actions === undefined) {
+    return fallbackRowActions(links)
+  }
+
+  const visibleActions = actions.filter((action) =>
+    action.visible !== false
+    && typeof action.key === 'string'
+    && action.key !== ''
+    && typeof action.url === 'string'
+    && action.url !== '',
+  )
+
+  return visibleActions
+}
+
+function fallbackRowActions(links?: { detail?: string; edit?: string }): ActionShape[] {
+  return [
+    links?.detail
+      ? {
+          icon: 'i-lucide-eye',
+          key: 'view',
+          label: 'View',
+          method: 'get',
+          url: links.detail,
+        }
+      : null,
+    links?.edit
+      ? {
+          icon: 'i-lucide-pencil',
+          key: 'edit',
+          label: 'Edit',
+          method: 'get',
+          url: links.edit,
+        }
+      : null,
+  ].filter((action): action is ActionShape => action !== null)
 }
 
 function renderTableValue(column: TableColumnShape, value: unknown) {
@@ -354,9 +430,8 @@ function renderTableHeader(column: TableColumnShape) {
   })
 }
 
-const tableColumns = computed(() =>
-  [
-    ...dataTableColumns.value.map((column) => ({
+const tableColumns = computed(() => {
+  const columns: Array<Record<string, unknown>> = dataTableColumns.value.map((column) => ({
       accessorKey: column.key,
       enableSorting: false,
       header: () => renderTableHeader(column),
@@ -374,8 +449,10 @@ const tableColumns = computed(() =>
           title: tableCellTitle(value),
         }, renderTableValue(column, value))
       },
-    })),
-    {
+    }))
+
+  if (hasTableRowActions.value) {
+    columns.push({
       id: '__actions',
       header: 'Actions',
       meta: {
@@ -389,36 +466,15 @@ const tableColumns = computed(() =>
         },
       },
       cell: ({ row }: { row: { original: Record<string, unknown> } }) => {
-        const links = row.original.__links as { detail?: string; edit?: string } | undefined
+        const actions = row.original.__actions as ActionShape[] | undefined
 
-        return h('div', { class: 'row-actions' }, [
-          links?.detail
-            ? rowActionButton({
-              ariaLabel: 'Open record',
-              href: links.detail,
-              icon: 'i-lucide-eye',
-            })
-            : null,
-          links?.edit
-            ? rowActionButton({
-              ariaLabel: 'Edit record',
-              href: links.edit,
-              icon: 'i-lucide-pencil',
-            })
-            : null,
-        ])
+        return h('div', { class: 'row-actions' }, (actions ?? []).map((action) => rowActionButton(action)))
       },
-    },
-  ],
-)
+    })
+  }
 
-const tableRows = computed(() =>
-  (props.payload.table?.dataset?.rows ?? []).map((row) => ({
-    _id: row.id,
-    ...row.attributes,
-    __links: row.links ?? {},
-  })),
-)
+  return columns
+})
 
 function visit(href?: string) {
   if (!href) {
@@ -905,6 +961,11 @@ function runAction(action: ActionShape) {
 
   if (method === 'patch') {
     router.patch(action.url, {}, { preserveScroll: true })
+    return
+  }
+
+  if (method === 'delete') {
+    router.delete(action.url, { preserveScroll: true })
     return
   }
 

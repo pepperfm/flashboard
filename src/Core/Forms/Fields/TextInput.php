@@ -16,7 +16,16 @@ class TextInput extends Field
     public function email(bool $condition = true): static
     {
         if ($condition) {
-            $this->attribute(self::ATTRIBUTE_INPUT_TYPE, 'email');
+            $this->inputType('email');
+        }
+
+        return $this;
+    }
+
+    public function password(bool $condition = true): static
+    {
+        if ($condition) {
+            $this->inputType('password');
         }
 
         return $this;

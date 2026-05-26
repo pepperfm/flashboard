@@ -27,7 +27,6 @@ final class TableSchemaNormalizer
             'scopes' => SchemaNodeNormalizer::normalizeKeyedNodes(
                 (array) Arr::get($definition, 'scopes', []),
             ),
-            'actions' => array_values((array) Arr::get($definition, 'actions', [])),
             'bulk_actions' => array_values((array) Arr::get($definition, 'bulk_actions', [])),
             'pagination' => max(1, (int) Arr::get($definition, 'pagination', 15)),
         ];

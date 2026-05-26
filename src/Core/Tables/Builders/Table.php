@@ -29,11 +29,6 @@ final class Table implements TableContract
     /**
      * @var list<ActionContract|array<string, mixed>>
      */
-    private array $actions = [];
-
-    /**
-     * @var list<ActionContract|array<string, mixed>>
-     */
     private array $bulkActions = [];
 
     private int $pagination = 10;
@@ -72,13 +67,6 @@ final class Table implements TableContract
         return $this;
     }
 
-    public function actions(array $actions): static
-    {
-        $this->actions = $actions;
-
-        return $this;
-    }
-
     public function bulkActions(array $bulkActions): static
     {
         $this->bulkActions = $bulkActions;
@@ -99,7 +87,6 @@ final class Table implements TableContract
             'columns' => $this->columns,
             'filters' => $this->filters,
             'scopes' => $this->scopes,
-            'actions' => $this->normalizeActions($this->actions),
             'bulk_actions' => $this->normalizeActions($this->bulkActions),
             'pagination' => $this->pagination,
         ]);
@@ -113,7 +100,9 @@ final class Table implements TableContract
     private function normalizeActions(array $actions): array
     {
         return array_values(array_map(
-            static fn(ActionContract|array $action): array => $action instanceof ActionContract ? $action->toArray() : $action,
+            static fn(ActionContract|array $action): array => $action instanceof ActionContract
+                ? $action->toArray()
+                : $action,
             $actions,
         ));
     }

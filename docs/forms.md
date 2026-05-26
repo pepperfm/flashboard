@@ -6,18 +6,15 @@ The canonical authoring path is schema-tree first: start with `$form->schema([..
 ## Simple Forms First
 
 ```php
-use Pepperfm\Flashboard\Contracts\Forms\FieldRenderer;
 use Pepperfm\Flashboard\Core\Forms\Fields\Select;
-use Pepperfm\Flashboard\Core\Forms\Fields\TextInput;
+use Pepperfm\Flashboard\Core\Forms\Fields\Textarea;
 
 public static function form(\Pepperfm\Flashboard\Contracts\Forms\FormContract $form): \Pepperfm\Flashboard\Contracts\Forms\FormContract
 {
     return $form
         ->schema([
             Select::make('status')->label('Status')->required(),
-            TextInput::make('notes')
-                ->label('Notes')
-                ->renderer(FieldRenderer::Textarea),
+            Textarea::make('notes')->label('Notes'),
         ])
         ->rules([
             'status' => ['required', 'string'],
@@ -64,7 +61,10 @@ Scalar `columns(2)` and `columns(3)` stay mobile-safe by default: Flashboard nor
 Use `Section` and `Tabs` nodes inside `schema()` when the form has meaningful visual grouping.
 
 ```php
+use Pepperfm\Flashboard\Core\Forms\Fields\Checkbox;
+use Pepperfm\Flashboard\Core\Forms\Fields\NumberInput;
 use Pepperfm\Flashboard\Core\Forms\Fields\Select;
+use Pepperfm\Flashboard\Core\Forms\Fields\Textarea;
 use Pepperfm\Flashboard\Core\Forms\Fields\TextInput;
 use Pepperfm\Flashboard\Core\Forms\Fields\Toggle;
 use Pepperfm\Flashboard\Core\Forms\Layout\Section;
@@ -78,10 +78,13 @@ public static function form(\Pepperfm\Flashboard\Contracts\Forms\FormContract $f
             Section::make('content')->label('Content')->schema([
                 TextInput::make('name')->label('Name')->required(),
                 TextInput::make('slug')->label('Slug'),
+                Textarea::make('description')->label('Description')->fullWidth(),
+                NumberInput::make('sort_order')->label('Sort order'),
             ]),
             Tabs::make('settings')->tabs([
                 Tab::make('general')->label('General')->schema([
                     Select::make('status')->label('Status'),
+                    Checkbox::make('is_featured')->label('Featured'),
                     Toggle::make('is_active')->label('Is active'),
                 ]),
             ]),
@@ -121,11 +124,12 @@ Typed fields, sections, and tabs are the preferred public API. Legacy array defi
 Normalized form payloads now expose an explicit `renderer` hint for every field.
 
 - typed fields set a stable renderer automatically, for example `TextInput` -> `input`, `Select` -> `select`, `Toggle` -> `switch`
-- override renderer intent explicitly when the visual control differs from the base field type, for example `TextInput::make('notes')->renderer(FieldRenderer::Textarea)`
+- use purpose-built field classes for common controls: `TextInput`, `Textarea`, `NumberInput`, `Select`, `Checkbox`, and `Toggle`
+- override renderer intent explicitly only for custom or transitional controls where no purpose-built field exists
 - legacy arrays can opt into the same contract with `['key' => 'notes', 'renderer' => 'textarea']`
-- the frontend maps these hints through package-owned wrappers: `FBInput`, `FBTextarea`, `FBSelect`, `FBSwitch`
+- the frontend maps these hints through package-owned wrappers: `FBInput`, `FBTextarea`, `FBSelect`, `FBCheckbox`, and `FBSwitch`
 
-Those wrappers stay thin over Nuxt UI (`UInput`, `UTextarea`, `USelect`, `USwitch`) so Flashboard owns the runtime contract without creating a second UI framework.
+Those wrappers stay thin over Nuxt UI (`UInput`, `UTextarea`, `USelect`, `UCheckbox`, `USwitch`) so Flashboard owns the runtime contract without creating a second UI framework. PHP cannot expose a `Switch` class because `switch` is a reserved keyword, so the switch-style field is named `Toggle`.
 
 ## Layout Contract
 
@@ -152,7 +156,8 @@ Invalid layout combinations such as `columns()` plus `direction()` on the same c
 - update rules: `updateRules($record)`
 - shared rules: `formRules()`
 
-Flashboard still infers baseline validation from the normalized field payload and then merges explicit `rules()` on top. Renderer overrides such as `FieldRenderer::Textarea` keep string inference intact.
+Flashboard still infers baseline validation from the normalized field payload and then merges explicit `rules()` on top. Text fields infer strings, `NumberInput` infers numeric values, and `Checkbox` / `Toggle` infer booleans.
+On create screens, visible `Checkbox` and `Toggle` fields default to `false` unless `defaults()` provides a value.
 
 ## Mutation Hooks
 

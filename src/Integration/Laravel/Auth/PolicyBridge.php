@@ -25,7 +25,7 @@ final class PolicyBridge
             return true;
         }
 
-        $target = $record ? $record::class : $resourceClass::model();
+        $target = $record ?? $resourceClass::model();
 
         return app(\Illuminate\Contracts\Auth\Access\Gate::class)
             ->forUser($user)
@@ -70,5 +70,17 @@ final class PolicyBridge
         }
 
         return $this->allows($resourceClass, 'update', $user, $record);
+    }
+
+    /**
+     * @param class-string<Resource> $resourceClass
+     */
+    public function canDelete(string $resourceClass, ?\Illuminate\Contracts\Auth\Authenticatable $user, ?Model $record): bool
+    {
+        if ($record === null) {
+            return true;
+        }
+
+        return $this->allows($resourceClass, 'delete', $user, $record);
     }
 }

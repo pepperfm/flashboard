@@ -70,4 +70,22 @@ final readonly class ResourceFormPersister
 
         return $record;
     }
+
+    /**
+     * @param class-string<Resource> $resourceClass
+     */
+    public function delete(string $resourceClass, Model $record): void
+    {
+        $recordKey = $record->getKey();
+
+        $this->runtimeHookDispatcher->dispatch($resourceClass, 'resource.delete.before', [
+            'record_key' => $recordKey,
+        ]);
+
+        $record->delete();
+
+        $this->runtimeHookDispatcher->dispatch($resourceClass, 'resource.delete.after', [
+            'record_key' => $recordKey,
+        ]);
+    }
 }

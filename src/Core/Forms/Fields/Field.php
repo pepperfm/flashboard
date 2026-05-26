@@ -20,6 +20,7 @@ class Field extends SchemaNode
     public const string ATTRIBUTE_TYPE = 'type';
 
     public const string TYPE_SELECT = 'select';
+    public const string TYPE_CHECKBOX = 'checkbox';
     public const string TYPE_TEXT = 'text';
     public const string TYPE_TEXTAREA = 'textarea';
     public const string TYPE_TOGGLE = 'toggle';
@@ -47,6 +48,11 @@ class Field extends SchemaNode
     public function placeholder(?string $placeholder): static
     {
         return $this->attribute(self::ATTRIBUTE_PLACEHOLDER, $placeholder);
+    }
+
+    public function inputType(string $inputType): static
+    {
+        return $this->attribute(self::ATTRIBUTE_INPUT_TYPE, $inputType);
     }
 
     public function renderer(FieldRenderer|string $renderer): static

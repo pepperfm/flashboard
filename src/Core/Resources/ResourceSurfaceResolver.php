@@ -54,7 +54,15 @@ final readonly class ResourceSurfaceResolver
      */
     public function actions(string $resourceClass): array
     {
-        return array_values($resourceClass::actions());
+        $actions = [];
+
+        foreach ($resourceClass::actions() as $action) {
+            if ($action instanceof ActionContract) {
+                $actions[] = $action;
+            }
+        }
+
+        return $actions;
     }
 
     /**
@@ -127,7 +135,6 @@ final readonly class ResourceSurfaceResolver
         return $table['columns'] !== []
             || $table['filters'] !== []
             || $table['scopes'] !== []
-            || $table['actions'] !== []
             || $table['bulk_actions'] !== []
             || $table['pagination'] !== 15;
     }

@@ -7,6 +7,8 @@ namespace Pepperfm\Flashboard\Tests\Feature;
 use Pepperfm\Flashboard\Contracts\Forms\FieldRenderer;
 use Pepperfm\Flashboard\Contracts\Forms\FormContract;
 use Pepperfm\Flashboard\Contracts\Resources\Resource;
+use Pepperfm\Flashboard\Core\Forms\Fields\Checkbox;
+use Pepperfm\Flashboard\Core\Forms\Fields\NumberInput;
 use Pepperfm\Flashboard\Core\Forms\Fields\TextInput;
 use Pepperfm\Flashboard\Tests\TestCase;
 
@@ -121,6 +123,33 @@ final class ResourceFormRulesTest extends TestCase
         self::assertSame(
             ['notes' => ['required', 'string', 'max:500']],
             $resourceClass::updateRules($record),
+        );
+    }
+
+    public function test_checkbox_and_number_fields_infer_boolean_and_numeric_rules(): void
+    {
+        $resourceClass = new class() extends Resource
+        {
+            public static function model(): string
+            {
+                return \Illuminate\Database\Eloquent\Model::class;
+            }
+
+            public static function form(FormContract $form): FormContract
+            {
+                return $form->schema([
+                    Checkbox::make('is_featured')->label('Featured'),
+                    NumberInput::make('sort_order')->label('Sort order')->required(),
+                ]);
+            }
+        };
+
+        self::assertSame(
+            [
+                'is_featured' => ['nullable', 'boolean'],
+                'sort_order' => ['required', 'numeric'],
+            ],
+            $resourceClass::creationRules(),
         );
     }
 }

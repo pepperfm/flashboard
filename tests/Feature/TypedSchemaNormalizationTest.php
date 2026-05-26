@@ -11,7 +11,10 @@ use Pepperfm\Flashboard\Contracts\Resources\Resource;
 use Pepperfm\Flashboard\Contracts\Tables\TableContract;
 use Pepperfm\Flashboard\Core\Detail\Entries\TextEntry;
 use Pepperfm\Flashboard\Core\Detail\Layout\Section as DetailSection;
+use Pepperfm\Flashboard\Core\Forms\Fields\Checkbox;
+use Pepperfm\Flashboard\Core\Forms\Fields\NumberInput;
 use Pepperfm\Flashboard\Core\Forms\Fields\Select;
+use Pepperfm\Flashboard\Core\Forms\Fields\Textarea;
 use Pepperfm\Flashboard\Core\Forms\Fields\TextInput;
 use Pepperfm\Flashboard\Core\Forms\Fields\Toggle;
 use Pepperfm\Flashboard\Core\Forms\Layout\Section as FormSection;
@@ -93,7 +96,10 @@ final class TypedSchemaNormalizationTest extends TestCase
                 ->sections([
                     FormSection::make('main')->label('Main')->schema([
                         TextInput::make('email')->label('Email')->email()->required(),
+                        Textarea::make('notes')->label('Notes'),
+                        NumberInput::make('sort_order')->label('Sort order'),
                         Select::make('status')->label('Status')->options(['draft' => 'Draft']),
+                        Checkbox::make('is_featured')->label('Featured'),
                         Toggle::make('is_active')->label('Is active'),
                     ]),
                 ])
@@ -105,15 +111,22 @@ final class TypedSchemaNormalizationTest extends TestCase
 
         self::assertCount(1, $payload->sections());
         self::assertSame('main', $payload->sections()[0]['key']);
-        self::assertCount(3, $payload->fields());
+        self::assertCount(6, $payload->fields());
         self::assertSame('email', $payload->fields()[0]['key']);
         self::assertSame('email', $payload->fields()[0]['input_type']);
         self::assertSame(FieldRenderer::Input->value, $payload->fields()[0]['renderer']);
-        self::assertSame(FieldRenderer::Select->value, $payload->fields()[1]['renderer']);
-        self::assertSame(FieldRenderer::Switch->value, $payload->fields()[2]['renderer']);
+        self::assertSame(FieldRenderer::Textarea->value, $payload->fields()[1]['renderer']);
+        self::assertSame('number', $payload->fields()[2]['input_type']);
+        self::assertSame(FieldRenderer::Input->value, $payload->fields()[2]['renderer']);
+        self::assertSame(FieldRenderer::Select->value, $payload->fields()[3]['renderer']);
+        self::assertSame(FieldRenderer::Checkbox->value, $payload->fields()[4]['renderer']);
+        self::assertSame(FieldRenderer::Switch->value, $payload->fields()[5]['renderer']);
         self::assertSame(FieldRenderer::Input->value, $payload->sections()[0]['schema'][0]['renderer']);
-        self::assertSame(FieldRenderer::Select->value, $payload->sections()[0]['schema'][1]['renderer']);
-        self::assertSame(FieldRenderer::Switch->value, $payload->sections()[0]['schema'][2]['renderer']);
+        self::assertSame(FieldRenderer::Textarea->value, $payload->sections()[0]['schema'][1]['renderer']);
+        self::assertSame(FieldRenderer::Input->value, $payload->sections()[0]['schema'][2]['renderer']);
+        self::assertSame(FieldRenderer::Select->value, $payload->sections()[0]['schema'][3]['renderer']);
+        self::assertSame(FieldRenderer::Checkbox->value, $payload->sections()[0]['schema'][4]['renderer']);
+        self::assertSame(FieldRenderer::Switch->value, $payload->sections()[0]['schema'][5]['renderer']);
         self::assertArrayHasKey('email', $payload->rules());
     }
 

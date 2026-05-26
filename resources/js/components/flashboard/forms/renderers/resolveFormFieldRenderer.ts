@@ -66,6 +66,10 @@ function fallbackRendererForType(type?: string): FormFieldRendererKey {
     return 'select'
   }
 
+  if (type === 'checkbox') {
+    return 'checkbox'
+  }
+
   if (type === 'textarea') {
     return 'textarea'
   }
@@ -97,8 +101,8 @@ export function resolveFormFieldRenderer(field: FormFieldShape): Component {
   return formFieldRendererMap[resolveFormFieldRendererKey(field)]
 }
 
-export function isToggleFieldRenderer(field: FormFieldShape): boolean {
-  return resolveFormFieldRendererKey(field) === 'switch'
+export function isInlineBooleanFieldRenderer(field: FormFieldShape): boolean {
+  return ['checkbox', 'switch'].includes(resolveFormFieldRendererKey(field))
 }
 
 export function normalizeSelectItems(field: FormFieldShape): FormOptionShape[] {
@@ -127,7 +131,7 @@ export function resolveFormFieldRendererProps(field: FormFieldShape): Record<str
     }
   }
 
-  if (renderer === 'switch') {
+  if (renderer === 'checkbox' || renderer === 'switch') {
     return {
       description: field.help ?? field.hint,
       label: field.label ?? field.key,

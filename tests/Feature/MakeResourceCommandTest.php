@@ -46,10 +46,10 @@ final class MakeResourceCommandTest extends TestCase
         );
 
         self::assertStringContainsString(
-            "            TextColumn::make('id')" . PHP_EOL
-            . "                ->label('ID')" . PHP_EOL
-            . "                ->sortable()," . PHP_EOL
-            . '        ]);',
+            "                TextColumn::make('id')" . PHP_EOL
+            . "                    ->label('ID')" . PHP_EOL
+            . "                    ->sortable()," . PHP_EOL
+            . '            ])',
             $content,
         );
         self::assertStringContainsString(
@@ -68,6 +68,17 @@ final class MakeResourceCommandTest extends TestCase
         );
         self::assertStringNotContainsString('email', $content);
         self::assertStringNotContainsString('public static function detail(', $content);
+        self::assertStringNotContainsString('{{ title_field }}', $content);
+        self::assertStringContainsString("'id' => ['required', 'string'],", $content);
+        self::assertStringContainsString('use Pepperfm\\Flashboard\\Core\\Tables\\Actions\\DeleteAction;', $content);
+        self::assertStringContainsString('use Pepperfm\\Flashboard\\Core\\Tables\\Actions\\EditAction;', $content);
+        self::assertStringNotContainsString('->actions(', $content);
+        self::assertStringContainsString('public static function actions(): array', $content);
+        self::assertStringContainsString(
+            "            EditAction::make()," . PHP_EOL
+            . "            DeleteAction::make(),",
+            $content,
+        );
         self::assertStringNotContainsString(PHP_EOL . PHP_EOL . PHP_EOL, $content);
     }
 
@@ -80,14 +91,14 @@ final class MakeResourceCommandTest extends TestCase
         );
 
         self::assertStringContainsString(
-            "            TextColumn::make('name')" . PHP_EOL
-            . "                ->label('Name')" . PHP_EOL
-            . "                ->sortable()" . PHP_EOL
-            . "                ->searchable()," . PHP_EOL
-            . "            TextColumn::make('email')" . PHP_EOL
-            . "                ->label('Email')" . PHP_EOL
-            . "                ->searchable()," . PHP_EOL
-            . '        ]);',
+            "                TextColumn::make('name')" . PHP_EOL
+            . "                    ->label('Name')" . PHP_EOL
+            . "                    ->sortable()" . PHP_EOL
+            . "                    ->searchable()," . PHP_EOL
+            . "                TextColumn::make('email')" . PHP_EOL
+            . "                    ->label('Email')" . PHP_EOL
+            . "                    ->searchable()," . PHP_EOL
+            . '            ])',
             $content,
         );
         self::assertStringContainsString(
@@ -118,7 +129,7 @@ final class MakeResourceCommandTest extends TestCase
 
         self::assertStringNotContainsString('public static function navigationGroup()', $content);
         self::assertStringNotContainsString('public static function detail(', $content);
-        self::assertStringNotContainsString('public static function actions()', $content);
+        self::assertStringContainsString('public static function actions(): array', $content);
         self::assertStringContainsString('public static function form(FormContract $form): FormContract', $content);
         self::assertStringContainsString('->schema([', $content);
         self::assertStringNotContainsString('Section::make(', $content);
@@ -127,11 +138,11 @@ final class MakeResourceCommandTest extends TestCase
             $content,
         );
         self::assertStringContainsString(
-            "            TextColumn::make('name')" . PHP_EOL
-            . "                ->label('Name')" . PHP_EOL
-            . "                ->sortable()" . PHP_EOL
-            . "                ->searchable()," . PHP_EOL
-            . '        ]);',
+            "                TextColumn::make('name')" . PHP_EOL
+            . "                    ->label('Name')" . PHP_EOL
+            . "                    ->sortable()" . PHP_EOL
+            . "                    ->searchable()," . PHP_EOL
+            . '            ])',
             $content,
         );
         self::assertStringContainsString("TextInput::make('name')", $content);
@@ -140,7 +151,7 @@ final class MakeResourceCommandTest extends TestCase
         self::assertStringNotContainsString(PHP_EOL . PHP_EOL . PHP_EOL, $content);
     }
 
-    public function test_render_stub_marks_notes_like_secondary_fields_with_explicit_textarea_renderer(): void
+    public function test_render_stub_marks_notes_like_secondary_fields_with_textarea_field(): void
     {
         $content = $this->renderResourceStub(
             titleField: 'name',
@@ -148,11 +159,11 @@ final class MakeResourceCommandTest extends TestCase
             includeDetail: false,
         );
 
-        self::assertStringContainsString('use Pepperfm\\Flashboard\\Contracts\\Forms\\FieldRenderer;', $content);
+        self::assertStringContainsString('use Pepperfm\\Flashboard\\Core\\Forms\\Fields\\Textarea;', $content);
+        self::assertStringNotContainsString('use Pepperfm\\Flashboard\\Contracts\\Forms\\FieldRenderer;', $content);
         self::assertStringContainsString(
-            "                TextInput::make('notes')" . PHP_EOL
-            . "                    ->label('Notes')" . PHP_EOL
-            . '                    ->renderer(FieldRenderer::Textarea),',
+            "                Textarea::make('notes')" . PHP_EOL
+            . "                    ->label('Notes'),",
             $content,
         );
     }

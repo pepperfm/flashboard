@@ -27,6 +27,7 @@ final class ConfigPanelProviderDiscoveryTest extends TestCase
         Flashboard::configure()
             ->resource('Pepperfm\\Flashboard\\Tests\\Fixtures\\Flashboard\\UsersResource')
             ->except('IgnoredResource')
+            ->except('IconNavigationResource')
             ->discover($fixtureDirectory, 'Pepperfm\\Flashboard\\Tests\\Fixtures\\Flashboard');
 
         $provider = new ConfigPanelProvider(

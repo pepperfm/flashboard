@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+## 0.1.9 - 2026-05-26
+
+- add resource-level table row actions with explicit edit/delete action builders and policy-aware delete routing
+- move generated resource row actions to `Resource::actions()` and remove table-builder row action configuration
+- add typed textarea, number, and checkbox form fields with frontend renderers and generator support
+- tighten policy-aware row actions, form data loading, and delete persistence coverage
+- update package and companion docs, raw markdown, and MCP-facing content for the new actions API
+
 ## 0.1.8 - 2026-05-22
 
 - expose column-level `searchable()` as global resource table search and `sortable()` as server-side sortable headers in the Inertia UI

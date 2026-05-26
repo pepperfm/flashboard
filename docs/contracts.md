@@ -35,7 +35,8 @@ Flashboard currently exposes a beta contract surface.
 - typed schema nodes are the preferred package-facing API for columns, fields, sections, tabs, filters, scopes, and entries
 - legacy array definitions remain supported as a compatibility bridge during the DSL migration
 - runtime consumers should depend on normalized payload output, not on ad hoc legacy array keys such as `name`
-- resource-level `actions()` and `pages()` are part of the same surface family and can be resolved through a shared package-owned surface model
+- table row action payloads are backend-driven and permission-aware; renderers should consume normalized row `actions` instead of inventing view/edit/delete buttons
+- resource `actions()` owns both executable resource actions and table row action declarations; renderers consume row-level payloads from row `actions`
 
 ## Authorization Contract
 

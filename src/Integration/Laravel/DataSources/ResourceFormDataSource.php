@@ -7,10 +7,12 @@ namespace Pepperfm\Flashboard\Integration\Laravel\DataSources;
 use Illuminate\Container\Attributes\Singleton;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Arr;
+use Pepperfm\Flashboard\Contracts\Forms\FieldRenderer;
 use Pepperfm\Flashboard\Contracts\Forms\FormSchemaNodeKind;
 use Pepperfm\Flashboard\Contracts\Resources\Resource;
 use Pepperfm\Flashboard\Core\Authorization\Visibility\ScreenAccessResolver;
 use Pepperfm\Flashboard\Core\Extensions\ExtensionRegistry;
+use Pepperfm\Flashboard\Core\Forms\Fields\Field;
 use Pepperfm\Flashboard\Core\Resources\ResourceSurfaceResolver;
 use Pepperfm\Flashboard\Core\Runtime\Assemblers\FormPayloadAssembler;
 use Pepperfm\Flashboard\Core\Forms\Builders\Form;
@@ -45,6 +47,7 @@ final readonly class ResourceFormDataSource
             $user,
         );
         $fields = $this->flattenFieldNodes($filteredSchema);
+        $state = $this->applyImplicitFieldDefaults($state, $fields);
 
         if ($record !== null) {
             foreach ($fields as $field) {
@@ -102,6 +105,41 @@ final readonly class ResourceFormDataSource
         ]);
 
         return $this->extensionRegistry->extendPayload($resourceClass, $record === null ? 'create' : 'edit', $payload);
+    }
+
+    /**
+     * @param array<string, mixed> $state
+     * @param list<array<string, mixed>> $fields
+     *
+     * @return array<string, mixed>
+     */
+    private function applyImplicitFieldDefaults(array $state, array $fields): array
+    {
+        foreach ($fields as $field) {
+            $key = trim((string) Arr::get($field, 'key', ''));
+
+            if ($key === '' || array_key_exists($key, $state) || !$this->isBooleanField($field)) {
+                continue;
+            }
+
+            $state[$key] = false;
+        }
+
+        return $state;
+    }
+
+    /**
+     * @param array<string, mixed> $field
+     */
+    private function isBooleanField(array $field): bool
+    {
+        $type = (string) Arr::get($field, Field::ATTRIBUTE_TYPE, '');
+        $renderer = (string) Arr::get($field, Field::ATTRIBUTE_RENDERER, '');
+
+        return $type === Field::TYPE_CHECKBOX
+            || $type === Field::TYPE_TOGGLE
+            || $renderer === FieldRenderer::Checkbox->value
+            || $renderer === FieldRenderer::Switch->value;
     }
 
     /**

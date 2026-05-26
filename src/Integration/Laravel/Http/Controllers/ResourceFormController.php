@@ -53,6 +53,25 @@ final readonly class ResourceFormController
         return $this->redirectAfterSave($resourceClass, $record);
     }
 
+    public function destroy(\Illuminate\Http\Request $request): \Illuminate\Http\RedirectResponse
+    {
+        $resourceClass = $this->resourceClass($request);
+        $record = $resourceClass::resolveRecord($request->route('record'));
+        abort_unless($record instanceof Model, 404);
+        $user = $this->authenticator->user();
+
+        if (!$this->screenAccessResolver->canDeleteRecord($resourceClass, $user, $record)) {
+            abort(403);
+        }
+
+        $this->persister->delete($resourceClass, $record);
+
+        return redirect()->route(
+            config('flashboard.route_name_prefix', 'flashboard.')
+            . 'resources.' . $resourceClass::key() . '.index',
+        );
+    }
+
     /**
      * @return class-string<Resource>
      */

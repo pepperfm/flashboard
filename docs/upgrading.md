@@ -90,7 +90,7 @@ Migration rules:
 - legacy arrays remain valid as compatibility input
 - runtime payloads are normalized from both styles into the same schema contract
 - `detail()` remains supported and `infolist()` is the concept-aligned alias for new resource classes
-- `php artisan flashboard:make-resource` now generates typed table/form/infolist definitions by default
+- `php artisan flashboard:make-resource` now generates typed table/form/infolist definitions and resource-level edit/delete row actions by default
 
 ## Breaking-Change Classes
 

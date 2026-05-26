@@ -102,7 +102,11 @@ final class FormSchemaNormalizer
 
             $fieldRules[] = $isRequired ? 'required' : 'nullable';
 
-            if ($renderer === FieldRenderer::Input || $renderer === FieldRenderer::Textarea || $inputType === 'email') {
+            if (
+                ($renderer === FieldRenderer::Input && $inputType !== 'number')
+                || $renderer === FieldRenderer::Textarea
+                || $inputType === 'email'
+            ) {
                 $fieldRules[] = 'string';
             }
 
@@ -110,7 +114,16 @@ final class FormSchemaNormalizer
                 $fieldRules[] = 'email';
             }
 
-            if ($renderer === FieldRenderer::Switch || $type === Field::TYPE_TOGGLE) {
+            if ($inputType === 'number') {
+                $fieldRules[] = 'numeric';
+            }
+
+            if (
+                $renderer === FieldRenderer::Checkbox
+                || $renderer === FieldRenderer::Switch
+                || $type === Field::TYPE_CHECKBOX
+                || $type === Field::TYPE_TOGGLE
+            ) {
                 $fieldRules[] = 'boolean';
             }
 
@@ -398,6 +411,7 @@ final class FormSchemaNormalizer
         }
 
         return match ((string) Arr::get($field, Field::ATTRIBUTE_TYPE, '')) {
+            Field::TYPE_CHECKBOX => FieldRenderer::Checkbox,
             Field::TYPE_SELECT => FieldRenderer::Select,
             Field::TYPE_TEXTAREA => FieldRenderer::Textarea,
             Field::TYPE_TOGGLE => FieldRenderer::Switch,

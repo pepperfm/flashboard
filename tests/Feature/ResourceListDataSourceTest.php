@@ -9,11 +9,19 @@ use Illuminate\Contracts\Auth\Factory;
 use Illuminate\Contracts\Auth\Guard;
 use Illuminate\Contracts\Auth\StatefulGuard;
 use Illuminate\Database\Capsule\Manager as Capsule;
+use Pepperfm\Flashboard\Contracts\Detail\DetailContract;
+use Pepperfm\Flashboard\Contracts\Resources\Resource;
+use Pepperfm\Flashboard\Contracts\Tables\TableContract;
 use Pepperfm\Flashboard\Core\Authorization\Visibility\ScreenAccessResolver;
+use Pepperfm\Flashboard\Core\Detail\Entries\TextEntry;
 use Pepperfm\Flashboard\Core\Extensions\ExtensionRegistry;
 use Pepperfm\Flashboard\Core\Hooks\RuntimeHookDispatcher;
 use Pepperfm\Flashboard\Core\Resources\ResourceSurfaceResolver;
 use Pepperfm\Flashboard\Core\Runtime\Assemblers\TablePayloadAssembler;
+use Pepperfm\Flashboard\Core\Tables\Actions\DeleteAction;
+use Pepperfm\Flashboard\Core\Tables\Actions\EditAction;
+use Pepperfm\Flashboard\Core\Tables\Actions\TableAction;
+use Pepperfm\Flashboard\Core\Tables\Columns\TextColumn;
 use Pepperfm\Flashboard\Integration\Laravel\Auth\PanelAuthenticator;
 use Pepperfm\Flashboard\Integration\Laravel\Auth\PolicyBridge;
 use Pepperfm\Flashboard\Integration\Laravel\DataSources\ResourceListDataSource;
@@ -216,6 +224,55 @@ final class ResourceListDataSourceTest extends TestCase
             ['draft', 'published'],
             array_map(static fn (array $row): string => $row['attributes']['status'], $payload['rows']),
         );
+    }
+
+    public function test_resource_lists_include_configured_row_actions_for_available_surfaces(): void
+    {
+        $payload = $this->dataSource()->resolve(
+            $this->detailAwareResourceClass(),
+            \Illuminate\Http\Request::create('/'),
+        );
+
+        self::assertSame(['view', 'edit'], array_column($payload['rows'][0]['actions'], 'key'));
+        self::assertSame('get', $payload['rows'][0]['actions'][0]['method']);
+        self::assertSame('/flashboard.resources.detail_aware_records.detail/1', $payload['rows'][0]['actions'][0]['url']);
+        self::assertSame('/flashboard.resources.detail_aware_records.edit/1', $payload['rows'][0]['actions'][1]['url']);
+    }
+
+    public function test_resource_lists_omit_row_actions_when_resource_actions_are_empty(): void
+    {
+        $payload = $this->dataSource()->resolve(
+            LazyFilterOptionsResource::class,
+            \Illuminate\Http\Request::create('/'),
+        );
+
+        self::assertSame([], $payload['rows'][0]['actions']);
+        self::assertNull($payload['rows'][0]['links']['detail']);
+    }
+
+    public function test_resource_lists_include_configured_delete_row_action_when_allowed(): void
+    {
+        $payload = $this->dataSource()->resolve(
+            $this->deleteActionResourceClass(),
+            \Illuminate\Http\Request::create('/'),
+        );
+
+        self::assertSame(['edit', 'delete'], array_column($payload['rows'][0]['actions'], 'key'));
+        self::assertSame('delete', $payload['rows'][0]['actions'][1]['method']);
+        self::assertTrue($payload['rows'][0]['actions'][1]['requires_confirmation']);
+        self::assertSame('/flashboard.resources.delete_action_records.destroy/1', $payload['rows'][0]['actions'][1]['url']);
+    }
+
+    public function test_resource_lists_omit_configured_delete_row_action_when_policy_denies_delete(): void
+    {
+        $this->bindGateDenying('delete');
+
+        $payload = $this->dataSource()->resolve(
+            $this->deleteRestrictedResourceClass(),
+            \Illuminate\Http\Request::create('/'),
+        );
+
+        self::assertSame(['edit'], array_column($payload['rows'][0]['actions'], 'key'));
     }
 
     public function test_resource_lists_fall_back_to_ascending_sort_direction(): void
@@ -522,6 +579,120 @@ final class ResourceListDataSourceTest extends TestCase
             new RuntimeHookDispatcher(),
             new ResourceSurfaceResolver($screenAccessResolver),
         );
+    }
+
+    /**
+     * @return class-string<Resource>
+     */
+    private function detailAwareResourceClass(): string
+    {
+        return get_class(new class extends Resource
+        {
+            public static function model(): string
+            {
+                return LazyFilterOptionRecord::class;
+            }
+
+            public static function key(): string
+            {
+                return 'detail_aware_records';
+            }
+
+            public static function table(TableContract $table): TableContract
+            {
+                return $table->columns([
+                    TextColumn::make('id')->label('ID'),
+                ]);
+            }
+
+            public static function infolist(DetailContract $detail): DetailContract
+            {
+                return $detail->entries([
+                    TextEntry::make('id')->label('ID'),
+                ]);
+            }
+
+            public static function actions(): array
+            {
+                return [
+                    TableAction::view(),
+                    EditAction::make(),
+                ];
+            }
+        });
+    }
+
+    /**
+     * @return class-string<Resource>
+     */
+    private function deleteActionResourceClass(): string
+    {
+        return get_class(new class extends Resource
+        {
+            public static function model(): string
+            {
+                return LazyFilterOptionRecord::class;
+            }
+
+            public static function key(): string
+            {
+                return 'delete_action_records';
+            }
+
+            public static function table(TableContract $table): TableContract
+            {
+                return $table->columns([
+                    TextColumn::make('id')->label('ID'),
+                ]);
+            }
+
+            public static function actions(): array
+            {
+                return [
+                    EditAction::make(),
+                    DeleteAction::make(),
+                ];
+            }
+        });
+    }
+
+    /**
+     * @return class-string<Resource>
+     */
+    private function deleteRestrictedResourceClass(): string
+    {
+        return get_class(new class extends Resource
+        {
+            public static function model(): string
+            {
+                return LazyFilterOptionRecord::class;
+            }
+
+            public static function key(): string
+            {
+                return 'delete_restricted_records';
+            }
+
+            public static function policy(): string
+            {
+                return \stdClass::class;
+            }
+
+            public static function table(TableContract $table): TableContract
+            {
+                return $table->columns([
+                    TextColumn::make('id')->label('ID'),
+                ]);
+            }
+
+            public static function actions(): array
+            {
+                return [
+                    EditAction::make(),
+                    DeleteAction::make(),
+                ];
+            }
+        });
     }
 
     private function authenticator(): PanelAuthenticator

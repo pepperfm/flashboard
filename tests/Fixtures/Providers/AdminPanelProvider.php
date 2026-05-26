@@ -14,6 +14,7 @@ final class AdminPanelProvider extends FlashboardPanelProvider
             ->path('panel')
             ->routeNamePrefix('panel')
             ->except('IgnoredResource')
+            ->except('IconNavigationResource')
             ->discover(dirname(__DIR__) . '/Flashboard', 'Pepperfm\\Flashboard\\Tests\\Fixtures\\Flashboard');
     }
 }

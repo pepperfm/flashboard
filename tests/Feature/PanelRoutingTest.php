@@ -97,4 +97,27 @@ final class PanelRoutingTest extends TestCase
 
         self::assertSame('flashboard.resources.lazy_filter_options.filters.legacy-options', $legacyRoute->getName());
     }
+
+    public function test_destroy_route_is_registered_for_resource_records(): void
+    {
+        $pageRegistry = new PageRegistry();
+        $resourceRegistry = new ResourceRegistry();
+        $resourceRegistry->register(LazyFilterOptionsResource::class);
+
+        $this->app->instance(PageRegistry::class, $pageRegistry);
+        $this->app->instance(ResourceRegistry::class, $resourceRegistry);
+
+        (new PanelRouteRegistrar(
+            $this->app->make(PageRegistry::class),
+            $this->app->make(ResourceRegistry::class),
+            new ResourceSurfaceResolver(new \Pepperfm\Flashboard\Core\Authorization\Visibility\ScreenAccessResolver(new PolicyBridge())),
+        ))->register();
+        $this->router->getRoutes()->refreshNameLookups();
+
+        $route = $this->router->getRoutes()->match(
+            \Illuminate\Http\Request::create('/admin/resources/lazy_filter_options/1', 'DELETE'),
+        );
+
+        self::assertSame('flashboard.resources.lazy_filter_options.destroy', $route->getName());
+    }
 }

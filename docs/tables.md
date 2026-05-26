@@ -91,12 +91,41 @@ Sort changes reset `page` and preserve active filters and search. The backend ig
 
 Column-level `searchable()` is separate from select-filter `searchable()`. A searchable column contributes to the global table search; a searchable select filter changes how that one filter's options are picked.
 
+## Row Actions
+
+Table row actions are configured from the resource, while `table()` stays focused on columns, filters, scopes, and pagination:
+
+```php
+use Pepperfm\Flashboard\Core\Tables\Actions\DeleteAction;
+use Pepperfm\Flashboard\Core\Tables\Actions\EditAction;
+
+public static function table(\Pepperfm\Flashboard\Contracts\Tables\TableContract $table): \Pepperfm\Flashboard\Contracts\Tables\TableContract
+{
+    return $table->columns([
+        \Pepperfm\Flashboard\Core\Tables\Columns\TextColumn::make('id')->label('ID'),
+    ]);
+}
+
+public static function actions(): array
+{
+    return [
+        EditAction::make(),
+        DeleteAction::make(),
+    ];
+}
+```
+
+When `actions()` is omitted, Flashboard does not render row actions for the resource index table. Delete uses a protected `DELETE` resource route with confirmation in the UI.
+
+The backend filters row actions per record through the resource policy. `view`, `edit`, and `delete` use Laravel `view`, `update`, and `delete` abilities respectively. Delete calls `$record->delete()`, so host application soft delete behavior is respected.
+
 ## Query Behavior
 
 `ResourceListDataSource` currently supports:
 
 - global search UI and backend search across columns marked `searchable`
 - clickable sortable headers and backend sort across columns marked `sortable`
+- permission-aware row actions for view, edit, and explicitly configured delete
 - table filter controls rendered above resource index tables, with searchable select filters and a reset action when filters are active
 - simple filter key/value pairs from the request, such as `filters[status]=active`
 - input filters from the request, such as `filters[email]=john`, with exact matching by default and opt-in `contains()` matching

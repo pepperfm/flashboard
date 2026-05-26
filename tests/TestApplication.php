@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Pepperfm\Flashboard\Tests;
 
 use Illuminate\Container\Container;
+use Symfony\Component\HttpKernel\Exception\HttpException;
 
 final class TestApplication extends Container
 {
@@ -22,5 +23,13 @@ final class TestApplication extends Container
     public function runningInConsole(): bool
     {
         return false;
+    }
+
+    /**
+     * @param array<string, mixed> $headers
+     */
+    public function abort(int $code, string $message = '', array $headers = []): never
+    {
+        throw new HttpException($code, $message, null, $headers);
     }
 }

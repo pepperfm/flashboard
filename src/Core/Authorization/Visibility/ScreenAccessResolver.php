@@ -85,6 +85,17 @@ final readonly class ScreenAccessResolver
     /**
      * @param class-string<Resource> $resourceClass
      */
+    public function canDeleteRecord(
+        string $resourceClass,
+        ?\Illuminate\Contracts\Auth\Authenticatable $user,
+        ?Model $record
+    ): bool {
+        return $resourceClass::canAccess($user) && $this->policyBridge->canDelete($resourceClass, $user, $record);
+    }
+
+    /**
+     * @param class-string<Resource> $resourceClass
+     */
     public function canViewField(
         string $resourceClass,
         string $fieldKey,

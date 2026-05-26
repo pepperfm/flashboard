@@ -19,6 +19,7 @@ final class AutoDiscoveryScannerTest extends TestCase
         $result = $scanner->scan([
             DiscoveryTarget::make($fixtureDirectory, 'Pepperfm\\Flashboard\\Tests\\Fixtures\\Flashboard', DiscoveryScope::Both),
         ], [
+            'IconNavigationResource',
             'Pepperfm\\Flashboard\\Tests\\Fixtures\\Flashboard\\Support\\IgnoredResource',
         ]);
 

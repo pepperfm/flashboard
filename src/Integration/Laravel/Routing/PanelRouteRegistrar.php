@@ -126,6 +126,11 @@ final readonly class PanelRouteRegistrar
                 ->defaults('flashboard.resource', $resourceClass)
                 ->name('resources.' . $resourceClass::key() . '.update');
 
+            Route::delete("$base/{record}", [ResourceFormController::class, 'destroy'])
+                ->middleware($resourceClass::middleware())
+                ->defaults('flashboard.resource', $resourceClass)
+                ->name('resources.' . $resourceClass::key() . '.destroy');
+
             Route::post("$base/actions/{action}", ActionController::class)
                 ->middleware($resourceClass::middleware())
                 ->defaults('flashboard.resource', $resourceClass)

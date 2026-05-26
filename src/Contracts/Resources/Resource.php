@@ -14,6 +14,7 @@ use Pepperfm\Flashboard\Contracts\Forms\FormContract;
 use Pepperfm\Flashboard\Contracts\Navigation\NavigationItemContract;
 use Pepperfm\Flashboard\Contracts\Pages\PageDefinitionContract;
 use Pepperfm\Flashboard\Contracts\Resources\Relations\RelationDefinitionContract;
+use Pepperfm\Flashboard\Contracts\Tables\TableActionContract;
 use Pepperfm\Flashboard\Contracts\Tables\TableContract;
 use Pepperfm\Flashboard\Core\Forms\Builders\Form;
 
@@ -88,7 +89,7 @@ abstract class Resource
     }
 
     /**
-     * @return list<ActionContract>
+     * @return list<ActionContract|TableActionContract|array<string, mixed>>
      */
     public static function actions(): array
     {

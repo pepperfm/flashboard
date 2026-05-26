@@ -6,6 +6,7 @@ namespace Pepperfm\Flashboard\Contracts\Forms;
 
 enum FieldRenderer: string
 {
+    case Checkbox = 'checkbox';
     case Input = 'input';
     case Textarea = 'textarea';
     case Select = 'select';

@@ -1,7 +1,7 @@
 <script setup lang="ts">
 import { computed } from 'vue'
 import {
-  isToggleFieldRenderer,
+  isInlineBooleanFieldRenderer,
   resolveFormFieldRenderer,
   resolveFormFieldRendererProps,
   type FormFieldShape,
@@ -19,12 +19,12 @@ const emit = defineEmits<{
 
 const component = computed(() => resolveFormFieldRenderer(props.field))
 const componentProps = computed(() => resolveFormFieldRendererProps(props.field))
-const isToggleField = computed(() => isToggleFieldRenderer(props.field))
+const isInlineBooleanField = computed(() => isInlineBooleanFieldRenderer(props.field))
 </script>
 
 <template>
   <UFormField
-    v-if="!isToggleField"
+    v-if="!isInlineBooleanField"
     :name="props.field.key"
     :label="props.field.label ?? props.field.key"
     :hint="props.field.hint"

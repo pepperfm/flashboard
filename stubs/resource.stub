@@ -21,22 +21,32 @@ final class {{ class }} extends Resource
 
 {{ navigation_group_method }}    public static function table(TableContract $table): TableContract
     {
-        return $table->columns([
+        return $table
+            ->columns([
 {{ primary_table_columns }}
-{{ secondary_table_column }}        ]);
+{{ secondary_table_column }}            ]);
     }
 
     public static function form(FormContract $form): FormContract
     {
         return $form
             ->schema([
-                TextInput::make('{{ title_field }}')
-                    ->label('{{ title_label }}')
-                    ->required(){{ title_field_suffix }},
+{{ title_form_field }}
 {{ secondary_form_field }}            ])
             ->rules([
                 '{{ title_field }}' => ['required', 'string'],
 {{ secondary_form_rule }}            ]);
+    }
+
+    /**
+     * @return list<\Pepperfm\Flashboard\Contracts\Tables\TableActionContract>
+     */
+    public static function actions(): array
+    {
+        return [
+            EditAction::make(),
+            DeleteAction::make(),
+        ];
     }
 
 {{ detail_method }}}
