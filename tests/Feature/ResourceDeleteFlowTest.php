@@ -39,7 +39,21 @@ final class ResourceDeleteFlowTest extends TestCase
 
             public function route($route, $parameters = [], $status = 302, $headers = []): RedirectResponse
             {
-                return new RedirectResponse('/' . ltrim((string) $route, '/'), $status, $headers);
+                return new class('/' . ltrim((string) $route, '/'), $status, $headers) extends RedirectResponse
+                {
+                    public function with($key, $value = null)
+                    {
+                        $messages = is_array($key) ? $key : [$key => $value];
+
+                        foreach ($messages as $name => $message) {
+                            if (is_scalar($message) || $message === null) {
+                                $this->headers->set('X-Flashboard-Flash-' . $name, (string) $message);
+                            }
+                        }
+
+                        return $this;
+                    }
+                };
             }
         });
 
@@ -51,6 +65,7 @@ final class ResourceDeleteFlowTest extends TestCase
         ]);
         $this->database->setAsGlobal();
         $this->database->bootEloquent();
+        $this->database->connection()->statement('PRAGMA foreign_keys = ON');
         $this->database->schema()->create('lazy_filter_option_records', static function (\Illuminate\Database\Schema\Blueprint $table): void {
             $table->increments('id');
             $table->string('status');
@@ -69,7 +84,39 @@ final class ResourceDeleteFlowTest extends TestCase
 
         self::assertSame(302, $response->getStatusCode());
         self::assertSame('/flashboard.resources.delete_flow_records.index', $response->headers->get('location'));
+        self::assertSame('Record deleted successfully.', $response->headers->get('X-Flashboard-Flash-success'));
         self::assertSame(0, LazyFilterOptionRecord::query()->count());
+    }
+
+    public function test_destroy_redirects_with_error_when_database_constraints_block_delete(): void
+    {
+        $record = LazyFilterOptionRecord::query()->create([
+            'status' => 'draft',
+            'status_label' => 'Draft',
+        ]);
+
+        $this->database->schema()->create('lazy_filter_option_record_references', static function (\Illuminate\Database\Schema\Blueprint $table): void {
+            $table->increments('id');
+            $table->unsignedInteger('lazy_filter_option_record_id');
+            $table->foreign('lazy_filter_option_record_id')
+                ->references('id')
+                ->on('lazy_filter_option_records')
+                ->restrictOnDelete();
+        });
+
+        $this->database->connection()->table('lazy_filter_option_record_references')->insert([
+            'lazy_filter_option_record_id' => $record->getKey(),
+        ]);
+
+        $response = $this->controller()->destroy($this->deleteRequest($this->deleteResourceClass(), $record->getKey()));
+
+        self::assertSame(302, $response->getStatusCode());
+        self::assertSame('/flashboard.resources.delete_flow_records.index', $response->headers->get('location'));
+        self::assertSame(
+            'Record could not be deleted because related records still reference it.',
+            $response->headers->get('X-Flashboard-Flash-error'),
+        );
+        self::assertSame(1, LazyFilterOptionRecord::query()->count());
     }
 
     public function test_destroy_aborts_when_delete_policy_denies_record(): void

@@ -49,7 +49,7 @@ final class ResourceFormDataSourceTest extends TestCase
 
         self::assertFalse($createPayload['state']['is_featured']);
         self::assertTrue($createPayload['state']['is_active']);
-        self::assertArrayNotHasKey('name', $createPayload['state']);
+        self::assertNull($createPayload['state']['name']);
 
         $record = new class() extends \Illuminate\Database\Eloquent\Model
         {
@@ -67,6 +67,39 @@ final class ResourceFormDataSourceTest extends TestCase
         self::assertTrue($editPayload['state']['is_featured']);
         self::assertFalse($editPayload['state']['is_active']);
         self::assertSame('Published product', $editPayload['state']['name']);
+    }
+
+    public function test_text_field_record_state_is_normalized_to_browser_form_strings(): void
+    {
+        $this->fakeUrlGenerator();
+        $this->fakeGateForFieldVisibility();
+
+        $resourceClass = $this->stringStateResourceClass();
+        $createPayload = $this->makeDataSource()->resolve($resourceClass);
+
+        self::assertSame(['name', 'is_active'], array_column($createPayload['fields'], 'key'));
+        self::assertArrayNotHasKey('id', $createPayload['rules']);
+        self::assertArrayNotHasKey('id', $createPayload['state']);
+        self::assertNull($createPayload['state']['name']);
+        self::assertFalse($createPayload['state']['is_active']);
+
+        $record = new class() extends \Illuminate\Database\Eloquent\Model
+        {
+            protected $guarded = [];
+        };
+        $record->forceFill([
+            'id' => 2,
+            'is_active' => true,
+            'name' => 123,
+        ]);
+        $record->exists = true;
+
+        $payload = $this->makeDataSource()->resolve($resourceClass, $record);
+
+        self::assertSame(['id', 'name', 'is_active'], array_column($payload['fields'], 'key'));
+        self::assertSame('2', $payload['state']['id']);
+        self::assertSame('123', $payload['state']['name']);
+        self::assertTrue($payload['state']['is_active']);
     }
 
     private function fakeUrlGenerator(): void
@@ -320,7 +353,7 @@ final class ResourceFormDataSourceTest extends TestCase
         {
             public static function model(): string
             {
-                return \Illuminate\Database\Eloquent\Model::class;
+                return ResourceFormDataSourceGeneratedKeyModel::class;
             }
 
             public static function form(FormContract $form): FormContract
@@ -337,4 +370,32 @@ final class ResourceFormDataSourceTest extends TestCase
             }
         });
     }
+
+    /**
+     * @return class-string<Resource>
+     */
+    private function stringStateResourceClass(): string
+    {
+        return get_class(new class() extends Resource
+        {
+            public static function model(): string
+            {
+                return ResourceFormDataSourceGeneratedKeyModel::class;
+            }
+
+            public static function form(FormContract $form): FormContract
+            {
+                return $form->schema([
+                    TextInput::make('id')->label('ID'),
+                    TextInput::make('name')->label('Name'),
+                    Toggle::make('is_active')->label('Is active'),
+                ]);
+            }
+        });
+    }
+}
+
+final class ResourceFormDataSourceGeneratedKeyModel extends \Illuminate\Database\Eloquent\Model
+{
+    protected $guarded = [];
 }

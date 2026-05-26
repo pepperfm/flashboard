@@ -27,6 +27,7 @@ Flashboard currently exposes a beta contract surface.
 
 - JSON consumers should read `schema_version`
 - Blade consumers should treat layout state, overlays, and notifications as public payloads
+- layout notifications expose `id`, `level`, and `message`; renderers may display them as transient toasts or equivalent feedback
 
 ## Public Resource API
 

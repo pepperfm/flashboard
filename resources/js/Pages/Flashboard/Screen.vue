@@ -5,6 +5,7 @@ import FlashboardNotifications from '@/components/flashboard/FlashboardNotificat
 import FlashboardScreenContent from '@/components/flashboard/FlashboardScreenContent.vue'
 import FlashboardSidebar from '@/components/flashboard/FlashboardSidebar.vue'
 import { computed } from 'vue'
+import { en_gb } from '@nuxt/ui/locale'
 
 const FLASHBOARD_CURRENT_URL_KEY = 'flashboard.current_url'
 const FLASHBOARD_PREVIOUS_URL_KEY = 'flashboard.previous_url'
@@ -28,7 +29,7 @@ type LayoutShape = {
   breadcrumbs: Array<{ href: string; label: string }>
   header_actions: LayoutAction[]
   navigation: Array<{ href?: string; label?: string }>
-  notifications: Array<{ level: string; message: string }>
+  notifications: Array<{ id?: string; level: string; message: string }>
   state: LayoutState
   theme: { name?: string; tokens?: Record<string, string> }
   title: string
@@ -80,6 +81,8 @@ const props = defineProps<{
   user: string | number | null
   version: string
 }>()
+
+const toaster = { duration: 2000 }
 
 if (typeof window !== 'undefined') {
   const currentUrl = window.location.href
@@ -207,7 +210,7 @@ function logout() {
 <template>
   <Head :title="props.layout.title" />
 
-  <UApp>
+  <UApp :locale="en_gb" :toaster="toaster">
     <UDashboardGroup
       storage="local"
       storage-key="flashboard"

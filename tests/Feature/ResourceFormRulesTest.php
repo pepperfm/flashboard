@@ -20,7 +20,7 @@ final class ResourceFormRulesTest extends TestCase
         {
             public static function model(): string
             {
-                return \Illuminate\Database\Eloquent\Model::class;
+                return ResourceFormRulesGeneratedKeyModel::class;
             }
 
             public static function form(FormContract $form): FormContract
@@ -84,6 +84,38 @@ final class ResourceFormRulesTest extends TestCase
                 'name' => ['nullable', 'string'],
             ],
             $resourceClass::updateRules($record),
+        );
+    }
+
+    public function test_creation_rules_ignore_generated_primary_key_rules(): void
+    {
+        $resourceClass = new class() extends Resource
+        {
+            public static function model(): string
+            {
+                return ResourceFormRulesGeneratedKeyModel::class;
+            }
+
+            public static function form(FormContract $form): FormContract
+            {
+                return $form->schema([
+                    TextInput::make('id')->label('ID')->required(),
+                    TextInput::make('name')->label('Name')->required(),
+                ]);
+            }
+        };
+
+        self::assertSame(
+            ['name' => ['required', 'string']],
+            $resourceClass::creationRules(),
+        );
+
+        self::assertSame(
+            [
+                'id' => ['required', 'string'],
+                'name' => ['required', 'string'],
+            ],
+            $resourceClass::updateRules(new ResourceFormRulesGeneratedKeyModel()),
         );
     }
 
@@ -152,4 +184,8 @@ final class ResourceFormRulesTest extends TestCase
             $resourceClass::creationRules(),
         );
     }
+}
+
+final class ResourceFormRulesGeneratedKeyModel extends \Illuminate\Database\Eloquent\Model
+{
 }

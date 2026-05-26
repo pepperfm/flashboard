@@ -31,9 +31,15 @@ final readonly class ResourceFormController
         }
 
         $data = $request->validate($resourceClass::creationRules());
-        $record = $this->persister->create($resourceClass, $data);
 
-        return $this->redirectAfterSave($resourceClass, $record);
+        try {
+            $record = $this->persister->create($resourceClass, $data);
+        } catch (\Illuminate\Database\QueryException $exception) {
+            return $this->redirectBackAfterSaveFailure($exception, $resourceClass);
+        }
+
+        return $this->redirectAfterSave($resourceClass, $record)
+            ->with('success', 'Record saved successfully.');
     }
 
     public function update(\Illuminate\Http\Request $request): \Illuminate\Http\RedirectResponse
@@ -48,9 +54,15 @@ final readonly class ResourceFormController
         }
 
         $data = $request->validate($resourceClass::updateRules($record));
-        $this->persister->update($resourceClass, $record, $data);
 
-        return $this->redirectAfterSave($resourceClass, $record);
+        try {
+            $this->persister->update($resourceClass, $record, $data);
+        } catch (\Illuminate\Database\QueryException $exception) {
+            return $this->redirectBackAfterSaveFailure($exception, $resourceClass, $record);
+        }
+
+        return $this->redirectAfterSave($resourceClass, $record)
+            ->with('success', 'Record saved successfully.');
     }
 
     public function destroy(\Illuminate\Http\Request $request): \Illuminate\Http\RedirectResponse
@@ -64,12 +76,25 @@ final readonly class ResourceFormController
             abort(403);
         }
 
-        $this->persister->delete($resourceClass, $record);
+        try {
+            $this->persister->delete($resourceClass, $record);
+        } catch (\Illuminate\Database\QueryException $exception) {
+            if (!$this->isIntegrityConstraintViolation($exception)) {
+                throw $exception;
+            }
 
-        return redirect()->route(
-            config('flashboard.route_name_prefix', 'flashboard.')
-            . 'resources.' . $resourceClass::key() . '.index',
-        );
+            logger()->warning('Resource record delete was blocked by database constraints.', [
+                'resource' => $resourceClass,
+                'record' => $record->getKey(),
+                'sql_state' => \Illuminate\Support\Arr::get($exception->errorInfo ?? [], 0),
+            ]);
+
+            return $this->redirectToResourceIndex($resourceClass)
+                ->with('error', 'Record could not be deleted because related records still reference it.');
+        }
+
+        return $this->redirectToResourceIndex($resourceClass)
+            ->with('success', 'Record deleted successfully.');
     }
 
     /**
@@ -96,6 +121,45 @@ final readonly class ResourceFormController
             );
         }
 
+        return $this->redirectToResourceIndex($resourceClass);
+    }
+
+    private function isIntegrityConstraintViolation(\Illuminate\Database\QueryException $exception): bool
+    {
+        $sqlState = \Illuminate\Support\Arr::get($exception->errorInfo ?? [], 0);
+
+        return $sqlState === '23000' || str_starts_with((string) $exception->getCode(), '23');
+    }
+
+    /**
+     * @param class-string<Resource> $resourceClass
+     */
+    private function redirectBackAfterSaveFailure(
+        \Illuminate\Database\QueryException $exception,
+        string $resourceClass,
+        ?Model $record = null,
+    ): \Illuminate\Http\RedirectResponse
+    {
+        if (!$this->isIntegrityConstraintViolation($exception)) {
+            throw $exception;
+        }
+
+        logger()->warning('Resource record save was blocked by database constraints.', [
+            'resource' => $resourceClass,
+            'record' => $record?->getKey(),
+            'sql_state' => \Illuminate\Support\Arr::get($exception->errorInfo ?? [], 0),
+        ]);
+
+        return redirect()->back()
+            ->withInput()
+            ->with('error', 'Record could not be saved because the submitted values conflict with existing data.');
+    }
+
+    /**
+     * @param class-string<Resource> $resourceClass
+     */
+    private function redirectToResourceIndex(string $resourceClass): \Illuminate\Http\RedirectResponse
+    {
         return redirect()->route(
             config('flashboard.route_name_prefix', 'flashboard.')
             . 'resources.' . $resourceClass::key() . '.index',

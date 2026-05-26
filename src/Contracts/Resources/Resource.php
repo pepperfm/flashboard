@@ -196,7 +196,14 @@ abstract class Resource
      */
     public static function creationRules(): array
     {
-        return static::resolvedFormRules();
+        $rules = static::resolvedFormRules();
+        $generatedPrimaryKeyName = static::generatedPrimaryKeyName();
+
+        if ($generatedPrimaryKeyName !== null) {
+            unset($rules[$generatedPrimaryKeyName]);
+        }
+
+        return $rules;
     }
 
     /**
@@ -213,6 +220,24 @@ abstract class Resource
     public static function formRules(?\Illuminate\Database\Eloquent\Model $record = null): array
     {
         return [];
+    }
+
+    public static function generatedPrimaryKeyName(): ?string
+    {
+        $modelClass = static::model();
+        $reflection = new \ReflectionClass($modelClass);
+
+        if (!$reflection->isInstantiable()) {
+            return null;
+        }
+
+        $model = new $modelClass();
+
+        if (!$model->getIncrementing()) {
+            return null;
+        }
+
+        return $model->getKeyName();
     }
 
     /**

@@ -46,6 +46,10 @@ final readonly class ResourceFormDataSource
             $resourceClass,
             $user,
         );
+        if ($record === null) {
+            $filteredSchema = $this->removeGeneratedPrimaryKeyNodes($filteredSchema, $resourceClass);
+        }
+
         $fields = $this->flattenFieldNodes($filteredSchema);
         $state = $this->applyImplicitFieldDefaults($state, $fields);
 
@@ -79,12 +83,15 @@ final readonly class ResourceFormDataSource
             );
         }
 
+        $state = $this->normalizeFieldStateValues($form->mutateData($state), $fields);
+
         $payload = array_merge($schema->toArray(), [
             'schema' => $filteredSchema,
             'sections' => $this->extractRootSections($filteredSchema),
             'tabs' => $this->extractRootTabs($filteredSchema),
             'fields' => $fields,
-            'state' => $form->mutateData($state),
+            'rules' => $record === null ? $resourceClass::creationRules() : $resourceClass::updateRules($record),
+            'state' => $state,
             'mode' => $record === null ? 'create' : 'edit',
             'submit' => [
                 'method' => $record === null ? 'post' : 'put',
@@ -118,14 +125,66 @@ final readonly class ResourceFormDataSource
         foreach ($fields as $field) {
             $key = trim((string) Arr::get($field, 'key', ''));
 
-            if ($key === '' || array_key_exists($key, $state) || !$this->isBooleanField($field)) {
+            if ($key === '' || array_key_exists($key, $state)) {
                 continue;
             }
 
-            $state[$key] = false;
+            $state[$key] = $this->isBooleanField($field) ? false : null;
         }
 
         return $state;
+    }
+
+    /**
+     * @param array<string, mixed> $state
+     * @param list<array<string, mixed>> $fields
+     *
+     * @return array<string, mixed>
+     */
+    private function normalizeFieldStateValues(array $state, array $fields): array
+    {
+        foreach ($fields as $field) {
+            $key = trim((string) Arr::get($field, 'key', ''));
+
+            if ($key === '' || !array_key_exists($key, $state) || !$this->isStringField($field)) {
+                continue;
+            }
+
+            $state[$key] = $this->normalizeStringFieldValue($state[$key]);
+        }
+
+        return $state;
+    }
+
+    /**
+     * @param array<string, mixed> $field
+     */
+    private function isStringField(array $field): bool
+    {
+        $type = (string) Arr::get($field, Field::ATTRIBUTE_TYPE, '');
+        $renderer = (string) Arr::get($field, Field::ATTRIBUTE_RENDERER, '');
+
+        return $type === Field::TYPE_TEXT
+            || $type === Field::TYPE_TEXTAREA
+            || $renderer === FieldRenderer::Input->value
+            || $renderer === FieldRenderer::Textarea->value;
+    }
+
+    private function normalizeStringFieldValue(mixed $value): mixed
+    {
+        if ($value === null) {
+            return null;
+        }
+
+        if ($value instanceof \BackedEnum) {
+            return (string) $value->value;
+        }
+
+        if (is_scalar($value) || $value instanceof \Stringable) {
+            return (string) $value;
+        }
+
+        return $value;
     }
 
     /**
@@ -163,6 +222,77 @@ final readonly class ResourceFormDataSource
         }
 
         return $filtered;
+    }
+
+    /**
+     * @param list<array<string, mixed>> $schema
+     * @param class-string<Resource> $resourceClass
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function removeGeneratedPrimaryKeyNodes(array $schema, string $resourceClass): array
+    {
+        $generatedPrimaryKeyName = $resourceClass::generatedPrimaryKeyName();
+
+        if ($generatedPrimaryKeyName === null) {
+            return $schema;
+        }
+
+        return array_values(array_filter(
+            array_map(
+                fn (array $node): ?array => $this->removeGeneratedPrimaryKeyNode($node, $generatedPrimaryKeyName),
+                $schema,
+            ),
+            static fn (?array $node): bool => $node !== null,
+        ));
+    }
+
+    /**
+     * @param array<string, mixed> $node
+     *
+     * @return array<string, mixed>|null
+     */
+    private function removeGeneratedPrimaryKeyNode(array $node, string $generatedPrimaryKeyName): ?array
+    {
+        $kind = FormSchemaNodeKind::from((string) Arr::get($node, 'kind', FormSchemaNodeKind::Field->value));
+
+        if ($kind === FormSchemaNodeKind::Field) {
+            return (string) Arr::get($node, 'key', '') === $generatedPrimaryKeyName ? null : $node;
+        }
+
+        if ($kind === FormSchemaNodeKind::Tabs) {
+            $tabs = array_values(array_filter(
+                array_map(
+                    fn (array $tab): ?array => $this->removeGeneratedPrimaryKeyNode($tab, $generatedPrimaryKeyName),
+                    (array) Arr::get($node, 'tabs', []),
+                ),
+                static fn (?array $tab): bool => $tab !== null,
+            ));
+
+            if ($tabs === []) {
+                return null;
+            }
+
+            $node['tabs'] = $tabs;
+
+            return $node;
+        }
+
+        $nestedSchema = array_values(array_filter(
+            array_map(
+                fn (array $childNode): ?array => $this->removeGeneratedPrimaryKeyNode($childNode, $generatedPrimaryKeyName),
+                (array) Arr::get($node, 'schema', []),
+            ),
+            static fn (?array $childNode): bool => $childNode !== null,
+        ));
+
+        if ($nestedSchema === []) {
+            return null;
+        }
+
+        $node['schema'] = $nestedSchema;
+
+        return $node;
     }
 
     /**

@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import { router, useForm } from '@inertiajs/vue3'
+import { useToast } from '@nuxt/ui/composables'
 import SimpleFormShell from '@/components/flashboard/forms/layout/SimpleFormShell.vue'
 import DatePickerFilter from '@/components/flashboard/table/DatePickerFilter.vue'
 import LazySelectFilter from '@/components/flashboard/table/LazySelectFilter.vue'
@@ -150,7 +151,9 @@ const props = defineProps<{
 }>()
 
 const TABLE_INPUT_FILTER_AUTOSUBMIT_DELAY_MS = 1000
+const OPERATION_TOAST_DURATION_MS = 2000
 const form = useForm<Record<string, unknown>>({})
+const toast = useToast()
 const tableInputFilterTimers = new Map<string, ReturnType<typeof setTimeout>>()
 const tableInputFilterValues = reactive<Record<string, string>>({})
 const tableFilterPopoverOpen = reactive<Record<string, boolean>>({})
@@ -162,11 +165,7 @@ let tableSearchTimer: ReturnType<typeof setTimeout> | null = null
 const pagination = computed(() => props.payload.table?.dataset?.pagination)
 const hasPagination = computed(() => (pagination.value?.last_page ?? 1) > 1)
 
-const isCreateForm = computed(() => props.payload.resource?.page === 'create' || props.payload.form?.mode === 'create')
-const allowedFormFields = computed(() => removeGeneratedPrimaryKeyFields(props.payload.form?.fields ?? []))
-const formSchema = computed(() =>
-  removeGeneratedPrimaryKeyNodes(props.payload.form?.schema ?? allowedFormFields.value),
-)
+const formSchema = computed(() => props.payload.form?.schema ?? props.payload.form?.fields ?? [])
 
 const detailEntries = computed(() => props.payload.detail?.entries ?? [])
 const detailEntryMap = computed(() => new Map(
@@ -936,62 +935,6 @@ function updateFieldValue(fieldKey: string, value: unknown) {
   form[fieldKey] = value
 }
 
-function shouldHideGeneratedPrimaryKeyField(field: FormFieldShape): boolean {
-  return isCreateForm.value && field.key === 'id'
-}
-
-function removeGeneratedPrimaryKeyFields(fields: FormFieldShape[]): FormFieldShape[] {
-  return fields.filter((field) => !shouldHideGeneratedPrimaryKeyField(field))
-}
-
-function removeGeneratedPrimaryKeyNodes(nodes: FormNodeShape[]): FormNodeShape[] {
-  return nodes
-    .map((node) => {
-      if (node.kind === 'section') {
-        return {
-          ...node,
-          schema: removeGeneratedPrimaryKeyNodes(node.schema ?? []),
-        }
-      }
-
-      if (node.kind === 'tab') {
-        return {
-          ...node,
-          schema: removeGeneratedPrimaryKeyNodes(node.schema ?? []),
-        }
-      }
-
-      if (node.kind === 'tabs') {
-        return {
-          ...node,
-          tabs: (node.tabs ?? [])
-            .map((tab) => ({
-              ...tab,
-              schema: removeGeneratedPrimaryKeyNodes(tab.schema ?? []),
-            }))
-            .filter((tab) => (tab.schema ?? []).length > 0),
-        }
-      }
-
-      return shouldHideGeneratedPrimaryKeyField(node) ? null : node
-    })
-    .filter((node): node is FormNodeShape => {
-      if (node === null) {
-        return false
-      }
-
-      if (node.kind === 'section' || node.kind === 'tab') {
-        return (node.schema ?? []).length > 0
-      }
-
-      if (node.kind === 'tabs') {
-        return (node.tabs ?? []).length > 0
-      }
-
-      return true
-    })
-}
-
 function submitForm() {
   const submit = props.payload.form?.submit
 
@@ -1000,11 +943,25 @@ function submitForm() {
   }
 
   if (submit.method === 'put') {
-    form.put(submit.url)
+    form.put(submit.url, {
+      onError: () => showOperationFailureToast('The form could not be saved. Please check the highlighted fields.'),
+    })
     return
   }
 
-  form.post(submit.url)
+  form.post(submit.url, {
+    onError: () => showOperationFailureToast('The form could not be saved. Please check the highlighted fields.'),
+  })
+}
+
+function showOperationFailureToast(message: string) {
+  toast.add({
+    title: message,
+    color: 'error',
+    icon: 'i-lucide-circle-x',
+    duration: OPERATION_TOAST_DURATION_MS,
+    type: 'foreground',
+  })
 }
 
 function runAction(action: ActionShape, confirmed = false) {
