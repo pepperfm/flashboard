@@ -293,31 +293,34 @@ function rowActionConfirmationPopover(action: ActionShape) {
 
   return h(UPopover, {
     key: `confirm-${key}`,
-    content: { align: 'end', side: 'top', sideOffset: 8 },
+    content: { align: 'end', collisionPadding: 12, side: 'top', sideOffset: 8 },
     open: rowActionConfirmationOpen[key] ?? false,
+    ui: { content: 'w-52 p-3' },
     'onUpdate:open': (open: boolean) => {
       rowActionConfirmationOpen[key] = open
     },
   }, {
     default: () => rowActionButton(action),
-    content: () => h('div', { class: 'row-action-confirmation' }, [
-      h('p', { class: 'row-action-confirmation__message' }, rowActionConfirmationMessage(action)),
-      h('div', { class: 'row-action-confirmation__actions' }, [
+    content: () => h('div', { class: 'grid gap-3' }, [
+      h('p', { class: 'm-0 text-sm font-medium leading-5 text-highlighted' }, rowActionConfirmationMessage(action)),
+      h('div', { class: 'flex justify-end gap-2' }, [
         h(UButton, {
           color: 'neutral',
+          label: 'Отмена',
           size: 'xs',
           variant: 'ghost',
           onClick: () => closeRowActionConfirmation(key),
-        }, () => 'Отмена'),
+        }),
         h(UButton, {
           color: action.color ?? 'error',
+          label: rowActionConfirmationSubmitLabel(action),
           size: 'xs',
           variant: 'solid',
           onClick: () => {
             closeRowActionConfirmation(key)
             runAction(action, true)
           },
-        }, () => rowActionConfirmationSubmitLabel(action)),
+        }),
       ]),
     ]),
   })
@@ -1468,28 +1471,6 @@ function formatValue(value: unknown): string {
 }
 
 .row-actions {
-  display: flex;
-  gap: 0.5rem;
-  justify-content: flex-end;
-}
-
-.row-action-confirmation {
-  display: flex;
-  flex-direction: column;
-  gap: 0.75rem;
-  min-width: 11rem;
-  padding: 0.75rem;
-}
-
-.row-action-confirmation__message {
-  color: var(--ui-text-highlighted);
-  font-size: 0.875rem;
-  font-weight: 600;
-  line-height: 1.25rem;
-  margin: 0;
-}
-
-.row-action-confirmation__actions {
   display: flex;
   gap: 0.5rem;
   justify-content: flex-end;

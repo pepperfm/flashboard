@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.1.12 - 2026-05-26
+
+- tighten destructive row-action confirmation popover styling to use Nuxt UI content and utility classes
+
 ## 0.1.11 - 2026-05-26
 
 - show a row-action confirmation popover for destructive table actions instead of using a browser confirm dialog
