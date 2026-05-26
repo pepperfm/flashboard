@@ -155,6 +155,7 @@ const tableInputFilterTimers = new Map<string, ReturnType<typeof setTimeout>>()
 const tableInputFilterValues = reactive<Record<string, string>>({})
 const tableFilterPopoverOpen = reactive<Record<string, boolean>>({})
 const tableFilterSearchTerms = reactive<Record<string, string>>({})
+const rowActionConfirmationOpen = reactive<Record<string, boolean>>({})
 const tableSearchValue = ref('')
 let tableSearchTimer: ReturnType<typeof setTimeout> | null = null
 
@@ -257,11 +258,18 @@ onBeforeUnmount(() => {
   clearTableSearchTimer()
 })
 
-function rowActionButton(action: ActionShape) {
+function rowActionControl(action: ActionShape) {
+  if (action.requires_confirmation) {
+    return rowActionConfirmationPopover(action)
+  }
+
+  return rowActionButton(action, () => runAction(action))
+}
+
+function rowActionButton(action: ActionShape, onClick?: () => void) {
   const UButton = resolveComponent('UButton')
   const label = rowActionLabel(action)
-
-  return h(UButton, {
+  const props: Record<string, unknown> = {
     'aria-label': label,
     color: action.color ?? 'neutral',
     icon: action.icon ?? fallbackRowActionIcon(action.key),
@@ -269,8 +277,66 @@ function rowActionButton(action: ActionShape) {
     square: true,
     title: label,
     variant: 'ghost',
-    onClick: () => runAction(action),
+  }
+
+  if (onClick !== undefined) {
+    props.onClick = onClick
+  }
+
+  return h(UButton, props)
+}
+
+function rowActionConfirmationPopover(action: ActionShape) {
+  const UPopover = resolveComponent('UPopover')
+  const UButton = resolveComponent('UButton')
+  const key = rowActionConfirmationKey(action)
+
+  return h(UPopover, {
+    key: `confirm-${key}`,
+    content: { align: 'end', side: 'top', sideOffset: 8 },
+    open: rowActionConfirmationOpen[key] ?? false,
+    'onUpdate:open': (open: boolean) => {
+      rowActionConfirmationOpen[key] = open
+    },
+  }, {
+    default: () => rowActionButton(action),
+    content: () => h('div', { class: 'row-action-confirmation' }, [
+      h('p', { class: 'row-action-confirmation__message' }, rowActionConfirmationMessage(action)),
+      h('div', { class: 'row-action-confirmation__actions' }, [
+        h(UButton, {
+          color: 'neutral',
+          size: 'xs',
+          variant: 'ghost',
+          onClick: () => closeRowActionConfirmation(key),
+        }, () => 'Отмена'),
+        h(UButton, {
+          color: action.color ?? 'error',
+          size: 'xs',
+          variant: 'solid',
+          onClick: () => {
+            closeRowActionConfirmation(key)
+            runAction(action, true)
+          },
+        }, () => rowActionConfirmationSubmitLabel(action)),
+      ]),
+    ]),
   })
+}
+
+function rowActionConfirmationKey(action: ActionShape): string {
+  return `${action.method ?? 'post'}:${action.key}:${action.url ?? ''}`
+}
+
+function closeRowActionConfirmation(key: string): void {
+  rowActionConfirmationOpen[key] = false
+}
+
+function rowActionConfirmationMessage(action: ActionShape): string {
+  return action.key === 'delete' ? 'Удалить запись?' : 'Выполнить действие?'
+}
+
+function rowActionConfirmationSubmitLabel(action: ActionShape): string {
+  return action.key === 'delete' ? 'Удалить' : 'Продолжить'
 }
 
 function rowActionLabel(action: ActionShape): string {
@@ -468,7 +534,7 @@ const tableColumns = computed(() => {
       cell: ({ row }: { row: { original: Record<string, unknown> } }) => {
         const actions = row.original.__actions as ActionShape[] | undefined
 
-        return h('div', { class: 'row-actions' }, (actions ?? []).map((action) => rowActionButton(action)))
+        return h('div', { class: 'row-actions' }, (actions ?? []).map((action) => rowActionControl(action)))
       },
     })
   }
@@ -938,12 +1004,12 @@ function submitForm() {
   form.post(submit.url)
 }
 
-function runAction(action: ActionShape) {
+function runAction(action: ActionShape, confirmed = false) {
   if (!action.url) {
     return
   }
 
-  if (action.requires_confirmation && !window.confirm('Are you sure you want to continue?')) {
+  if (action.requires_confirmation && !confirmed && !window.confirm('Are you sure you want to continue?')) {
     return
   }
 
@@ -1402,6 +1468,28 @@ function formatValue(value: unknown): string {
 }
 
 .row-actions {
+  display: flex;
+  gap: 0.5rem;
+  justify-content: flex-end;
+}
+
+.row-action-confirmation {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  min-width: 11rem;
+  padding: 0.75rem;
+}
+
+.row-action-confirmation__message {
+  color: var(--ui-text-highlighted);
+  font-size: 0.875rem;
+  font-weight: 600;
+  line-height: 1.25rem;
+  margin: 0;
+}
+
+.row-action-confirmation__actions {
   display: flex;
   gap: 0.5rem;
   justify-content: flex-end;

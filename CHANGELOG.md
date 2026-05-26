@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.1.11 - 2026-05-26
+
+- show a row-action confirmation popover for destructive table actions instead of using a browser confirm dialog
+
 ## 0.1.10 - 2026-05-26
 
 - refresh published build assets by default when running `flashboard:build-assets` so stale manifests do not keep loading old UI chunks
