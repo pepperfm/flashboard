@@ -53,7 +53,7 @@ If you want to rebuild package assets later without re-running the full installe
 php artisan flashboard:build-assets
 ```
 
-This command also runs inside the installed Flashboard package directory and republishes Flashboard views and assets after a successful build.
+This command also runs inside the installed Flashboard package directory, refreshes the compiled assets after a successful build, and only overwrites published views when you pass `--force`.
 
 You can bypass the interactive package-manager prompt with an explicit flag:
 

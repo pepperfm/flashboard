@@ -44,7 +44,7 @@ The package is still beta-stage, but the core resource runtime, table engine, fo
 
 Generated resources now use the typed DSL by default and keep legacy arrays only as a migration fallback.
 
-During install, Flashboard builds its frontend assets inside the installed package directory and then publishes the compiled files into the host application at `public/vendor/flashboard/build`. Use `php artisan flashboard:build-assets` when you need to rebuild and republish those assets later.
+During install, Flashboard builds its frontend assets inside the installed package directory and then publishes the compiled files into the host application at `public/vendor/flashboard/build`. Use `php artisan flashboard:build-assets` when you need to rebuild and refresh those published assets later.
 
 ## Local Development
 

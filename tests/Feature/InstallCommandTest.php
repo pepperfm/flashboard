@@ -4,8 +4,10 @@ declare(strict_types=1);
 
 namespace Pepperfm\Flashboard\Tests\Feature;
 
+use Illuminate\Console\Command;
 use Illuminate\Filesystem\Filesystem;
 use Pepperfm\Flashboard\Integration\Laravel\Console\BuildAssetsCommand;
+use Pepperfm\Flashboard\Integration\Laravel\Console\Concerns\InteractsWithFrontendAssets;
 use Pepperfm\Flashboard\Integration\Laravel\Console\InstallCommand;
 use Pepperfm\Flashboard\Tests\TestCase;
 
@@ -103,6 +105,38 @@ final class InstallCommandTest extends TestCase
         self::assertSame(['pnpm', 'run', 'build'], $method->invoke($command, 'pnpm'));
         self::assertSame(['yarn', 'run', 'build'], $method->invoke($command, 'yarn'));
         self::assertSame(['bun', 'run', 'build'], $method->invoke($command, 'bun'));
+    }
+
+    public function test_build_assets_publish_refreshes_assets_without_forcing_views(): void
+    {
+        $publisher = new class extends Command
+        {
+            use InteractsWithFrontendAssets;
+
+            /**
+             * @var list<array{0: string, 1: array<string, mixed>}>
+             */
+            public array $calls = [];
+
+            public function call($command, array $arguments = [])
+            {
+                $this->calls[] = [(string) $command, $arguments];
+
+                return self::SUCCESS;
+            }
+
+            public function publishArtifacts(): void
+            {
+                $this->publishFrontendArtifacts();
+            }
+        };
+
+        $publisher->publishArtifacts();
+
+        self::assertSame('flashboard-views', $publisher->calls[0][1]['--tag'] ?? null);
+        self::assertArrayNotHasKey('--force', $publisher->calls[0][1]);
+        self::assertSame('flashboard-assets', $publisher->calls[1][1]['--tag'] ?? null);
+        self::assertTrue($publisher->calls[1][1]['--force'] ?? false);
     }
 
     private function makeCommand(): InstallCommand

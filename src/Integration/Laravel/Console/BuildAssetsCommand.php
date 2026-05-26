@@ -14,7 +14,7 @@ use function Laravel\Prompts\warning;
 
 #[Signature(
     'flashboard:build-assets
-    {--force : Overwrite published views and assets when supported}
+    {--force : Overwrite published views; compiled assets are always refreshed}
     {--bun : Use bun for install and build}
     {--npm : Use npm for install and build}
     {--pnpm : Use pnpm for install and build}

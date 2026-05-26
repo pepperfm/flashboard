@@ -91,18 +91,23 @@ trait InteractsWithFrontendAssets
         return $files->isDirectory("$workingDirectory/public/build");
     }
 
-    protected function publishFrontendArtifacts(bool $force = false): void
+    protected function publishFrontendArtifacts(bool $forceViews = false, bool $forceAssets = true): void
     {
-        $publishOptions = [
+        $basePublishOptions = [
             '--provider' => FlashboardServiceProvider::class,
         ];
+        $viewPublishOptions = $basePublishOptions;
+        $assetPublishOptions = $basePublishOptions;
 
-        if ($force) {
-            $publishOptions['--force'] = true;
+        if ($forceViews) {
+            $viewPublishOptions['--force'] = true;
+        }
+        if ($forceAssets) {
+            $assetPublishOptions['--force'] = true;
         }
 
-        $this->call('vendor:publish', $publishOptions + ['--tag' => 'flashboard-views']);
-        $this->call('vendor:publish', $publishOptions + ['--tag' => 'flashboard-assets']);
+        $this->call('vendor:publish', $viewPublishOptions + ['--tag' => 'flashboard-views']);
+        $this->call('vendor:publish', $assetPublishOptions + ['--tag' => 'flashboard-assets']);
     }
 
     /**

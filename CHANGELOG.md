@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+## 0.1.10 - 2026-05-26
+
+- refresh published build assets by default when running `flashboard:build-assets` so stale manifests do not keep loading old UI chunks
+
 ## 0.1.9 - 2026-05-26
 
 - add resource-level table row actions with explicit edit/delete action builders and policy-aware delete routing
