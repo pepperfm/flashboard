@@ -7,8 +7,11 @@ namespace Pepperfm\Flashboard\Contracts\Forms;
 enum FieldRenderer: string
 {
     case Checkbox = 'checkbox';
+    case Date = 'date';
+    case FileUpload = 'file_upload';
     case Input = 'input';
-    case Textarea = 'textarea';
+    case RichText = 'rich_text';
     case Select = 'select';
     case Switch = 'switch';
+    case Textarea = 'textarea';
 }

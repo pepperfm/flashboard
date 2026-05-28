@@ -44,6 +44,28 @@ final class FormShellRenderingTest extends TestCase
         self::assertStringContainsString('<FormContainerRenderer', $nodeRenderer);
     }
 
+    public function test_renderer_map_registers_advanced_field_wrappers(): void
+    {
+        $map = $this->fixture('resources/js/components/flashboard/forms/renderers/FormFieldRendererMap.ts');
+        $resolver = $this->fixture('resources/js/components/flashboard/forms/renderers/resolveFormFieldRenderer.ts');
+        $screen = $this->fixture('resources/js/components/flashboard/FlashboardScreenContent.vue');
+
+        self::assertStringContainsString('FBDateInput', $map);
+        self::assertStringContainsString('FBFileUpload', $map);
+        self::assertStringContainsString('FBRichText', $map);
+        self::assertStringContainsString('date: FBDateInput', $map);
+        self::assertStringContainsString('file_upload: FBFileUpload', $map);
+        self::assertStringContainsString('rich_text: FBRichText', $map);
+
+        self::assertStringContainsString("return 'date'", $resolver);
+        self::assertStringContainsString("return 'file_upload'", $resolver);
+        self::assertStringContainsString("return 'rich_text'", $resolver);
+        self::assertStringContainsString('forceFormData', $screen);
+        self::assertStringContainsString("_method: 'put'", $screen);
+        self::assertStringContainsString('update:remove-value', $this->fixture('resources/js/components/flashboard/forms/renderers/FormFieldRenderer.vue'));
+        self::assertStringContainsString('Existing file will be removed', $this->fixture('resources/js/components/flashboard/forms/fields/FBFileUpload.vue'));
+    }
+
     private function fixture(string $path): string
     {
         return (string) file_get_contents(dirname(__DIR__, 2) . '/' . $path);

@@ -41,7 +41,7 @@ final class AuditHook implements \Pepperfm\Flashboard\Contracts\Extensions\Runti
     {
         logger()->warning('Flashboard runtime hook triggered', [
             'hook' => $hook,
-            'context' => $context,
+            'payload_keys' => array_keys((array) ($context['payload'] ?? [])),
         ]);
     }
 }
@@ -52,3 +52,4 @@ final class AuditHook implements \Pepperfm\Flashboard\Contracts\Extensions\Runti
 - prefer extensions over forks
 - keep extensions resource-scoped
 - reserve payload extensions for shape changes that cannot be expressed declaratively
+- avoid logging full hook contexts; resource form hooks redact passwords and upload objects, but extension logs should still stay minimal

@@ -11,8 +11,10 @@ use Pepperfm\Flashboard\Contracts\Resources\Resource;
 use Pepperfm\Flashboard\Contracts\Tables\TableContract;
 use Pepperfm\Flashboard\Core\Actions\Builders\Action;
 use Pepperfm\Flashboard\Core\Detail\Entries\TextEntry;
+use Pepperfm\Flashboard\Core\Forms\Fields\DateInput;
+use Pepperfm\Flashboard\Core\Forms\Fields\FileUpload;
+use Pepperfm\Flashboard\Core\Forms\Fields\RichText;
 use Pepperfm\Flashboard\Core\Forms\Fields\Select;
-use Pepperfm\Flashboard\Core\Forms\Fields\Textarea;
 use Pepperfm\Flashboard\Core\Forms\Layout\Section;
 use Pepperfm\Flashboard\Core\Forms\Layout\Tab;
 use Pepperfm\Flashboard\Core\Forms\Layout\Tabs;
@@ -50,7 +52,12 @@ final class OrdersResource extends Resource
             ->schema([
                 Section::make('main')->label('Main')->schema([
                     Select::make('status')->label('Status')->required(),
-                    Textarea::make('notes')->label('Notes'),
+                    DateInput::make('ordered_on')->label('Ordered on'),
+                    RichText::make('notes')->label('Notes')->fullWidth(),
+                    FileUpload::make('receipt')
+                        ->label('Receipt')
+                        ->accept('application/pdf,image/*')
+                        ->directory('order-receipts'),
                 ]),
                 Tabs::make('settings')->tabs([
                     Tab::make('visibility')->label('Visibility')->schema([

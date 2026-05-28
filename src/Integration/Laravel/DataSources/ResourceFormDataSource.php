@@ -13,6 +13,8 @@ use Pepperfm\Flashboard\Contracts\Resources\Resource;
 use Pepperfm\Flashboard\Core\Authorization\Visibility\ScreenAccessResolver;
 use Pepperfm\Flashboard\Core\Extensions\ExtensionRegistry;
 use Pepperfm\Flashboard\Core\Forms\Fields\Field;
+use Pepperfm\Flashboard\Core\Forms\Fields\FileUpload;
+use Pepperfm\Flashboard\Core\Forms\Fields\RichText;
 use Pepperfm\Flashboard\Core\Resources\ResourceSurfaceResolver;
 use Pepperfm\Flashboard\Core\Runtime\Assemblers\FormPayloadAssembler;
 use Pepperfm\Flashboard\Core\Forms\Builders\Form;
@@ -48,6 +50,8 @@ final readonly class ResourceFormDataSource
         );
         if ($record === null) {
             $filteredSchema = $this->removeGeneratedPrimaryKeyNodes($filteredSchema, $resourceClass);
+        } else {
+            $filteredSchema = $this->withExistingFileMetadata($filteredSchema, $record);
         }
 
         $fields = $this->flattenFieldNodes($filteredSchema);
@@ -57,6 +61,11 @@ final readonly class ResourceFormDataSource
             foreach ($fields as $field) {
                 $key = (string) $field['key'];
                 if ($key === '') {
+                    continue;
+                }
+
+                if ($this->isPasswordField($field) || $this->isFileField($field)) {
+                    $state[$key] = null;
                     continue;
                 }
 
@@ -146,11 +155,23 @@ final readonly class ResourceFormDataSource
         foreach ($fields as $field) {
             $key = trim((string) Arr::get($field, 'key', ''));
 
-            if ($key === '' || !array_key_exists($key, $state) || !$this->isStringField($field)) {
+            if ($key === '' || !array_key_exists($key, $state)) {
                 continue;
             }
 
-            $state[$key] = $this->normalizeStringFieldValue($state[$key]);
+            if ($this->isDateField($field)) {
+                $state[$key] = $this->normalizeDateFieldValue($state[$key]);
+                continue;
+            }
+
+            if ($this->isJsonRichTextField($field)) {
+                $state[$key] = $this->normalizeJsonRichTextFieldValue($state[$key]);
+                continue;
+            }
+
+            if ($this->isStringField($field)) {
+                $state[$key] = $this->normalizeStringFieldValue($state[$key]);
+            }
         }
 
         return $state;
@@ -163,11 +184,15 @@ final readonly class ResourceFormDataSource
     {
         $type = (string) Arr::get($field, Field::ATTRIBUTE_TYPE, '');
         $renderer = (string) Arr::get($field, Field::ATTRIBUTE_RENDERER, '');
+        $contentFormat = (string) Arr::get($field, RichText::ATTRIBUTE_CONTENT_FORMAT, RichText::FORMAT_HTML);
 
         return $type === Field::TYPE_TEXT
             || $type === Field::TYPE_TEXTAREA
+            || $type === Field::TYPE_PASSWORD
+            || ($type === Field::TYPE_RICH_TEXT && $contentFormat !== RichText::FORMAT_JSON)
             || $renderer === FieldRenderer::Input->value
-            || $renderer === FieldRenderer::Textarea->value;
+            || $renderer === FieldRenderer::Textarea->value
+            || ($renderer === FieldRenderer::RichText->value && $contentFormat !== RichText::FORMAT_JSON);
     }
 
     private function normalizeStringFieldValue(mixed $value): mixed
@@ -187,6 +212,40 @@ final readonly class ResourceFormDataSource
         return $value;
     }
 
+    private function normalizeDateFieldValue(mixed $value): ?string
+    {
+        if ($value === null || $value === '') {
+            return null;
+        }
+
+        if ($value instanceof \DateTimeInterface) {
+            return $value->format('Y-m-d');
+        }
+
+        if (is_scalar($value) || $value instanceof \Stringable) {
+            $value = trim((string) $value);
+
+            return $value === '' ? null : substr($value, 0, 10);
+        }
+
+        return null;
+    }
+
+    private function normalizeJsonRichTextFieldValue(mixed $value): mixed
+    {
+        if ($value === null || is_array($value)) {
+            return $value;
+        }
+
+        if (is_string($value)) {
+            $decoded = json_decode($value, true);
+
+            return json_last_error() === JSON_ERROR_NONE ? $decoded : null;
+        }
+
+        return null;
+    }
+
     /**
      * @param array<string, mixed> $field
      */
@@ -199,6 +258,163 @@ final readonly class ResourceFormDataSource
             || $type === Field::TYPE_TOGGLE
             || $renderer === FieldRenderer::Checkbox->value
             || $renderer === FieldRenderer::Switch->value;
+    }
+
+    /**
+     * @param array<string, mixed> $field
+     */
+    private function isDateField(array $field): bool
+    {
+        $type = (string) Arr::get($field, Field::ATTRIBUTE_TYPE, '');
+        $renderer = (string) Arr::get($field, Field::ATTRIBUTE_RENDERER, '');
+        $inputType = (string) Arr::get($field, Field::ATTRIBUTE_INPUT_TYPE, '');
+
+        return $type === Field::TYPE_DATE
+            || $renderer === FieldRenderer::Date->value
+            || $inputType === 'date';
+    }
+
+    /**
+     * @param array<string, mixed> $field
+     */
+    private function isPasswordField(array $field): bool
+    {
+        $type = (string) Arr::get($field, Field::ATTRIBUTE_TYPE, '');
+        $inputType = (string) Arr::get($field, Field::ATTRIBUTE_INPUT_TYPE, '');
+
+        return $type === Field::TYPE_PASSWORD || $inputType === 'password';
+    }
+
+    /**
+     * @param array<string, mixed> $field
+     */
+    private function isJsonRichTextField(array $field): bool
+    {
+        $type = (string) Arr::get($field, Field::ATTRIBUTE_TYPE, '');
+        $renderer = (string) Arr::get($field, Field::ATTRIBUTE_RENDERER, '');
+        $contentFormat = (string) Arr::get($field, RichText::ATTRIBUTE_CONTENT_FORMAT, RichText::FORMAT_HTML);
+
+        return $contentFormat === RichText::FORMAT_JSON
+            && ($type === Field::TYPE_RICH_TEXT || $renderer === FieldRenderer::RichText->value);
+    }
+
+    /**
+     * @param array<string, mixed> $field
+     */
+    private function isFileField(array $field): bool
+    {
+        $type = (string) Arr::get($field, Field::ATTRIBUTE_TYPE, '');
+        $renderer = (string) Arr::get($field, Field::ATTRIBUTE_RENDERER, '');
+        $inputType = (string) Arr::get($field, Field::ATTRIBUTE_INPUT_TYPE, '');
+
+        return $type === Field::TYPE_FILE
+            || $renderer === FieldRenderer::FileUpload->value
+            || $inputType === 'file';
+    }
+
+    /**
+     * @param list<array<string, mixed>> $schema
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function withExistingFileMetadata(array $schema, Model $record): array
+    {
+        return array_values(array_map(
+            fn (array $node): array => $this->withExistingFileMetadataForNode($node, $record),
+            $schema,
+        ));
+    }
+
+    /**
+     * @param array<string, mixed> $node
+     *
+     * @return array<string, mixed>
+     */
+    private function withExistingFileMetadataForNode(array $node, Model $record): array
+    {
+        $kind = FormSchemaNodeKind::from((string) Arr::get($node, 'kind', FormSchemaNodeKind::Field->value));
+
+        if ($kind === FormSchemaNodeKind::Field) {
+            if (!$this->isFileField($node)) {
+                return $node;
+            }
+
+            $key = trim((string) Arr::get($node, 'key', ''));
+            $node['existing_files'] = $key === ''
+                ? []
+                : $this->normalizeExistingFileMetadata(data_get($record, $key));
+
+            return $node;
+        }
+
+        if ($kind === FormSchemaNodeKind::Tabs) {
+            $node['tabs'] = $this->withExistingFileMetadata((array) Arr::get($node, 'tabs', []), $record);
+
+            return $node;
+        }
+
+        $node['schema'] = $this->withExistingFileMetadata((array) Arr::get($node, 'schema', []), $record);
+
+        return $node;
+    }
+
+    /**
+     * @return list<array<string, mixed>>
+     */
+    private function normalizeExistingFileMetadata(mixed $value): array
+    {
+        if ($value === null || $value === '') {
+            return [];
+        }
+
+        if (is_array($value) && array_is_list($value)) {
+            $files = [];
+
+            foreach ($value as $item) {
+                $files = array_merge($files, $this->normalizeExistingFileMetadata($item));
+            }
+
+            return $files;
+        }
+
+        if (is_array($value)) {
+            return [$this->normalizeExistingFileArray($value)];
+        }
+
+        if (is_scalar($value) || $value instanceof \Stringable) {
+            $path = (string) $value;
+
+            return [[
+                'name' => basename($path),
+                'path' => $path,
+                'url' => null,
+            ]];
+        }
+
+        return [];
+    }
+
+    /**
+     * @param array<string, mixed> $value
+     *
+     * @return array<string, mixed>
+     */
+    private function normalizeExistingFileArray(array $value): array
+    {
+        $path = Arr::get($value, 'path', Arr::get($value, 'url'));
+        $name = Arr::get($value, 'name');
+
+        if (!is_scalar($name) && !$name instanceof \Stringable) {
+            $name = is_scalar($path) || $path instanceof \Stringable ? basename((string) $path) : null;
+        }
+
+        return [
+            'name' => $name === null ? null : (string) $name,
+            'path' => is_scalar($path) || $path instanceof \Stringable ? (string) $path : null,
+            'url' => is_scalar(Arr::get($value, 'url')) || Arr::get($value, 'url') instanceof \Stringable
+                ? (string) Arr::get($value, 'url')
+                : null,
+        ];
     }
 
     /**

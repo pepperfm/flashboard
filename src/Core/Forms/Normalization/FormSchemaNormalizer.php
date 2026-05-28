@@ -12,7 +12,11 @@ use Pepperfm\Flashboard\Contracts\Forms\FormLayoutDirection;
 use Pepperfm\Flashboard\Contracts\Forms\FormLayoutJustify;
 use Pepperfm\Flashboard\Contracts\Forms\FormLayoutMode;
 use Pepperfm\Flashboard\Contracts\Forms\FormSchemaNodeKind;
+use Pepperfm\Flashboard\Core\Forms\Fields\DateInput;
 use Pepperfm\Flashboard\Core\Forms\Fields\Field;
+use Pepperfm\Flashboard\Core\Forms\Fields\FileUpload;
+use Pepperfm\Flashboard\Core\Forms\Fields\PasswordInput;
+use Pepperfm\Flashboard\Core\Forms\Fields\RichText;
 use Pepperfm\Flashboard\Support\Schema\SchemaNodeNormalizer;
 
 final class FormSchemaNormalizer
@@ -102,11 +106,7 @@ final class FormSchemaNormalizer
 
             $fieldRules[] = $isRequired ? 'required' : 'nullable';
 
-            if (
-                ($renderer === FieldRenderer::Input && $inputType !== 'number')
-                || $renderer === FieldRenderer::Textarea
-                || $inputType === 'email'
-            ) {
+            if ($this->fieldInfersStringRule($field, $renderer, $type, $inputType)) {
                 $fieldRules[] = 'string';
             }
 
@@ -118,6 +118,18 @@ final class FormSchemaNormalizer
                 $fieldRules[] = 'numeric';
             }
 
+            if ($this->isDateField($field, $renderer, $type, $inputType)) {
+                $fieldRules[] = 'date_format:Y-m-d';
+
+                if ($minDate = $this->stringAttribute($field, DateInput::ATTRIBUTE_MIN_DATE)) {
+                    $fieldRules[] = 'after_or_equal:' . $minDate;
+                }
+
+                if ($maxDate = $this->stringAttribute($field, DateInput::ATTRIBUTE_MAX_DATE)) {
+                    $fieldRules[] = 'before_or_equal:' . $maxDate;
+                }
+            }
+
             if (
                 $renderer === FieldRenderer::Checkbox
                 || $renderer === FieldRenderer::Switch
@@ -127,10 +139,177 @@ final class FormSchemaNormalizer
                 $fieldRules[] = 'boolean';
             }
 
+            if ($this->isPasswordField($type, $inputType)) {
+                if ($minLength = $this->positiveIntegerAttribute($field, PasswordInput::ATTRIBUTE_MIN_LENGTH)) {
+                    $fieldRules[] = 'min:' . $minLength;
+                }
+
+                if ($maxLength = $this->positiveIntegerAttribute($field, PasswordInput::ATTRIBUTE_MAX_LENGTH)) {
+                    $fieldRules[] = 'max:' . $maxLength;
+                }
+
+                if ((bool) Arr::get($field, PasswordInput::ATTRIBUTE_CONFIRMED, false)) {
+                    $fieldRules[] = 'confirmed';
+                }
+            }
+
+            if ($renderer === FieldRenderer::RichText || $type === Field::TYPE_RICH_TEXT) {
+                if ((string) Arr::get($field, RichText::ATTRIBUTE_CONTENT_FORMAT, RichText::FORMAT_HTML) === RichText::FORMAT_JSON) {
+                    $fieldRules[] = 'array';
+                }
+
+                if ($minLength = $this->positiveIntegerAttribute($field, RichText::ATTRIBUTE_MIN_LENGTH)) {
+                    $fieldRules[] = 'min:' . $minLength;
+                }
+
+                if ($maxLength = $this->positiveIntegerAttribute($field, RichText::ATTRIBUTE_MAX_LENGTH)) {
+                    $fieldRules[] = 'max:' . $maxLength;
+                }
+            }
+
+            if ($renderer === FieldRenderer::FileUpload || $type === Field::TYPE_FILE || $inputType === 'file') {
+                $fileRules = $this->fileRulesFromField($field);
+                $rules[$key . FileUpload::REMOVE_REQUEST_SUFFIX] = ['nullable', 'boolean'];
+
+                if ((bool) Arr::get($field, FileUpload::ATTRIBUTE_MULTIPLE, false)) {
+                    $fieldRules[] = 'array';
+
+                    if ($maxFiles = $this->positiveIntegerAttribute($field, FileUpload::ATTRIBUTE_MAX_FILES)) {
+                        $fieldRules[] = 'max:' . $maxFiles;
+                    }
+
+                    $rules[$key . '.*'] = $fileRules;
+                } else {
+                    $fieldRules = array_merge($fieldRules, $fileRules);
+                }
+            }
+
             $rules[$key] = array_values(array_unique($fieldRules));
         }
 
         return $rules;
+    }
+
+    /**
+     * @param array<string, mixed> $field
+     */
+    private function fieldInfersStringRule(
+        array $field,
+        FieldRenderer $renderer,
+        string $type,
+        string $inputType,
+    ): bool {
+        if (
+            $renderer === FieldRenderer::RichText
+            && (string) Arr::get($field, RichText::ATTRIBUTE_CONTENT_FORMAT, RichText::FORMAT_HTML) === RichText::FORMAT_JSON
+        ) {
+            return false;
+        }
+
+        return ($renderer === FieldRenderer::Input && !in_array($inputType, ['file', 'number'], true))
+            || $renderer === FieldRenderer::Textarea
+            || $renderer === FieldRenderer::RichText
+            || $type === Field::TYPE_PASSWORD
+            || $inputType === 'email';
+    }
+
+    /**
+     * @param array<string, mixed> $field
+     */
+    private function isDateField(array $field, FieldRenderer $renderer, string $type, string $inputType): bool
+    {
+        return $renderer === FieldRenderer::Date
+            || $type === Field::TYPE_DATE
+            || ($renderer === FieldRenderer::Input && $inputType === 'date');
+    }
+
+    private function isPasswordField(string $type, string $inputType): bool
+    {
+        return $type === Field::TYPE_PASSWORD || $inputType === 'password';
+    }
+
+    /**
+     * @param array<string, mixed> $field
+     *
+     * @return list<string>
+     */
+    private function fileRulesFromField(array $field): array
+    {
+        $rules = ['file'];
+
+        if ($maxSize = $this->positiveIntegerAttribute($field, FileUpload::ATTRIBUTE_MAX_SIZE)) {
+            $rules[] = 'max:' . $maxSize;
+        }
+
+        if ($mimes = $this->stringListAttribute($field, FileUpload::ATTRIBUTE_MIMES)) {
+            $rules[] = 'mimes:' . implode(',', $mimes);
+        }
+
+        if ($mimeTypes = $this->stringListAttribute($field, FileUpload::ATTRIBUTE_MIME_TYPES)) {
+            $rules[] = 'mimetypes:' . implode(',', $mimeTypes);
+        }
+
+        return $rules;
+    }
+
+    /**
+     * @param array<string, mixed> $field
+     */
+    private function stringAttribute(array $field, string $attribute): ?string
+    {
+        $value = Arr::get($field, $attribute);
+
+        if (is_scalar($value) || $value instanceof \Stringable) {
+            $value = trim((string) $value);
+
+            return $value === '' ? null : $value;
+        }
+
+        return null;
+    }
+
+    /**
+     * @param array<string, mixed> $field
+     */
+    private function positiveIntegerAttribute(array $field, string $attribute): ?int
+    {
+        $value = Arr::get($field, $attribute);
+
+        if (!is_int($value) || $value < 1) {
+            return null;
+        }
+
+        return $value;
+    }
+
+    /**
+     * @param array<string, mixed> $field
+     *
+     * @return list<string>
+     */
+    private function stringListAttribute(array $field, string $attribute): array
+    {
+        $value = Arr::get($field, $attribute, []);
+
+        if (!is_array($value)) {
+            return [];
+        }
+
+        $strings = [];
+
+        foreach ($value as $item) {
+            if (!is_scalar($item) && !$item instanceof \Stringable) {
+                continue;
+            }
+
+            $item = trim((string) $item);
+
+            if ($item !== '') {
+                $strings[] = $item;
+            }
+        }
+
+        return $strings;
     }
 
     /**
@@ -412,6 +591,9 @@ final class FormSchemaNormalizer
 
         return match ((string) Arr::get($field, Field::ATTRIBUTE_TYPE, '')) {
             Field::TYPE_CHECKBOX => FieldRenderer::Checkbox,
+            Field::TYPE_DATE => FieldRenderer::Date,
+            Field::TYPE_FILE => FieldRenderer::FileUpload,
+            Field::TYPE_RICH_TEXT => FieldRenderer::RichText,
             Field::TYPE_SELECT => FieldRenderer::Select,
             Field::TYPE_TEXTAREA => FieldRenderer::Textarea,
             Field::TYPE_TOGGLE => FieldRenderer::Switch,

@@ -36,6 +36,7 @@ function fieldError(field: FormFieldShape): string | undefined {
     :model-value="props.state[props.node.key]"
     :error="fieldError(props.node)"
     @update:model-value="emit('update:field', props.node.key, $event)"
+    @update:field="(fieldKey, value) => emit('update:field', fieldKey, value)"
   />
 
   <FormContainerRenderer

@@ -1,13 +1,19 @@
 import type { Component } from 'vue'
 import FBCheckbox from '../fields/FBCheckbox.vue'
+import FBDateInput from '../fields/FBDateInput.vue'
+import FBFileUpload from '../fields/FBFileUpload.vue'
 import FBInput from '../fields/FBInput.vue'
+import FBRichText from '../fields/FBRichText.vue'
 import FBSelect from '../fields/FBSelect.vue'
 import FBSwitch from '../fields/FBSwitch.vue'
 import FBTextarea from '../fields/FBTextarea.vue'
 
 export const formFieldRendererMap = {
   checkbox: FBCheckbox,
+  date: FBDateInput,
+  file_upload: FBFileUpload,
   input: FBInput,
+  rich_text: FBRichText,
   select: FBSelect,
   switch: FBSwitch,
   textarea: FBTextarea,

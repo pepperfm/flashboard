@@ -12,7 +12,11 @@ use Pepperfm\Flashboard\Contracts\Tables\TableContract;
 use Pepperfm\Flashboard\Core\Detail\Entries\TextEntry;
 use Pepperfm\Flashboard\Core\Detail\Layout\Section as DetailSection;
 use Pepperfm\Flashboard\Core\Forms\Fields\Checkbox;
+use Pepperfm\Flashboard\Core\Forms\Fields\DateInput;
+use Pepperfm\Flashboard\Core\Forms\Fields\FileUpload;
 use Pepperfm\Flashboard\Core\Forms\Fields\NumberInput;
+use Pepperfm\Flashboard\Core\Forms\Fields\PasswordInput;
+use Pepperfm\Flashboard\Core\Forms\Fields\RichText;
 use Pepperfm\Flashboard\Core\Forms\Fields\Select;
 use Pepperfm\Flashboard\Core\Forms\Fields\Textarea;
 use Pepperfm\Flashboard\Core\Forms\Fields\TextInput;
@@ -231,5 +235,31 @@ final class TypedSchemaNormalizationTest extends TestCase
             array_column($typedPayload->sections()[0]['schema'], 'renderer', 'key'),
             array_column($arrayPayload->sections()[0]['schema'], 'renderer', 'key'),
         );
+    }
+
+    public function test_advanced_typed_form_fields_normalize_to_runtime_payload_shape(): void
+    {
+        $payload = new FormPayload(
+            Form::make()
+                ->schema([
+                    DateInput::make('published_on')->label('Published on'),
+                    FileUpload::make('receipt')->label('Receipt'),
+                    RichText::make('body')->label('Body')->json(),
+                    PasswordInput::make('password')->label('Password'),
+                ])
+                ->toArray(),
+        );
+
+        self::assertSame(
+            [
+                'published_on' => FieldRenderer::Date->value,
+                'receipt' => FieldRenderer::FileUpload->value,
+                'body' => FieldRenderer::RichText->value,
+                'password' => FieldRenderer::Input->value,
+            ],
+            array_column($payload->fields(), 'renderer', 'key'),
+        );
+        self::assertSame('json', $payload->fields()[2]['content_format']);
+        self::assertSame('password', $payload->fields()[3]['input_type']);
     }
 }

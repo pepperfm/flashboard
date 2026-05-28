@@ -3,8 +3,5 @@
         return $detail->entries([
             TextEntry::make('id')
                 ->label('ID'),
-            TextEntry::make('{{ title_field }}')
-                ->label('{{ title_label }}'),
-{{ secondary_detail_entry }}        ]);
+{{ title_detail_entry }}{{ secondary_detail_entry }}        ]);
     }
-

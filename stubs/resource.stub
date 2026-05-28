@@ -34,10 +34,10 @@ final class {{ class }} extends Resource
 {{ title_form_field }}
 {{ secondary_form_field }}            ])
             ->rules([
-                '{{ title_field }}' => ['required', 'string'],
+{{ title_form_rule }}
 {{ secondary_form_rule }}            ]);
     }
-
+{{ mutate_form_data_method }}
     /**
      * @return list<\Pepperfm\Flashboard\Contracts\Tables\TableActionContract>
      */

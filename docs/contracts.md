@@ -26,6 +26,10 @@ Flashboard currently exposes a beta contract surface.
 ## Renderer Contract
 
 - JSON consumers should read `schema_version`
+- normalized form fields expose stable renderer hints, including `input`, `textarea`, `select`, `checkbox`, `switch`, `date`, `file_upload`, and `rich_text`
+- password fields use the normal `input` renderer with `input_type=password`; renderers must not persist or display hydrated secret values
+- file upload payloads may expose `existing_files` metadata, but must not expose file contents or raw temporary upload details
+- runtime hook payloads and record context redact password values and replace file values with minimal metadata before dispatch
 - Blade consumers should treat layout state, overlays, and notifications as public payloads
 - layout notifications expose `id`, `level`, and `message`; renderers may display them as transient toasts or equivalent feedback
 

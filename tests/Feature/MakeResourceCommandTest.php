@@ -4,6 +4,12 @@ declare(strict_types=1);
 
 namespace Pepperfm\Flashboard\Tests\Feature;
 
+use Pepperfm\Flashboard\Core\Forms\Fields\DateInput;
+use Pepperfm\Flashboard\Core\Forms\Fields\FileUpload;
+use Pepperfm\Flashboard\Core\Forms\Fields\PasswordInput;
+use Pepperfm\Flashboard\Core\Forms\Fields\RichText;
+use Pepperfm\Flashboard\Core\Forms\Fields\Textarea;
+use Pepperfm\Flashboard\Core\Forms\Fields\TextInput;
 use Pepperfm\Flashboard\Integration\Laravel\Console\MakeResourceCommand;
 use Pepperfm\Flashboard\Tests\TestCase;
 
@@ -166,6 +172,83 @@ final class MakeResourceCommandTest extends TestCase
             . "                    ->label('Notes'),",
             $content,
         );
+    }
+
+    public function test_generator_selects_purpose_built_form_fields_for_common_names(): void
+    {
+        $reflection = new \ReflectionClass(MakeResourceCommand::class);
+        $importMethod = $reflection->getMethod('formFieldImport');
+        $importMethod->setAccessible(true);
+        $ruleMethod = $reflection->getMethod('formRule');
+        $ruleMethod->setAccessible(true);
+        $command = $reflection->newInstanceWithoutConstructor();
+
+        self::assertSame(PasswordInput::class, $importMethod->invoke($command, 'password'));
+        self::assertSame(DateInput::class, $importMethod->invoke($command, 'published_date'));
+        self::assertSame(FileUpload::class, $importMethod->invoke($command, 'avatar'));
+        self::assertSame(RichText::class, $importMethod->invoke($command, 'body'));
+        self::assertSame(Textarea::class, $importMethod->invoke($command, 'notes'));
+        self::assertSame(TextInput::class, $importMethod->invoke($command, 'name'));
+
+        self::assertSame(
+            "                'published_date' => ['required', 'date_format:Y-m-d'],",
+            $ruleMethod->invoke($command, 'published_date', true),
+        );
+        self::assertSame(
+            "                'avatar' => ['nullable', 'file'],",
+            $ruleMethod->invoke($command, 'avatar', false),
+        );
+    }
+
+    public function test_render_stub_uses_advanced_field_imports_and_rules(): void
+    {
+        $content = $this->renderResourceStub(
+            titleField: 'published_date',
+            secondaryField: 'avatar',
+            includeDetail: false,
+        );
+
+        self::assertStringContainsString('use Pepperfm\\Flashboard\\Core\\Forms\\Fields\\DateInput;', $content);
+        self::assertStringContainsString('use Pepperfm\\Flashboard\\Core\\Forms\\Fields\\FileUpload;', $content);
+        self::assertStringContainsString("DateInput::make('published_date')", $content);
+        self::assertStringContainsString("FileUpload::make('avatar')", $content);
+        self::assertStringContainsString("->directory('avatar')", $content);
+        self::assertStringContainsString("'published_date' => ['required', 'date_format:Y-m-d'],", $content);
+        self::assertStringContainsString("'avatar' => ['nullable', 'file'],", $content);
+        self::assertStringNotContainsString('use Pepperfm\\Flashboard\\Contracts\\Forms\\FieldRenderer;', $content);
+    }
+
+    public function test_render_stub_hashes_generated_password_fields(): void
+    {
+        $content = $this->renderResourceStub(
+            titleField: 'name',
+            secondaryField: 'password',
+            includeDetail: false,
+        );
+
+        self::assertStringContainsString('use Pepperfm\\Flashboard\\Core\\Forms\\Fields\\PasswordInput;', $content);
+        self::assertStringContainsString("PasswordInput::make('password')", $content);
+        self::assertStringContainsString('public static function mutateFormDataBeforeSave', $content);
+        self::assertStringContainsString("\$data['password'] = \\Illuminate\\Support\\Facades\\Hash::make((string) \$data['password']);", $content);
+        self::assertStringNotContainsString(PHP_EOL . PHP_EOL . PHP_EOL, $content);
+    }
+
+    public function test_render_stub_does_not_expose_password_fields_in_table_or_detail(): void
+    {
+        $content = $this->renderResourceStub(
+            titleField: 'password',
+            secondaryField: 'current_password',
+            includeDetail: true,
+        );
+
+        self::assertStringContainsString("PasswordInput::make('password')", $content);
+        self::assertStringContainsString("PasswordInput::make('current_password')", $content);
+        self::assertStringNotContainsString("TextColumn::make('password')", $content);
+        self::assertStringNotContainsString("TextColumn::make('current_password')", $content);
+        self::assertStringNotContainsString("TextEntry::make('password')", $content);
+        self::assertStringNotContainsString("TextEntry::make('current_password')", $content);
+        self::assertSame(1, substr_count($content, "TextColumn::make('id')"));
+        self::assertSame(1, substr_count($content, "TextEntry::make('id')"));
     }
 
     private function renderResourceStub(

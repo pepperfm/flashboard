@@ -6,7 +6,7 @@ Full documentation lives at [flashboard.pepperfm.com](https://flashboard.pepperf
 The current primary DX is a typed, declarative resource API:
 
 - `table()` with typed columns and filters such as `TextColumn`, `BadgeColumn`, `DateColumn`, `SelectFilter`, `InputFilter`, and `DateFilter`
-- `form()` with typed fields such as `TextInput`, `Textarea`, `NumberInput`, `Select`, `Checkbox`, and `Toggle`, plus optional layout nodes such as `Section` and `Tab` when grouping is truly needed
+- `form()` with typed fields such as `TextInput`, `Textarea`, `NumberInput`, `DateInput`, `FileUpload`, `RichText`, `PasswordInput`, `Select`, `Checkbox`, and `Toggle`, plus optional layout nodes such as `Section` and `Tab` when grouping is truly needed
 - `detail()` / `infolist()` with typed entries such as `TextEntry`
 - `actions()` and `pages()` as part of the same package-owned resource surface model
 

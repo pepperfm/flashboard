@@ -10,6 +10,9 @@ export type FormOptionShape = {
 }
 
 export type FormFieldShape = {
+  accept?: string
+  content_format?: 'html' | 'markdown' | 'json'
+  existing_files?: Array<{ name?: string | null; path?: string | null; url?: string | null }>
   kind?: 'field'
   help?: string
   hint?: string
@@ -17,10 +20,20 @@ export type FormFieldShape = {
   key: string
   label?: string
   layout?: FormFieldLayoutShape
+  max_date?: string
+  max_files?: number
+  max_size?: number
+  min_date?: string
+  mimes?: string[]
+  mime_types?: string[]
+  multiple?: boolean
+  native?: boolean
   options?: FormOptionShape[] | Record<string, FormOptionValue>
   placeholder?: string
+  preview?: boolean
   renderer?: string
   required?: boolean
+  store_files?: boolean
   type?: string
 }
 
@@ -62,6 +75,18 @@ function isFormFieldRendererKey(value: string): value is FormFieldRendererKey {
 }
 
 function fallbackRendererForType(type?: string): FormFieldRendererKey {
+  if (type === 'date') {
+    return 'date'
+  }
+
+  if (type === 'file') {
+    return 'file_upload'
+  }
+
+  if (type === 'rich_text') {
+    return 'rich_text'
+  }
+
   if (type === 'select') {
     return 'select'
   }
@@ -136,6 +161,37 @@ export function resolveFormFieldRendererProps(field: FormFieldShape): Record<str
       description: field.help ?? field.hint,
       label: field.label ?? field.key,
       name: field.key,
+      required: field.required,
+    }
+  }
+
+  if (renderer === 'date') {
+    return {
+      maxDate: field.max_date,
+      minDate: field.min_date,
+      name: field.key,
+      native: field.native,
+      placeholder,
+      required: field.required,
+    }
+  }
+
+  if (renderer === 'file_upload') {
+    return {
+      accept: field.accept,
+      existingFiles: field.existing_files ?? [],
+      multiple: field.multiple,
+      name: field.key,
+      preview: field.preview,
+      required: field.required,
+    }
+  }
+
+  if (renderer === 'rich_text') {
+    return {
+      contentFormat: field.content_format ?? 'html',
+      name: field.key,
+      placeholder,
       required: field.required,
     }
   }

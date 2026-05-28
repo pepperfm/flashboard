@@ -14,12 +14,17 @@ const props = defineProps<{
 }>()
 
 const emit = defineEmits<{
+  'update:field': [fieldKey: string, value: unknown]
   'update:modelValue': [value: unknown]
 }>()
 
 const component = computed(() => resolveFormFieldRenderer(props.field))
 const componentProps = computed(() => resolveFormFieldRendererProps(props.field))
 const isInlineBooleanField = computed(() => isInlineBooleanFieldRenderer(props.field))
+
+function fileRemoveFieldKey(fieldKey: string): string {
+  return `${fieldKey}__remove`
+}
 </script>
 
 <template>
@@ -37,6 +42,7 @@ const isInlineBooleanField = computed(() => isInlineBooleanFieldRenderer(props.f
       :model-value="props.modelValue"
       v-bind="componentProps"
       @update:model-value="emit('update:modelValue', $event)"
+      @update:remove-value="emit('update:field', fileRemoveFieldKey(props.field.key), $event)"
     />
   </UFormField>
 
@@ -50,6 +56,7 @@ const isInlineBooleanField = computed(() => isInlineBooleanFieldRenderer(props.f
       :model-value="props.modelValue"
       v-bind="componentProps"
       @update:model-value="emit('update:modelValue', $event)"
+      @update:remove-value="emit('update:field', fileRemoveFieldKey(props.field.key), $event)"
     />
   </UFormField>
 </template>

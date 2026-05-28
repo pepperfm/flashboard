@@ -11,6 +11,10 @@ use Pepperfm\Flashboard\Contracts\Forms\FormContract;
 use Pepperfm\Flashboard\Contracts\Resources\Resource;
 use Pepperfm\Flashboard\Contracts\Tables\TableContract;
 use Pepperfm\Flashboard\Core\Detail\Entries\TextEntry;
+use Pepperfm\Flashboard\Core\Forms\Fields\DateInput;
+use Pepperfm\Flashboard\Core\Forms\Fields\FileUpload;
+use Pepperfm\Flashboard\Core\Forms\Fields\PasswordInput;
+use Pepperfm\Flashboard\Core\Forms\Fields\RichText;
 use Pepperfm\Flashboard\Core\Forms\Fields\Textarea;
 use Pepperfm\Flashboard\Core\Forms\Fields\TextInput;
 use Pepperfm\Flashboard\Core\Tables\Actions\DeleteAction;
@@ -159,7 +163,9 @@ final class MakeResourceCommand extends \Illuminate\Console\Command
                 '{{ title_form_field }}',
                 '{{ secondary_form_field }}',
                 '{{ secondary_table_column }}',
+                '{{ title_form_rule }}',
                 '{{ secondary_form_rule }}',
+                '{{ mutate_form_data_method }}',
                 '{{ detail_method }}',
             ],
             [
@@ -174,7 +180,9 @@ final class MakeResourceCommand extends \Illuminate\Console\Command
                 $this->formField($titleField, required: true),
                 $this->secondaryFormField($secondaryField),
                 $this->secondaryTableColumn($secondaryField),
+                $this->formRule($titleField, required: true),
                 $this->secondaryFormRule($secondaryField),
+                $this->renderMutateFormDataMethod($titleField, $secondaryField),
                 $this->renderDetailMethod($titleField, $secondaryField, $includeDetail),
             ],
             $stub,
@@ -183,7 +191,7 @@ final class MakeResourceCommand extends \Illuminate\Console\Command
 
     private function primaryTableColumns(string $titleField): string
     {
-        if ($titleField === 'id') {
+        if ($titleField === 'id' || $this->usesPasswordField($titleField)) {
             return implode(PHP_EOL, [
                 "                TextColumn::make('id')",
                 "                    ->label('ID')",
@@ -217,7 +225,7 @@ final class MakeResourceCommand extends \Illuminate\Console\Command
 
     private function secondaryTableColumn(string $secondaryField): string
     {
-        if ($secondaryField === '') {
+        if ($secondaryField === '' || $this->usesPasswordField($secondaryField)) {
             return '';
         }
 
@@ -236,7 +244,7 @@ final class MakeResourceCommand extends \Illuminate\Console\Command
             return '';
         }
 
-        return "                '$secondaryField' => ['nullable', 'string']," . PHP_EOL;
+        return $this->formRule($secondaryField, required: false) . PHP_EOL;
     }
 
     private function secondaryFormField(string $secondaryField): string
@@ -259,6 +267,10 @@ final class MakeResourceCommand extends \Illuminate\Console\Command
             $lines[] = '                    ->email()';
         }
 
+        if ($this->usesFileUploadField($field)) {
+            $lines[] = "                    ->directory('" . $this->defaultFileUploadDirectory($field) . "')";
+        }
+
         if ($required) {
             $lines[] = '                    ->required()';
         }
@@ -274,7 +286,28 @@ final class MakeResourceCommand extends \Illuminate\Console\Command
      */
     private function formFieldImport(string $field): string
     {
+        if ($this->usesPasswordField($field)) {
+            return PasswordInput::class;
+        }
+
+        if ($this->usesDateField($field)) {
+            return DateInput::class;
+        }
+
+        if ($this->usesFileUploadField($field)) {
+            return FileUpload::class;
+        }
+
+        if ($this->usesRichTextField($field)) {
+            return RichText::class;
+        }
+
         return $this->usesTextareaField($field) ? Textarea::class : TextInput::class;
+    }
+
+    private function defaultFileUploadDirectory(string $field): string
+    {
+        return str($field)->kebab()->toString();
     }
 
     private function formFieldClass(string $field): string
@@ -287,13 +320,85 @@ final class MakeResourceCommand extends \Illuminate\Console\Command
         return str_contains(strtolower($field), 'email');
     }
 
+    private function formRule(string $field, bool $required): string
+    {
+        $rules = [$required ? 'required' : 'nullable'];
+
+        if ($this->usesDateField($field)) {
+            $rules[] = 'date_format:Y-m-d';
+        } elseif ($this->usesFileUploadField($field)) {
+            $rules[] = 'file';
+        } else {
+            $rules[] = 'string';
+        }
+
+        $rulesList = implode(', ', array_map(static fn (string $rule): string => "'$rule'", $rules));
+
+        return "                '$field' => [$rulesList],";
+    }
+
+    private function usesPasswordField(string $field): bool
+    {
+        return $field !== '' && (bool) preg_match('/(?:^|_)password(?:_|$)/i', $field);
+    }
+
+    private function usesDateField(string $field): bool
+    {
+        return $field !== '' && (bool) preg_match('/(?:^date$|_date$|_on$|^dob$)/i', $field);
+    }
+
+    private function usesFileUploadField(string $field): bool
+    {
+        return $field !== '' && (bool) preg_match('/(?:^|_)(?:avatar|image|photo|file|attachment|document|logo)(?:_|$)/i', $field);
+    }
+
+    private function usesRichTextField(string $field): bool
+    {
+        return $field !== '' && (bool) preg_match('/(?:^|_)(?:body|content)(?:_|$)/i', $field);
+    }
+
     private function usesTextareaField(string $field): bool
     {
         if ($field === '') {
             return false;
         }
 
-        return (bool) preg_match('/(?:description|notes|content|body)/i', $field);
+        return (bool) preg_match('/(?:description|notes)/i', $field);
+    }
+
+    private function renderMutateFormDataMethod(string $titleField, string $secondaryField): string
+    {
+        $passwordFields = array_values(array_unique(array_filter(
+            [$titleField, $secondaryField],
+            fn (string $field): bool => $this->usesPasswordField($field) && !str_ends_with($field, '_confirmation'),
+        )));
+
+        if ($passwordFields === []) {
+            return '';
+        }
+
+        $lines = [
+            '',
+            '    /**',
+            '     * @param array<string, mixed> $data',
+            '     *',
+            '     * @return array<string, mixed>',
+            '     */',
+            '    public static function mutateFormDataBeforeSave(array $data, ?\Illuminate\Database\Eloquent\Model $record = null): array',
+            '    {',
+        ];
+
+        foreach ($passwordFields as $field) {
+            $lines[] = "        if (isset(\$data['$field']) && \$data['$field'] !== '') {";
+            $lines[] = "            \$data['$field'] = \Illuminate\Support\Facades\Hash::make((string) \$data['$field']);";
+            $lines[] = '        }';
+            $lines[] = '';
+        }
+
+        $lines[] = '        return $data;';
+        $lines[] = '    }';
+
+        return implode(PHP_EOL, $lines) . PHP_EOL;
     }
 
     private function renderDetailMethod(
@@ -309,20 +414,34 @@ final class MakeResourceCommand extends \Illuminate\Console\Command
             [
                 '{{ title_field }}',
                 '{{ title_label }}',
+                '{{ title_detail_entry }}',
                 '{{ secondary_detail_entry }}',
             ],
             [
                 $titleField,
                 $this->fieldLabel($titleField),
+                $this->primaryDetailEntry($titleField),
                 $this->secondaryDetailEntry($secondaryField),
             ],
             $this->stubContents('resource-detail-method.stub'),
         );
     }
 
+    private function primaryDetailEntry(string $titleField): string
+    {
+        if ($titleField === 'id' || $this->usesPasswordField($titleField)) {
+            return '';
+        }
+
+        return implode(PHP_EOL, [
+            "            TextEntry::make('$titleField')",
+            "                ->label('" . $this->fieldLabel($titleField) . "'),",
+        ]) . PHP_EOL;
+    }
+
     private function secondaryDetailEntry(string $secondaryField): string
     {
-        if ($secondaryField === '') {
+        if ($secondaryField === '' || $this->usesPasswordField($secondaryField)) {
             return '';
         }
 

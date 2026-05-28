@@ -21,6 +21,10 @@ class Field extends SchemaNode
 
     public const string TYPE_SELECT = 'select';
     public const string TYPE_CHECKBOX = 'checkbox';
+    public const string TYPE_DATE = 'date';
+    public const string TYPE_FILE = 'file';
+    public const string TYPE_PASSWORD = 'password';
+    public const string TYPE_RICH_TEXT = 'rich_text';
     public const string TYPE_TEXT = 'text';
     public const string TYPE_TEXTAREA = 'textarea';
     public const string TYPE_TOGGLE = 'toggle';

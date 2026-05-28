@@ -10,7 +10,7 @@
 
 1. Review whether your host app should move from explicit registration to `Flashboard::configure()->discover()`
 2. Keep explicit `resource()` / `page()` registration only for overrides or non-standard directories
-3. Review whether legacy resource arrays should move to the typed resource DSL (`TextColumn`, `TextInput`, `TextEntry`, `Section`, `Tab`)
+3. Review whether legacy resource arrays should move to the typed resource DSL (`TextColumn`, `TextInput`, `DateInput`, `FileUpload`, `RichText`, `PasswordInput`, `TextEntry`, `Section`, `Tab`)
 4. Re-run host-app validation from `examples/host-app/README.md`
 5. Verify custom extensions against new contracts
 6. Re-test protected panel routes and JSON payload consumers
@@ -89,6 +89,8 @@ Migration rules:
 - typed schema nodes are the recommended authoring style for new resources
 - legacy arrays remain valid as compatibility input
 - runtime payloads are normalized from both styles into the same schema contract
+- prefer purpose-built form fields over renderer overrides for dates, uploads, rich text, and passwords
+- if an edit form previously hydrated password or file columns as text, migrate those fields to `PasswordInput` or `FileUpload`; edit state now intentionally keeps those values empty and exposes only safe file metadata
 - `detail()` remains supported and `infolist()` is the concept-aligned alias for new resource classes
 - `php artisan flashboard:make-resource` now generates typed table/form/infolist definitions and resource-level edit/delete row actions by default
 

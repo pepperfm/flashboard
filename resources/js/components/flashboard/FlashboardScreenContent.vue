@@ -166,6 +166,7 @@ const pagination = computed(() => props.payload.table?.dataset?.pagination)
 const hasPagination = computed(() => (pagination.value?.last_page ?? 1) > 1)
 
 const formSchema = computed(() => props.payload.form?.schema ?? props.payload.form?.fields ?? [])
+const formFields = computed(() => props.payload.form?.fields ?? flattenFormFields(formSchema.value))
 
 const detailEntries = computed(() => props.payload.detail?.entries ?? [])
 const detailEntryMap = computed(() => new Map(
@@ -942,16 +943,84 @@ function submitForm() {
     return
   }
 
+  const hasSelectedFiles = formHasSelectedFiles()
+  const submitOptions = {
+    forceFormData: hasSelectedFiles,
+    onError: () => showOperationFailureToast('The form could not be saved. Please check the highlighted fields.'),
+  }
+
   if (submit.method === 'put') {
-    form.put(submit.url, {
-      onError: () => showOperationFailureToast('The form could not be saved. Please check the highlighted fields.'),
-    })
+    if (hasSelectedFiles) {
+      form
+        .transform((data) => ({
+          ...data,
+          _method: 'put',
+        }))
+        .post(submit.url, {
+          ...submitOptions,
+          onFinish: () => resetFormTransform(),
+        })
+
+      return
+    }
+
+    resetFormTransform()
+    form.put(submit.url, submitOptions)
     return
   }
 
-  form.post(submit.url, {
-    onError: () => showOperationFailureToast('The form could not be saved. Please check the highlighted fields.'),
-  })
+  resetFormTransform()
+  form.post(submit.url, submitOptions)
+}
+
+function resetFormTransform() {
+  form.transform((data) => data)
+}
+
+function formHasSelectedFiles(): boolean {
+  return formFields.value
+    .filter((field) => isFileUploadField(field))
+    .some((field) => containsFileValue(form[field.key]))
+}
+
+function isFileUploadField(field: FormFieldShape): boolean {
+  return field.renderer === 'file_upload' || field.type === 'file' || field.input_type === 'file'
+}
+
+function containsFileValue(value: unknown): boolean {
+  if (typeof File !== 'undefined' && value instanceof File) {
+    return true
+  }
+
+  if (!Array.isArray(value)) {
+    return false
+  }
+
+  return value.some((item) => containsFileValue(item))
+}
+
+function flattenFormFields(nodes: FormNodeShape[]): FormFieldShape[] {
+  const fields: FormFieldShape[] = []
+
+  for (const node of nodes) {
+    if (isFormFieldNode(node)) {
+      fields.push(node)
+      continue
+    }
+
+    if (node.kind === 'tabs') {
+      fields.push(...flattenFormFields(node.tabs ?? []))
+      continue
+    }
+
+    fields.push(...flattenFormFields(node.schema ?? []))
+  }
+
+  return fields
+}
+
+function isFormFieldNode(node: FormNodeShape): node is FormFieldShape {
+  return !node.kind || node.kind === 'field'
 }
 
 function showOperationFailureToast(message: string) {

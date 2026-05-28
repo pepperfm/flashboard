@@ -13,6 +13,10 @@ use Pepperfm\Flashboard\Contracts\Resources\Resource;
 use Pepperfm\Flashboard\Core\Authorization\Visibility\ScreenAccessResolver;
 use Pepperfm\Flashboard\Core\Extensions\ExtensionRegistry;
 use Pepperfm\Flashboard\Core\Forms\Fields\Checkbox;
+use Pepperfm\Flashboard\Core\Forms\Fields\DateInput;
+use Pepperfm\Flashboard\Core\Forms\Fields\FileUpload;
+use Pepperfm\Flashboard\Core\Forms\Fields\PasswordInput;
+use Pepperfm\Flashboard\Core\Forms\Fields\RichText;
 use Pepperfm\Flashboard\Core\Forms\Fields\TextInput;
 use Pepperfm\Flashboard\Core\Forms\Fields\Toggle;
 use Pepperfm\Flashboard\Core\Forms\Layout\Section;
@@ -100,6 +104,70 @@ final class ResourceFormDataSourceTest extends TestCase
         self::assertSame('2', $payload['state']['id']);
         self::assertSame('123', $payload['state']['name']);
         self::assertTrue($payload['state']['is_active']);
+    }
+
+    public function test_advanced_edit_state_hides_passwords_files_and_normalizes_dates_and_rich_text(): void
+    {
+        $this->fakeUrlGenerator();
+        $this->fakeGateForFieldVisibility();
+
+        $record = new class() extends \Illuminate\Database\Eloquent\Model
+        {
+            protected $guarded = [];
+        };
+        $record->forceFill([
+            'id' => 7,
+            'published_on' => new \DateTimeImmutable('2026-05-28 13:45:00'),
+            'password' => 'hashed-secret',
+            'receipt' => 'receipts/order.pdf',
+            'attachments' => [
+                [
+                    'name' => 'Invoice',
+                    'path' => 'docs/invoice.pdf',
+                    'url' => 'https://example.test/invoice.pdf',
+                ],
+                'docs/terms.pdf',
+            ],
+            'body' => 123,
+            'content_json' => '{"type":"doc","content":[]}',
+        ]);
+        $record->exists = true;
+
+        $payload = $this->makeDataSource()->resolve($this->advancedStateResourceClass(), $record);
+        $fields = array_column($payload['fields'], null, 'key');
+
+        self::assertSame('2026-05-28', $payload['state']['published_on']);
+        self::assertNull($payload['state']['password']);
+        self::assertNull($payload['state']['receipt']);
+        self::assertNull($payload['state']['attachments']);
+        self::assertSame('123', $payload['state']['body']);
+        self::assertSame(['type' => 'doc', 'content' => []], $payload['state']['content_json']);
+
+        self::assertSame(
+            [
+                [
+                    'name' => 'order.pdf',
+                    'path' => 'receipts/order.pdf',
+                    'url' => null,
+                ],
+            ],
+            $fields['receipt']['existing_files'],
+        );
+        self::assertSame(
+            [
+                [
+                    'name' => 'Invoice',
+                    'path' => 'docs/invoice.pdf',
+                    'url' => 'https://example.test/invoice.pdf',
+                ],
+                [
+                    'name' => 'terms.pdf',
+                    'path' => 'docs/terms.pdf',
+                    'url' => null,
+                ],
+            ],
+            $fields['attachments']['existing_files'],
+        );
     }
 
     private function fakeUrlGenerator(): void
@@ -389,6 +457,32 @@ final class ResourceFormDataSourceTest extends TestCase
                     TextInput::make('id')->label('ID'),
                     TextInput::make('name')->label('Name'),
                     Toggle::make('is_active')->label('Is active'),
+                ]);
+            }
+        });
+    }
+
+    /**
+     * @return class-string<Resource>
+     */
+    private function advancedStateResourceClass(): string
+    {
+        return get_class(new class() extends Resource
+        {
+            public static function model(): string
+            {
+                return ResourceFormDataSourceGeneratedKeyModel::class;
+            }
+
+            public static function form(FormContract $form): FormContract
+            {
+                return $form->schema([
+                    DateInput::make('published_on')->label('Published on'),
+                    PasswordInput::make('password')->label('Password'),
+                    FileUpload::make('receipt')->label('Receipt'),
+                    FileUpload::make('attachments')->label('Attachments')->multiple(),
+                    RichText::make('body')->label('Body'),
+                    RichText::make('content_json')->label('Content JSON')->json(),
                 ]);
             }
         });

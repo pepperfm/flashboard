@@ -12,7 +12,11 @@ use Pepperfm\Flashboard\Contracts\Forms\FormLayoutMode;
 use Pepperfm\Flashboard\Contracts\Forms\FormSchemaNodeKind;
 use Pepperfm\Flashboard\Core\Forms\Builders\Form;
 use Pepperfm\Flashboard\Core\Forms\Fields\Checkbox;
+use Pepperfm\Flashboard\Core\Forms\Fields\DateInput;
+use Pepperfm\Flashboard\Core\Forms\Fields\FileUpload;
 use Pepperfm\Flashboard\Core\Forms\Fields\NumberInput;
+use Pepperfm\Flashboard\Core\Forms\Fields\PasswordInput;
+use Pepperfm\Flashboard\Core\Forms\Fields\RichText;
 use Pepperfm\Flashboard\Core\Forms\Fields\Select;
 use Pepperfm\Flashboard\Core\Forms\Fields\Textarea;
 use Pepperfm\Flashboard\Core\Forms\Fields\TextInput;
@@ -73,6 +77,76 @@ final class FormRendererPayloadTest extends TestCase
         );
 
         self::assertSame('number', $payload->fields()[2]['input_type']);
+    }
+
+    public function test_advanced_form_fields_expose_stable_renderer_hints_and_attributes(): void
+    {
+        $payload = new FormPayload(
+            Form::make()
+                ->schema([
+                    DateInput::make('published_on')
+                        ->label('Published on')
+                        ->minDate('2026-01-01')
+                        ->maxDate('2026-12-31')
+                        ->native(),
+                    FileUpload::make('cover_image')
+                        ->label('Cover image')
+                        ->accept('image/*')
+                        ->multiple()
+                        ->maxSize(2048)
+                        ->maxFiles(3)
+                        ->mimes(['jpg', 'png'])
+                        ->mimeTypes(['image/jpeg'])
+                        ->disk('public')
+                        ->directory('covers')
+                        ->preview(false),
+                    RichText::make('body')
+                        ->label('Body')
+                        ->markdown()
+                        ->minLength(20)
+                        ->maxLength(500),
+                    PasswordInput::make('password')
+                        ->label('Password')
+                        ->minLength(12)
+                        ->maxLength(72)
+                        ->confirmed(),
+                ])
+                ->toArray(),
+        );
+
+        $fields = array_column($payload->fields(), null, 'key');
+
+        self::assertSame(FieldRenderer::Date->value, $fields['published_on']['renderer']);
+        self::assertSame('date', $fields['published_on']['type']);
+        self::assertSame('2026-01-01', $fields['published_on']['min_date']);
+        self::assertSame('2026-12-31', $fields['published_on']['max_date']);
+        self::assertTrue($fields['published_on']['native']);
+
+        self::assertSame(FieldRenderer::FileUpload->value, $fields['cover_image']['renderer']);
+        self::assertSame('file', $fields['cover_image']['type']);
+        self::assertSame('image/*', $fields['cover_image']['accept']);
+        self::assertTrue($fields['cover_image']['multiple']);
+        self::assertSame(2048, $fields['cover_image']['max_size']);
+        self::assertSame(3, $fields['cover_image']['max_files']);
+        self::assertSame(['jpg', 'png'], $fields['cover_image']['mimes']);
+        self::assertSame(['image/jpeg'], $fields['cover_image']['mime_types']);
+        self::assertSame('public', $fields['cover_image']['disk']);
+        self::assertSame('covers', $fields['cover_image']['directory']);
+        self::assertTrue($fields['cover_image']['store_files']);
+        self::assertFalse($fields['cover_image']['preview']);
+
+        self::assertSame(FieldRenderer::RichText->value, $fields['body']['renderer']);
+        self::assertSame('rich_text', $fields['body']['type']);
+        self::assertSame('markdown', $fields['body']['content_format']);
+        self::assertSame(20, $fields['body']['min_length']);
+        self::assertSame(500, $fields['body']['max_length']);
+
+        self::assertSame(FieldRenderer::Input->value, $fields['password']['renderer']);
+        self::assertSame('password', $fields['password']['type']);
+        self::assertSame('password', $fields['password']['input_type']);
+        self::assertSame(12, $fields['password']['min_length']);
+        self::assertSame(72, $fields['password']['max_length']);
+        self::assertTrue($fields['password']['confirmed']);
     }
 
     public function test_grouped_form_payload_keeps_renderer_hints_inside_sections_and_tabs(): void

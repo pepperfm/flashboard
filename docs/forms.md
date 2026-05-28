@@ -119,17 +119,63 @@ Section::make('filters')
 Typed fields, sections, and tabs are the preferred public API. Legacy array definitions remain supported as a migration bridge.
 `sections()` and `tabs()` remain as compatibility helpers, but they now normalize into the same canonical schema tree instead of defining a separate runtime shape.
 
+## Advanced Fields
+
+Use purpose-built fields when the control has runtime behavior beyond plain text:
+
+```php
+use Pepperfm\Flashboard\Core\Forms\Fields\DateInput;
+use Pepperfm\Flashboard\Core\Forms\Fields\FileUpload;
+use Pepperfm\Flashboard\Core\Forms\Fields\PasswordInput;
+use Pepperfm\Flashboard\Core\Forms\Fields\RichText;
+
+DateInput::make('published_on')
+    ->label('Published on')
+    ->minDate('2026-01-01')
+    ->maxDate('2026-12-31');
+
+FileUpload::make('cover_image')
+    ->label('Cover image')
+    ->accept('image/*')
+    ->mimes(['jpg', 'png', 'webp'])
+    ->maxSize(2048)
+    ->disk('public')
+    ->directory('covers');
+
+RichText::make('body')
+    ->label('Body')
+    ->html()
+    ->minLength(20)
+    ->fullWidth();
+
+PasswordInput::make('password')
+    ->label('Password')
+    ->minLength(12)
+    ->confirmed();
+
+PasswordInput::make('password_confirmation')
+    ->label('Confirm password');
+```
+
+Behavior notes:
+
+- `DateInput` stores and validates date values as `Y-m-d`; edit payloads normalize date-like values to that shape.
+- `FileUpload` renders through the package wrapper over Nuxt UI `UFileUpload`. When `storeFiles()` is enabled, or `disk()` / `directory()` is set, uploaded files are stored and the model receives the stored path or list of paths. Without package storage, uploaded file objects are available to mutation hooks and are then intentionally omitted from mass assignment. Edit forms can keep, replace, or clear existing file references; clear requests use a package-owned `__remove` companion field.
+- edit payloads never include file contents; they expose only `existing_files` metadata with safe `name`, `path`, and optional `url` values.
+- `RichText` supports `html()`, `markdown()`, and `json()` content formats. JSON rich text is validated as an array; HTML and Markdown are validated as strings.
+- `PasswordInput` is rendered as a password input, is never hydrated from the record on edit, and empty edit submissions are skipped so an unchanged password is not blanked. When using `confirmed()`, add a matching `*_confirmation` field; Flashboard strips confirmation values before persistence.
+
 ## Renderer Contract
 
 Normalized form payloads now expose an explicit `renderer` hint for every field.
 
-- typed fields set a stable renderer automatically, for example `TextInput` -> `input`, `Select` -> `select`, `Toggle` -> `switch`
-- use purpose-built field classes for common controls: `TextInput`, `Textarea`, `NumberInput`, `Select`, `Checkbox`, and `Toggle`
+- typed fields set a stable renderer automatically, for example `TextInput` -> `input`, `DateInput` -> `date`, `FileUpload` -> `file_upload`, `RichText` -> `rich_text`, `Toggle` -> `switch`
+- use purpose-built field classes for common controls: `TextInput`, `Textarea`, `NumberInput`, `DateInput`, `FileUpload`, `RichText`, `PasswordInput`, `Select`, `Checkbox`, and `Toggle`
 - override renderer intent explicitly only for custom or transitional controls where no purpose-built field exists
 - legacy arrays can opt into the same contract with `['key' => 'notes', 'renderer' => 'textarea']`
-- the frontend maps these hints through package-owned wrappers: `FBInput`, `FBTextarea`, `FBSelect`, `FBCheckbox`, and `FBSwitch`
+- the frontend maps these hints through package-owned wrappers: `FBInput`, `FBTextarea`, `FBDateInput`, `FBFileUpload`, `FBRichText`, `FBSelect`, `FBCheckbox`, and `FBSwitch`
 
-Those wrappers stay thin over Nuxt UI (`UInput`, `UTextarea`, `USelect`, `UCheckbox`, `USwitch`) so Flashboard owns the runtime contract without creating a second UI framework. PHP cannot expose a `Switch` class because `switch` is a reserved keyword, so the switch-style field is named `Toggle`.
+Those wrappers stay thin over Nuxt UI (`UInput`, `UTextarea`, `UInputDate`, `UCalendar`, `UFileUpload`, `UEditor`, `USelect`, `UCheckbox`, `USwitch`) so Flashboard owns the runtime contract without creating a second UI framework. PHP cannot expose a `Switch` class because `switch` is a reserved keyword, so the switch-style field is named `Toggle`.
 
 ## Layout Contract
 
@@ -147,7 +193,7 @@ Invalid layout combinations such as `columns()` plus `direction()` on the same c
 1. Flashboard resolves create/edit route
 2. `ResourceFormDataSource` hydrates field state
 3. `ResourceFormPersister` validates and saves data
-4. `afterSave()` hooks and runtime hooks run
+4. `afterSave()` hooks and runtime hooks run; runtime hook payloads and record context redact password values and replace file values with minimal metadata
 5. User is redirected to the detail screen
 
 ## Validation
@@ -156,7 +202,7 @@ Invalid layout combinations such as `columns()` plus `direction()` on the same c
 - update rules: `updateRules($record)`
 - shared rules: `formRules()`
 
-Flashboard still infers baseline validation from the normalized field payload and then merges explicit `rules()` on top. Text fields infer strings, `NumberInput` infers numeric values, and `Checkbox` / `Toggle` infer booleans.
+Flashboard still infers baseline validation from the normalized field payload and then merges explicit `rules()` on top. Text fields infer strings, `NumberInput` infers numeric values, `DateInput` infers `date_format:Y-m-d`, `FileUpload` infers file rules, `RichText::json()` infers arrays, and `Checkbox` / `Toggle` infer booleans.
 On create screens, visible `Checkbox` and `Toggle` fields default to `false` unless `defaults()` provides a value.
 
 ## Mutation Hooks
