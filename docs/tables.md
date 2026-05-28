@@ -9,21 +9,17 @@ public static function table(\Pepperfm\Flashboard\Contracts\Tables\TableContract
 {
     return $table
         ->columns([
-            \Pepperfm\Flashboard\Core\Tables\Columns\TextColumn::make('id')->label('ID')->sortable(),
-            \Pepperfm\Flashboard\Core\Tables\Columns\BadgeColumn::make('status')->label('Status')->searchable()->sortable(),
-            \Pepperfm\Flashboard\Core\Tables\Columns\DateColumn::make('created_at')->label('Created')->format('d.m.Y')->sortable(),
+            \Pepperfm\Flashboard\Core\Tables\Columns\TextColumn::make('id', 'ID')->sortable(),
+            \Pepperfm\Flashboard\Core\Tables\Columns\BadgeColumn::make('status', 'Status')->searchable()->sortable(),
+            \Pepperfm\Flashboard\Core\Tables\Columns\DateColumn::make('created_at', 'Created')->format('d.m.Y')->sortable(),
         ])
         ->filters([
-            \Pepperfm\Flashboard\Core\Tables\Filters\SelectFilter::make('status')
-                ->label('Status')
+            \Pepperfm\Flashboard\Core\Tables\Filters\SelectFilter::make('status', 'Status')
                 ->lazy(),
-            \Pepperfm\Flashboard\Core\Tables\Filters\InputFilter::make('email')
-                ->label('Email')
+            \Pepperfm\Flashboard\Core\Tables\Filters\InputFilter::make('email', 'Email')
                 ->contains(),
-            \Pepperfm\Flashboard\Core\Tables\Filters\DateFilter::make('created_at')
-                ->label('Created'),
-            \Pepperfm\Flashboard\Core\Tables\Filters\SelectFilter::make('sku')
-                ->label('SKU')
+            \Pepperfm\Flashboard\Core\Tables\Filters\DateFilter::make('created_at', 'Created'),
+            \Pepperfm\Flashboard\Core\Tables\Filters\SelectFilter::make('sku', 'SKU')
                 ->queryColumn('id')
                 ->searchable()
                 ->options($products->pluck('sku', 'id')->all()),
@@ -32,23 +28,21 @@ public static function table(\Pepperfm\Flashboard\Contracts\Tables\TableContract
 }
 ```
 
-Typed columns and filters are the preferred public API. Legacy array definitions continue to work while the package migrates the rest of the DSL to the concept-first object style.
+Typed columns and filters are the preferred public API. Pass a visible label as the optional second `make()` argument, for example `TextColumn::make('email', 'Email')`; `->label()` remains available for later overrides. Legacy array definitions continue to work while the package migrates the rest of the DSL to the concept-first object style.
 
 ## Date Columns
 
 Call `DateColumn::make()` when a column represents a date-like value:
 
 ```php
-\Pepperfm\Flashboard\Core\Tables\Columns\DateColumn::make('created_at')
-    ->label('Created')
+\Pepperfm\Flashboard\Core\Tables\Columns\DateColumn::make('created_at', 'Created')
     ->sortable();
 ```
 
 Date columns render the payload value as-is by default. Use `format()` when the backend should format a date value before it reaches the table:
 
 ```php
-\Pepperfm\Flashboard\Core\Tables\Columns\DateColumn::make('created_at')
-    ->label('Created')
+\Pepperfm\Flashboard\Core\Tables\Columns\DateColumn::make('created_at', 'Created')
     ->format('d.m.Y');
 ```
 
@@ -59,8 +53,7 @@ The format string uses PHP date format tokens. Empty values still render as the 
 Call `searchable()` on a table column when it should participate in the global table search:
 
 ```php
-\Pepperfm\Flashboard\Core\Tables\Columns\TextColumn::make('email')
-    ->label('Email')
+\Pepperfm\Flashboard\Core\Tables\Columns\TextColumn::make('email', 'Email')
     ->searchable();
 ```
 
@@ -75,8 +68,7 @@ The backend applies global search only across columns marked `searchable`. Searc
 Call `sortable()` on a table column when its header should become a server-side sort control:
 
 ```php
-\Pepperfm\Flashboard\Core\Tables\Columns\TextColumn::make('id')
-    ->label('ID')
+\Pepperfm\Flashboard\Core\Tables\Columns\TextColumn::make('id', 'ID')
     ->sortable();
 ```
 
@@ -102,7 +94,7 @@ use Pepperfm\Flashboard\Core\Tables\Actions\EditAction;
 public static function table(\Pepperfm\Flashboard\Contracts\Tables\TableContract $table): \Pepperfm\Flashboard\Contracts\Tables\TableContract
 {
     return $table->columns([
-        \Pepperfm\Flashboard\Core\Tables\Columns\TextColumn::make('id')->label('ID'),
+        \Pepperfm\Flashboard\Core\Tables\Columns\TextColumn::make('id', 'ID'),
     ]);
 }
 
@@ -140,8 +132,7 @@ The backend filters row actions per record through the resource policy. `view`, 
 Call `InputFilter::make()` when a filter should accept operator-entered text for one declared query column:
 
 ```php
-\Pepperfm\Flashboard\Core\Tables\Filters\InputFilter::make('email')
-    ->label('Email');
+\Pepperfm\Flashboard\Core\Tables\Filters\InputFilter::make('email', 'Email');
 ```
 
 Input filters use scalar URL state:
@@ -153,16 +144,14 @@ filters[email]=john@example.com
 By default, input filters apply exact matching with `where($column, $value)`. Use `contains()` when the input should match any part of the column value:
 
 ```php
-\Pepperfm\Flashboard\Core\Tables\Filters\InputFilter::make('email')
-    ->label('Email')
+\Pepperfm\Flashboard\Core\Tables\Filters\InputFilter::make('email', 'Email')
     ->contains();
 ```
 
 `contains()` applies a column-scoped `LIKE` query. Use `queryColumn()` when the public filter key should differ from the database column:
 
 ```php
-\Pepperfm\Flashboard\Core\Tables\Filters\InputFilter::make('customer')
-    ->label('Customer email')
+\Pepperfm\Flashboard\Core\Tables\Filters\InputFilter::make('customer', 'Customer email')
     ->queryColumn('customers.email')
     ->contains();
 ```
@@ -174,8 +163,7 @@ Use global table search for broad matching across multiple searchable columns. U
 Call `DateFilter::make()` when a filter should select one exact calendar day:
 
 ```php
-\Pepperfm\Flashboard\Core\Tables\Filters\DateFilter::make('created_at')
-    ->label('Created');
+\Pepperfm\Flashboard\Core\Tables\Filters\DateFilter::make('created_at', 'Created');
 ```
 
 Date filters render as a Nuxt UI date picker with an input, popover, and calendar. They use scalar URL state:
@@ -189,8 +177,7 @@ The backend accepts only strict `YYYY-MM-DD` values and applies them with `where
 Use `queryColumn()` when the public filter key should differ from the database column:
 
 ```php
-\Pepperfm\Flashboard\Core\Tables\Filters\DateFilter::make('reviewed_date')
-    ->label('Reviewed date')
+\Pepperfm\Flashboard\Core\Tables\Filters\DateFilter::make('reviewed_date', 'Reviewed date')
     ->queryColumn('reviewed_at');
 ```
 
@@ -201,8 +188,7 @@ Use `queryColumn()` when the public filter key should differ from the database c
 Call `searchable()` on a select filter to render a searchable picker instead of a plain select:
 
 ```php
-\Pepperfm\Flashboard\Core\Tables\Filters\SelectFilter::make('sku')
-    ->label('SKU')
+\Pepperfm\Flashboard\Core\Tables\Filters\SelectFilter::make('sku', 'SKU')
     ->searchable()
     ->options($products->pluck('sku', 'id')->all());
 ```
@@ -212,8 +198,7 @@ Call `searchable()` on a select filter to render a searchable picker instead of 
 Call `multiple()` when a filter should accept more than one value. Flashboard submits repeated Laravel array query parameters and applies the filter with `whereIn()`:
 
 ```php
-\Pepperfm\Flashboard\Core\Tables\Filters\SelectFilter::make('status')
-    ->label('Status')
+\Pepperfm\Flashboard\Core\Tables\Filters\SelectFilter::make('status', 'Status')
     ->multiple()
     ->options([
         'draft' => 'Draft',
@@ -235,8 +220,7 @@ For defensive request bounds, Flashboard applies the first 200 unique non-empty 
 `multiple()` can be combined with `lazy()`. Lazy multiple filters still render through Nuxt UI `USelectMenu`, using backend search, scroll pagination, and selected-value hydration:
 
 ```php
-\Pepperfm\Flashboard\Core\Tables\Filters\SelectFilter::make('sku')
-    ->label('SKU')
+\Pepperfm\Flashboard\Core\Tables\Filters\SelectFilter::make('sku', 'SKU')
     ->lazy()
     ->multiple()
     ->optionValue('id')
@@ -248,8 +232,7 @@ For defensive request bounds, Flashboard applies the first 200 unique non-empty 
 Call `lazy()` when a select filter has many possible values or should avoid sending all options in the initial table payload:
 
 ```php
-\Pepperfm\Flashboard\Core\Tables\Filters\SelectFilter::make('status')
-    ->label('Status')
+\Pepperfm\Flashboard\Core\Tables\Filters\SelectFilter::make('status', 'Status')
     ->lazy();
 ```
 
@@ -258,8 +241,7 @@ Without a callback, Flashboard queries distinct non-null values from the resourc
 When the options still come from the resource query but the visible label and submitted value are different columns, define them fluently:
 
 ```php
-SelectFilter::make('sku')
-    ->label('SKU')
+SelectFilter::make('sku', 'SKU')
     ->lazy()
     ->optionValue('id')
     ->optionLabel('sku');
@@ -274,8 +256,7 @@ use Pepperfm\Flashboard\Contracts\Tables\Filters\SelectFilterOptionsQuery;
 use Pepperfm\Flashboard\Contracts\Tables\Filters\SelectFilterOptionsResult;
 use Pepperfm\Flashboard\Core\Tables\Filters\SelectFilter;
 
-SelectFilter::make('product_id')
-    ->label('Product')
+SelectFilter::make('product_id', 'Product')
     ->queryColumn('product_id')
     ->lazy(static function (SelectFilterOptionsQuery $query): SelectFilterOptionsResult {
         $products = Product::query()

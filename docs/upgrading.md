@@ -66,8 +66,8 @@ The preferred public API for resources is now the typed DSL:
 public static function table(TableContract $table): TableContract
 {
     return $table->columns([
-        TextColumn::make('id')->label('ID')->sortable(),
-        BadgeColumn::make('status')->label('Status')->searchable(),
+        TextColumn::make('id', 'ID')->sortable(),
+        BadgeColumn::make('status', 'Status')->searchable(),
     ]);
 }
 ```
@@ -87,6 +87,7 @@ public static function table(TableContract $table): TableContract
 Migration rules:
 
 - typed schema nodes are the recommended authoring style for new resources
+- keyed typed schema nodes accept an optional label as the second `make()` argument; prefer `TextInput::make('name', 'Name')` over `TextInput::make('name')->label('Name')` for static labels
 - legacy arrays remain valid as compatibility input
 - runtime payloads are normalized from both styles into the same schema contract
 - prefer purpose-built form fields over renderer overrides for dates, uploads, rich text, and passwords

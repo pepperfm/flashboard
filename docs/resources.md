@@ -39,11 +39,11 @@ final class OrdersResource extends Resource
     {
         return $table
             ->columns([
-                TextColumn::make('id')->label('ID')->sortable(),
-                BadgeColumn::make('status')->label('Status')->searchable()->sortable(),
+                TextColumn::make('id', 'ID')->sortable(),
+                BadgeColumn::make('status', 'Status')->searchable()->sortable(),
             ])
             ->filters([
-                SelectFilter::make('status')->label('Status')->lazy(),
+                SelectFilter::make('status', 'Status')->lazy(),
             ]);
     }
 
@@ -52,20 +52,17 @@ final class OrdersResource extends Resource
         return $form
             ->columns(2)
             ->schema([
-                Select::make('status')->label('Status'),
-                TextInput::make('name')->label('Name')->required(),
-                TextInput::make('email')->label('Email')->email(),
-                Textarea::make('notes')
-                    ->label('Notes')
-                    ->columnSpan(2),
-                DateInput::make('ordered_on')->label('Ordered on'),
-                RichText::make('internal_summary')->label('Internal summary')->fullWidth(),
-                FileUpload::make('receipt')
-                    ->label('Receipt')
+                Select::make('status', 'Status'),
+                TextInput::make('name', 'Name')->required(),
+                TextInput::make('email', 'Email')->email(),
+                Textarea::make('notes', 'Notes')->columnSpan(2),
+                DateInput::make('ordered_on', 'Ordered on'),
+                RichText::make('internal_summary', 'Internal summary')->fullWidth(),
+                FileUpload::make('receipt', 'Receipt')
                     ->accept('application/pdf,image/*')
                     ->directory('order-receipts'),
-                Checkbox::make('is_featured')->label('Featured'),
-                Toggle::make('is_active')->label('Is active'),
+                Checkbox::make('is_featured', 'Featured'),
+                Toggle::make('is_active', 'Is active'),
             ]);
     }
 
@@ -134,6 +131,7 @@ Table row actions are configured from `Resource::actions()`, not from the table 
 - prefer `$form->schema([...])` for simple CRUD resources
 - introduce `Section` and `Tabs` nodes inside `schema()` when the form has meaningful operator-facing grouping
 - use purpose-built fields such as `TextInput`, `Textarea`, `NumberInput`, `DateInput`, `FileUpload`, `RichText`, `PasswordInput`, `Select`, `Checkbox`, and `Toggle`; `Toggle` renders as a switch-style boolean control
+- pass the label as the optional second argument to keyed typed nodes, for example `TextInput::make('name', 'Name')`; keep `->label()` for later overrides
 - use `columns()`, `gap()`, `columnSpan()`, and `fullWidth()` to place multiple fields on one row without extra row/container nodes
 - use `layout(FormLayoutMode::Flex)` with `direction()/justify()/align()/wrap()` only when a grouped form needs inline controls instead of a grid
 - keep array definitions only as a migration bridge; typed nodes remain the canonical package API
@@ -144,8 +142,8 @@ If you do need grouped layout, Flashboard now renders one canonical schema tree 
 
 Flashboard currently supports both configuration styles:
 
-- typed schema nodes such as `Column::make('status')->label('Status')`
-- concept-aligned nodes such as `TextColumn::make('email')`, `TextInput::make('name')`, `DateInput::make('published_on')`, `FileUpload::make('receipt')`, `RichText::make('body')`, `Section::make('content')->schema([...])`, and `Tabs::make('settings')->tabs([...])`
+- typed schema nodes such as `TextColumn::make('status', 'Status')`
+- concept-aligned nodes such as `TextColumn::make('email', 'Email')`, `TextInput::make('name', 'Name')`, `DateInput::make('published_on', 'Published on')`, `FileUpload::make('receipt', 'Receipt')`, `RichText::make('body', 'Body')`, `Section::make('content', 'Content')->schema([...])`, and `Tabs::make('settings')->tabs([...])`
 - legacy compatibility arrays such as `['key' => 'status', 'label' => 'Status']`
 
 Typed nodes are the preferred public API going forward. Arrays remain supported while the package migrates the rest of the DSL toward the concept-first object style.

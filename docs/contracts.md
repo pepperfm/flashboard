@@ -38,6 +38,7 @@ Flashboard currently exposes a beta contract surface.
 - resource configuration is split into dedicated surfaces: `table()`, `form()`, `detail()`, `infolist()`, `actions()`, and `pages()`
 - `detail()` remains supported and `infolist()` is its friendly alias for concept-aligned resource APIs
 - typed schema nodes are the preferred package-facing API for columns, fields, sections, tabs, filters, scopes, and entries
+- keyed typed schema factories accept `make(string $key, ?string $label = null)`; use the second argument for static labels and `->label()` for later overrides
 - legacy array definitions remain supported as a compatibility bridge during the DSL migration
 - runtime consumers should depend on normalized payload output, not on ad hoc legacy array keys such as `name`
 - table row action payloads are backend-driven and permission-aware; renderers should consume normalized row `actions` instead of inventing view/edit/delete buttons

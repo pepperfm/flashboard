@@ -13,8 +13,8 @@ public static function form(\Pepperfm\Flashboard\Contracts\Forms\FormContract $f
 {
     return $form
         ->schema([
-            Select::make('status')->label('Status')->required(),
-            Textarea::make('notes')->label('Notes'),
+            Select::make('status', 'Status')->required(),
+            Textarea::make('notes', 'Notes'),
         ])
         ->rules([
             'status' => ['required', 'string'],
@@ -37,10 +37,9 @@ public static function form(\Pepperfm\Flashboard\Contracts\Forms\FormContract $f
         ->columns(2)
         ->gap(4)
         ->schema([
-            TextInput::make('first_name')->label('First name'),
-            TextInput::make('last_name')->label('Last name'),
-            TextInput::make('email')
-                ->label('Email')
+            TextInput::make('first_name', 'First name'),
+            TextInput::make('last_name', 'Last name'),
+            TextInput::make('email', 'Email')
                 ->email()
                 ->columnSpan(2),
         ]);
@@ -75,17 +74,17 @@ public static function form(\Pepperfm\Flashboard\Contracts\Forms\FormContract $f
 {
     return $form
         ->schema([
-            Section::make('content')->label('Content')->schema([
-                TextInput::make('name')->label('Name')->required(),
-                TextInput::make('slug')->label('Slug'),
-                Textarea::make('description')->label('Description')->fullWidth(),
-                NumberInput::make('sort_order')->label('Sort order'),
+            Section::make('content', 'Content')->schema([
+                TextInput::make('name', 'Name')->required(),
+                TextInput::make('slug', 'Slug'),
+                Textarea::make('description', 'Description')->fullWidth(),
+                NumberInput::make('sort_order', 'Sort order'),
             ]),
             Tabs::make('settings')->tabs([
-                Tab::make('general')->label('General')->schema([
-                    Select::make('status')->label('Status'),
-                    Checkbox::make('is_featured')->label('Featured'),
-                    Toggle::make('is_active')->label('Is active'),
+                Tab::make('general', 'General')->schema([
+                    Select::make('status', 'Status'),
+                    Checkbox::make('is_featured', 'Featured'),
+                    Toggle::make('is_active', 'Is active'),
                 ]),
             ]),
         ]);
@@ -103,20 +102,20 @@ use Pepperfm\Flashboard\Core\Forms\Fields\Select;
 use Pepperfm\Flashboard\Core\Forms\Fields\TextInput;
 use Pepperfm\Flashboard\Core\Forms\Layout\Section;
 
-Section::make('filters')
-    ->label('Filters')
+Section::make('filters', 'Filters')
     ->layout(FormLayoutMode::Flex)
     ->direction(FormLayoutDirection::Row)
     ->justify(FormLayoutJustify::Between)
     ->align(FormLayoutAlign::Center)
     ->gap(2)
     ->schema([
-        Select::make('status')->label('Status'),
-        TextInput::make('search')->label('Search'),
+        Select::make('status', 'Status'),
+        TextInput::make('search', 'Search'),
     ]);
 ```
 
 Typed fields, sections, and tabs are the preferred public API. Legacy array definitions remain supported as a migration bridge.
+Every keyed typed schema node accepts a human label as the optional second `make()` argument, for example `TextInput::make('name', 'Name')`. Use `->label()` when you want to override or compute the label later in the chain.
 `sections()` and `tabs()` remain as compatibility helpers, but they now normalize into the same canonical schema tree instead of defining a separate runtime shape.
 
 ## Advanced Fields
@@ -129,32 +128,27 @@ use Pepperfm\Flashboard\Core\Forms\Fields\FileUpload;
 use Pepperfm\Flashboard\Core\Forms\Fields\PasswordInput;
 use Pepperfm\Flashboard\Core\Forms\Fields\RichText;
 
-DateInput::make('published_on')
-    ->label('Published on')
+DateInput::make('published_on', 'Published on')
     ->minDate('2026-01-01')
     ->maxDate('2026-12-31');
 
-FileUpload::make('cover_image')
-    ->label('Cover image')
+FileUpload::make('cover_image', 'Cover image')
     ->accept('image/*')
     ->mimes(['jpg', 'png', 'webp'])
     ->maxSize(2048)
     ->disk('public')
     ->directory('covers');
 
-RichText::make('body')
-    ->label('Body')
+RichText::make('body', 'Body')
     ->html()
     ->minLength(20)
     ->fullWidth();
 
-PasswordInput::make('password')
-    ->label('Password')
+PasswordInput::make('password', 'Password')
     ->minLength(12)
     ->confirmed();
 
-PasswordInput::make('password_confirmation')
-    ->label('Confirm password');
+PasswordInput::make('password_confirmation', 'Confirm password');
 ```
 
 Behavior notes:
