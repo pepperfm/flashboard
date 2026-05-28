@@ -30,12 +30,44 @@ use Pepperfm\Flashboard\Core\Tables\Columns\BadgeColumn;
 use Pepperfm\Flashboard\Core\Tables\Columns\DateColumn;
 use Pepperfm\Flashboard\Core\Tables\Columns\TextColumn;
 use Pepperfm\Flashboard\Core\Tables\Builders\Table;
+use Pepperfm\Flashboard\Core\Tables\Filters\DateFilter;
+use Pepperfm\Flashboard\Core\Tables\Filters\InputFilter;
+use Pepperfm\Flashboard\Core\Tables\Filters\SelectFilter;
 use Pepperfm\Flashboard\Core\Forms\Builders\Form;
 use Pepperfm\Flashboard\Core\Detail\Builders\Detail;
 use Pepperfm\Flashboard\Tests\TestCase;
 
 final class TypedSchemaNormalizationTest extends TestCase
 {
+    public function test_typed_schema_nodes_accept_label_in_make_factory(): void
+    {
+        $nodes = [
+            [TextInput::make('email', 'Email address'), 'Email address'],
+            [Textarea::make('notes', 'Operator notes'), 'Operator notes'],
+            [NumberInput::make('sort_order', 'Sort order'), 'Sort order'],
+            [Select::make('status', 'Status'), 'Status'],
+            [Checkbox::make('is_featured', 'Featured'), 'Featured'],
+            [Toggle::make('is_active', 'Is active'), 'Is active'],
+            [DateInput::make('published_on', 'Published on'), 'Published on'],
+            [FileUpload::make('receipt', 'Receipt'), 'Receipt'],
+            [RichText::make('body', 'Body'), 'Body'],
+            [PasswordInput::make('password', 'Password'), 'Password'],
+            [TextEntry::make('summary', 'Summary'), 'Summary'],
+            [TextColumn::make('name', 'Name'), 'Name'],
+            [BadgeColumn::make('status', 'Status badge'), 'Status badge'],
+            [DateColumn::make('created_at', 'Created'), 'Created'],
+            [InputFilter::make('email', 'Email filter'), 'Email filter'],
+            [DateFilter::make('created_at', 'Created filter'), 'Created filter'],
+            [SelectFilter::make('status', 'Status filter'), 'Status filter'],
+            [FormSection::make('main', 'Main section'), 'Main section'],
+            [DetailSection::make('summary', 'Summary section'), 'Summary section'],
+        ];
+
+        foreach ($nodes as [$node, $label]) {
+            self::assertSame($label, $node->toArray()['label']);
+        }
+    }
+
     public function test_table_payload_accessors_use_normalized_column_metadata(): void
     {
         $payload = new TablePayload(

@@ -12,9 +12,9 @@ class InputFilter extends Filter
 
     public const string TYPE = 'input';
 
-    public static function make(string $key): static
+    public static function make(string $key, ?string $label = null): static
     {
-        return parent::make($key)->type(self::TYPE);
+        return parent::make($key, $label)->type(self::TYPE);
     }
 
     public function contains(bool $condition = true): static

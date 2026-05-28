@@ -8,9 +8,9 @@ use Pepperfm\Flashboard\Contracts\Forms\FieldRenderer;
 
 class TextInput extends Field
 {
-    public static function make(string $key): static
+    public static function make(string $key, ?string $label = null): static
     {
-        return parent::make($key)->type(self::TYPE_TEXT);
+        return parent::make($key, $label)->type(self::TYPE_TEXT);
     }
 
     public function email(bool $condition = true): static

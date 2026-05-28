@@ -8,8 +8,8 @@ class DateFilter extends Filter
 {
     public const string TYPE = 'date';
 
-    public static function make(string $key): static
+    public static function make(string $key, ?string $label = null): static
     {
-        return parent::make($key)->type(self::TYPE);
+        return parent::make($key, $label)->type(self::TYPE);
     }
 }

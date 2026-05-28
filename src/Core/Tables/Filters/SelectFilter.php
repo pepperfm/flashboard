@@ -13,9 +13,9 @@ class SelectFilter extends Filter
 
     private ?\Closure $lazyOptionsResolver = null;
 
-    public static function make(string $key): static
+    public static function make(string $key, ?string $label = null): static
     {
-        return parent::make($key)->type('select');
+        return parent::make($key, $label)->type('select');
     }
 
     public function lazy(?\Closure $resolver = null, ?int $perPage = null): static

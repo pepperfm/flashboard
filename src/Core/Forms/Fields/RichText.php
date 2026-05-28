@@ -16,9 +16,9 @@ class RichText extends Field
     public const string FORMAT_JSON = 'json';
     public const string FORMAT_MARKDOWN = 'markdown';
 
-    public static function make(string $key): static
+    public static function make(string $key, ?string $label = null): static
     {
-        return parent::make($key)
+        return parent::make($key, $label)
             ->type(self::TYPE_RICH_TEXT)
             ->attribute(self::ATTRIBUTE_CONTENT_FORMAT, self::FORMAT_HTML);
     }

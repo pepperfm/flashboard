@@ -10,9 +10,9 @@ class PasswordInput extends TextInput
     public const string ATTRIBUTE_MAX_LENGTH = 'max_length';
     public const string ATTRIBUTE_MIN_LENGTH = 'min_length';
 
-    public static function make(string $key): static
+    public static function make(string $key, ?string $label = null): static
     {
-        return parent::make($key)
+        return parent::make($key, $label)
             ->type(self::TYPE_PASSWORD)
             ->inputType('password');
     }

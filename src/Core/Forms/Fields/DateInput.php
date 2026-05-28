@@ -12,9 +12,9 @@ class DateInput extends Field
     public const string ATTRIBUTE_MIN_DATE = 'min_date';
     public const string ATTRIBUTE_NATIVE = 'native';
 
-    public static function make(string $key): static
+    public static function make(string $key, ?string $label = null): static
     {
-        return parent::make($key)->type(self::TYPE_DATE);
+        return parent::make($key, $label)->type(self::TYPE_DATE);
     }
 
     public function minDate(\DateTimeInterface|string|null $date): static

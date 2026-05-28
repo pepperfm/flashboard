@@ -21,9 +21,9 @@ class FileUpload extends Field
 
     public const string REMOVE_REQUEST_SUFFIX = '__remove';
 
-    public static function make(string $key): static
+    public static function make(string $key, ?string $label = null): static
     {
-        return parent::make($key)->type(self::TYPE_FILE);
+        return parent::make($key, $label)->type(self::TYPE_FILE);
     }
 
     /**

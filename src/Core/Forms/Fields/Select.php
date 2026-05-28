@@ -8,9 +8,9 @@ use Pepperfm\Flashboard\Contracts\Forms\FieldRenderer;
 
 class Select extends Field
 {
-    public static function make(string $key): static
+    public static function make(string $key, ?string $label = null): static
     {
-        return parent::make($key)->type(self::TYPE_SELECT);
+        return parent::make($key, $label)->type(self::TYPE_SELECT);
     }
 
     /**

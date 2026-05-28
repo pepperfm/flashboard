@@ -6,8 +6,8 @@ namespace Pepperfm\Flashboard\Core\Tables\Columns;
 
 class TextColumn extends Column
 {
-    public static function make(string $key): static
+    public static function make(string $key, ?string $label = null): static
     {
-        return parent::make($key)->type('text');
+        return parent::make($key, $label)->type('text');
     }
 }
