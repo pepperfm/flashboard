@@ -218,6 +218,35 @@ final class ResourceFormDataSourceTest extends TestCase
         ], $field['selected_option']);
     }
 
+    public function test_belongs_to_relationship_key_uses_resolved_foreign_key_for_state_and_selected_option(): void
+    {
+        $this->fakeUrlGenerator();
+        $this->fakeGateForFieldVisibility();
+        $this->createBelongsToTables();
+
+        $category = BelongsToCategory::query()->create([
+            'name' => 'Hardware',
+            'slug' => 'hardware',
+        ]);
+        $record = BelongsToProduct::query()->create([
+            'name' => 'Keyboard',
+            'category_id' => $category->getKey(),
+        ]);
+        $payload = $this->makeDataSource($this->belongsToRegistry())
+            ->resolve($this->relationshipKeyBelongsToResourceClass(), $record);
+        $fields = array_column($payload['fields'], null, 'key');
+        $field = $fields['category'];
+
+        self::assertSame($category->getKey(), $payload['state']['category']);
+        self::assertArrayNotHasKey('category_id', $payload['state']);
+        self::assertSame('category_id', $field['foreign_key']);
+        self::assertSame([
+            'label' => 'Hardware',
+            'value' => $category->getKey(),
+            'url' => '/flashboard.resources.belongs_to_category.detail',
+        ], $field['selected_option']);
+    }
+
     public function test_belongs_to_selected_option_respects_field_query_modifier(): void
     {
         $this->fakeUrlGenerator();
@@ -814,6 +843,29 @@ final class ResourceFormDataSourceTest extends TestCase
                                 ->resource(BelongsToCategoryResource::class),
                         ]),
                     ]),
+                ]);
+            }
+        });
+    }
+
+    /**
+     * @return class-string<Resource>
+     */
+    private function relationshipKeyBelongsToResourceClass(): string
+    {
+        return get_class(new class() extends Resource
+        {
+            public static function model(): string
+            {
+                return BelongsToProduct::class;
+            }
+
+            public static function form(FormContract $form): FormContract
+            {
+                return $form->schema([
+                    BelongsTo::make('category', 'Category')
+                        ->resource(BelongsToCategoryResource::class)
+                        ->titleAttribute('name'),
                 ]);
             }
         });

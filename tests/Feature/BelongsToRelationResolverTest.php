@@ -54,6 +54,21 @@ final class BelongsToRelationResolverTest extends TestCase
         self::assertSame(['name', 'slug'], $metadata->searchColumns);
     }
 
+    public function test_resolves_foreign_key_when_field_key_is_relationship_name(): void
+    {
+        $metadata = $this->resolver()->resolve(
+            BelongsToProductResource::class,
+            BelongsTo::make('category', 'Category')
+                ->titleAttribute('name')
+                ->toArray(),
+        );
+
+        self::assertSame('category', $metadata->fieldKey);
+        self::assertSame('category', $metadata->relationship);
+        self::assertSame('category_id', $metadata->foreignKey);
+        self::assertSame('id', $metadata->ownerKey);
+    }
+
     public function test_infers_relationship_from_foreign_key_when_model_fallback_is_explicit(): void
     {
         $metadata = $this->resolver()->resolve(

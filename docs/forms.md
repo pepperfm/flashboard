@@ -185,12 +185,13 @@ BelongsToMany::make('tags', 'Tags')
     ->maxItems(8);
 ```
 
-`BelongsTo::make(string $key, ?string $label = null, ?string $relationship = null)` follows the same label convention as other typed fields. When the third argument is omitted, Flashboard infers the Eloquent relationship from FK-like keys: `category_id`, `category_uuid`, and `category_ulid` all resolve to `category`. Use `relationship('...')` when the relationship method differs from the FK key.
+`BelongsTo::make(string $key, ?string $label = null, ?string $relationship = null)` follows the same label convention as other typed fields. `$key` may be either the stored foreign key, such as `category_id`, or the relationship name, such as `category`. When the third argument is omitted, Flashboard infers the Eloquent relationship from FK-like keys: `category_id`, `category_uuid`, and `category_ulid` all resolve to `category`; relationship-name keys resolve as-is. Use `relationship('...')` when the relationship method differs from the field key.
 
 Resolution rules:
 
-- the field stores and submits the scalar key named by `$key`, for example `category_id`
+- the field stores and submits the scalar key named by `$key`, for example `category_id` or `category`
 - Eloquent `BelongsTo` metadata resolves the related model, local foreign key, owner key, related table, and record key
+- when `$key` is a relationship name, save normalization maps the submitted value to the resolved foreign key before model `forceFill()`
 - `resource(CategoryResource::class)` overrides related resource resolution
 - when no explicit resource is set, Flashboard can infer one from the registered resource whose `model()` matches the related model; ambiguous matches fail fast and should be fixed with `resource()`
 - `model(RelatedModel::class)` enables an explicit model fallback for option loading when no related resource exists
@@ -205,7 +206,7 @@ Use `BelongsToMany` when the current record owns a pivot membership and the form
 
 At runtime `BelongsToMany` renders as `relation_multi_select`. Form state is an array of related record keys, edit payloads include `selected_options`, and options use the same protected `_relation-options/{field}` route with repeated `selected[]` hydration. The persister removes the array from scalar mass assignment, saves the parent model inside a transaction, re-resolves submitted keys through the authorized related query, and then calls Eloquent `sync($ids)`. Omitted fields are not synced; an explicit empty array calls `sync([])`. Pivot attributes, ordering, creation, update, and deletion of related records are out of scope for this field.
 
-`BelongsTo` and `BelongsToMany` are form fields, not inverse relation managers. Use `Resource::relations()` with `HasOne` or `HasMany` when the parent resource should manage records on the inverse side. Those managers render outside the normal form schema, use protected nested routes, and overwrite any nested-create FK from server-resolved parent context before persistence.
+`BelongsTo` and `BelongsToMany` are form fields, not inverse relation managers. Use `Resource::relations()` with `HasOne` or `HasMany` when the parent resource should manage records on the inverse side. Those managers render outside the normal form schema, use protected nested routes, and overwrite any nested-create FK from server-resolved parent context before persistence. To show an inverse manager below an edit form, keep it in `relations()` and call `showOnEdit()`, for example `HasMany::make('items', 'Items')->showOnEdit()`.
 
 Relation option loading stays silent during normal use. HTTP-boundary failures may log sanitized WARN/ERROR context such as resource class, field key, failure category, and exception class; search terms, selected values, labels, model attributes, and full payloads should not be logged.
 

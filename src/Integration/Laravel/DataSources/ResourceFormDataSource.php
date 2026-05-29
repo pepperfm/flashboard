@@ -95,6 +95,11 @@ final readonly class ResourceFormDataSource
                     $state[$key] = null;
                     continue;
                 }
+                if ($this->isBelongsToField($field)) {
+                    $foreignKey = trim((string) Arr::get($field, BelongsTo::ATTRIBUTE_FOREIGN_KEY, $key));
+                    $state[$key] = data_get($record, $foreignKey === '' ? $key : $foreignKey);
+                    continue;
+                }
                 if ($this->isBelongsToManyField($field)) {
                     $state[$key] = array_values(array_map(
                         static fn(array $option): string|int|bool => $option['value'],
@@ -534,7 +539,7 @@ final readonly class ResourceFormDataSource
         ?\Illuminate\Contracts\Auth\Authenticatable $user,
         ?\Closure $queryModifier,
     ): ?array {
-        $selectedValue = $this->optionValue(data_get($record, $metadata->fieldKey));
+        $selectedValue = $this->optionValue(data_get($record, $metadata->foreignKey));
         if ($selectedValue === null || !$this->canQueryBelongsToOptions($metadata, $user)) {
             return null;
         }

@@ -21,6 +21,7 @@ use Pepperfm\Flashboard\Core\Forms\Fields\PasswordInput;
 use Pepperfm\Flashboard\Core\Forms\Fields\TextInput;
 use Pepperfm\Flashboard\Core\Hooks\RuntimeHookDispatcher;
 use Pepperfm\Flashboard\Integration\Laravel\Persistence\ResourceFormPersister;
+use Pepperfm\Flashboard\Tests\Fixtures\Models\BelongsToCategory;
 use Pepperfm\Flashboard\Tests\Fixtures\Models\BelongsToManyProduct;
 use Pepperfm\Flashboard\Tests\Fixtures\Models\BelongsToManyTag;
 use Pepperfm\Flashboard\Tests\Fixtures\Resources\BelongsToManyTagResource;
@@ -166,6 +167,31 @@ final class ResourceFormPersisterTest extends TestCase
             ]);
 
         self::assertSame(7, $created->getAttribute('category_id'));
+    }
+
+    public function test_belongs_to_relationship_key_is_persisted_to_resolved_foreign_key(): void
+    {
+        $record = ResourceFormPersisterRecord::query()->create([
+            'name' => 'Original',
+            'category_id' => 5,
+        ]);
+
+        $updated = (new ResourceFormPersister(new RuntimeHookDispatcher()))
+            ->update($this->relationshipKeyBelongsToResourceClass(), $record, [
+                'category' => 9,
+            ]);
+
+        self::assertSame(9, $updated->getAttribute('category_id'));
+        self::assertArrayNotHasKey('category', $updated->getAttributes());
+
+        $created = (new ResourceFormPersister(new RuntimeHookDispatcher()))
+            ->create($this->relationshipKeyBelongsToResourceClass(), [
+                'name' => 'Created',
+                'category' => 7,
+            ]);
+
+        self::assertSame(7, $created->getAttribute('category_id'));
+        self::assertArrayNotHasKey('category', $created->getAttributes());
     }
 
     public function test_belongs_to_many_values_are_removed_from_scalar_attributes_and_synced(): void
@@ -356,6 +382,28 @@ final class ResourceFormPersisterTest extends TestCase
     }
 
     /**
+     * @return class-string<Resource>
+     */
+    private function relationshipKeyBelongsToResourceClass(): string
+    {
+        return get_class(new class() extends Resource
+        {
+            public static function model(): string
+            {
+                return ResourceFormPersisterRecord::class;
+            }
+
+            public static function form(FormContract $form): FormContract
+            {
+                return $form->schema([
+                    TextInput::make('name')->label('Name'),
+                    BelongsTo::make('category', 'Category'),
+                ]);
+            }
+        });
+    }
+
+    /**
      * @return array<string, mixed>
      */
     private function hookContext(string $hook): array
@@ -430,6 +478,11 @@ final class ResourceFormPersisterRecord extends \Illuminate\Database\Eloquent\Mo
     public $timestamps = false;
 
     protected $guarded = [];
+
+    public function category(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(BelongsToCategory::class, 'category_id');
+    }
 }
 
 final class ResourceFormPersisterCapturingHook implements RuntimeHookContract

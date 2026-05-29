@@ -24,6 +24,8 @@ use Pepperfm\Flashboard\Core\Forms\Fields\Textarea;
 use Pepperfm\Flashboard\Core\Forms\Fields\TextInput;
 use Pepperfm\Flashboard\Core\Forms\Fields\Toggle;
 use Pepperfm\Flashboard\Core\Forms\Layout\Section as FormSection;
+use Pepperfm\Flashboard\Core\Forms\Normalization\FormSchemaNormalizer;
+use Pepperfm\Flashboard\Core\Relations\HasMany;
 use Pepperfm\Flashboard\Core\Runtime\Assemblers\DetailPayloadAssembler;
 use Pepperfm\Flashboard\Core\Runtime\Payloads\DetailPayload;
 use Pepperfm\Flashboard\Core\Runtime\Payloads\FormPayload;
@@ -70,6 +72,19 @@ final class TypedSchemaNormalizationTest extends TestCase
         foreach ($nodes as [$node, $label]) {
             self::assertSame($label, $node->toArray()['label']);
         }
+    }
+
+    public function test_form_schema_rejects_relation_managers_with_actionable_message(): void
+    {
+        $this->expectException(\InvalidArgumentException::class);
+        $this->expectExceptionMessage('Define it in Resource::relations() and call showOnEdit()');
+
+        (new FormSchemaNormalizer())->normalize([
+            'schema' => [
+                TextInput::make('name', 'Name'),
+                HasMany::make('items', 'Items'),
+            ],
+        ]);
     }
 
     public function test_table_payload_accessors_use_normalized_column_metadata(): void

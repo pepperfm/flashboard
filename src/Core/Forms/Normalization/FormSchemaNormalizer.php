@@ -12,6 +12,8 @@ use Pepperfm\Flashboard\Contracts\Forms\FormLayoutDirection;
 use Pepperfm\Flashboard\Contracts\Forms\FormLayoutJustify;
 use Pepperfm\Flashboard\Contracts\Forms\FormLayoutMode;
 use Pepperfm\Flashboard\Contracts\Forms\FormSchemaNodeKind;
+use Pepperfm\Flashboard\Contracts\Resources\Relations\RelationDefinitionContract;
+use Pepperfm\Flashboard\Contracts\Schema\KeyedSchemaNodeContract;
 use Pepperfm\Flashboard\Core\Forms\Fields\BelongsToMany;
 use Pepperfm\Flashboard\Core\Forms\Fields\DateInput;
 use Pepperfm\Flashboard\Core\Forms\Fields\Field;
@@ -357,25 +359,41 @@ final class FormSchemaNormalizer
     }
 
     /**
-     * @param list<array<string, mixed>|\Pepperfm\Flashboard\Contracts\Schema\KeyedSchemaNodeContract> $nodes
+     * @param list<mixed> $nodes
      *
      * @return list<array<string, mixed>>
      */
     private function normalizeSchemaNodes(array $nodes, bool $insideTabs = false): array
     {
-        return array_values(array_map(
-            fn (array|\Pepperfm\Flashboard\Contracts\Schema\KeyedSchemaNodeContract $node): array => $this->normalizeSchemaNode($node, $insideTabs),
-            $nodes,
-        ));
+        $normalized = [];
+
+        foreach ($nodes as $node) {
+            $normalized[] = $this->normalizeSchemaNode($node, $insideTabs);
+        }
+
+        return $normalized;
     }
 
     /**
-     * @param array<string, mixed>|\Pepperfm\Flashboard\Contracts\Schema\KeyedSchemaNodeContract $node
-     *
      * @return array<string, mixed>
      */
-    private function normalizeSchemaNode(array|\Pepperfm\Flashboard\Contracts\Schema\KeyedSchemaNodeContract $node, bool $insideTabs): array
+    private function normalizeSchemaNode(mixed $node, bool $insideTabs): array
     {
+        if ($node instanceof RelationDefinitionContract) {
+            throw new \InvalidArgumentException(sprintf(
+                'Relation manager [%s] cannot be placed inside a form schema. Define it in Resource::relations() and call showOnEdit() when it should render below the edit form.',
+                $node::class,
+            ));
+        }
+
+        if (!is_array($node) && !$node instanceof KeyedSchemaNodeContract) {
+            throw new \InvalidArgumentException(sprintf(
+                'Form schema nodes must be arrays or instances of [%s]; [%s] given.',
+                KeyedSchemaNodeContract::class,
+                get_debug_type($node),
+            ));
+        }
+
         $normalized = SchemaNodeNormalizer::normalizeKeyedNode($node);
         $kind = $this->resolveSchemaNodeKind($normalized, $insideTabs);
 
@@ -512,7 +530,7 @@ final class FormSchemaNormalizer
     /**
      * @param array<string, mixed> $definition
      *
-     * @return list<array<string, mixed>|\Pepperfm\Flashboard\Contracts\Schema\KeyedSchemaNodeContract>
+     * @return list<mixed>
      */
     private function composeRootSchema(array $definition): array
     {

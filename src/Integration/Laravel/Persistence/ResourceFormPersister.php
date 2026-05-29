@@ -20,6 +20,7 @@ use Pepperfm\Flashboard\Core\Forms\Fields\Field;
 use Pepperfm\Flashboard\Core\Forms\Fields\FileUpload;
 use Pepperfm\Flashboard\Core\Forms\Relations\BelongsToManyRelationMetadata;
 use Pepperfm\Flashboard\Core\Forms\Relations\BelongsToManyRelationMetadataResolver;
+use Pepperfm\Flashboard\Core\Forms\Relations\BelongsToRelationMetadataResolver;
 use Pepperfm\Flashboard\Core\Hooks\RuntimeHookDispatcher;
 use Pepperfm\Flashboard\Core\Registry\ResourceRegistry;
 use Pepperfm\Flashboard\Integration\Laravel\Relations\RelationQueryModifier;
@@ -53,7 +54,7 @@ final readonly class ResourceFormPersister
 
         $payload = $this->withoutEmptyPasswordFields($payload, $fields);
         $payload = $this->withoutPasswordConfirmationFields($payload, $fields);
-        $payload = $this->normalizeBelongsToFieldData($payload, $fields);
+        $payload = $this->normalizeBelongsToFieldData($resourceClass, $payload, $fields);
         $payload = $this->normalizeBelongsToManyFieldData($payload, $fields);
         $data = $form->mutateData($payload);
         $data = $resourceClass::mutateFormDataBeforeSave($data, null);
@@ -99,7 +100,7 @@ final readonly class ResourceFormPersister
 
         $payload = $this->withoutEmptyPasswordFields($payload, $fields);
         $payload = $this->withoutPasswordConfirmationFields($payload, $fields);
-        $payload = $this->normalizeBelongsToFieldData($payload, $fields);
+        $payload = $this->normalizeBelongsToFieldData($resourceClass, $payload, $fields);
         $payload = $this->normalizeBelongsToManyFieldData($payload, $fields);
         $data = $form->mutateData($payload, $record);
         $data = $resourceClass::mutateFormDataBeforeSave($data, $record);
@@ -257,13 +258,16 @@ final readonly class ResourceFormPersister
     }
 
     /**
+     * @param class-string<Resource> $resourceClass
      * @param array<string, mixed> $payload
      * @param list<array<string, mixed>> $fields
      *
      * @return array<string, mixed>
      */
-    private function normalizeBelongsToFieldData(array $payload, array $fields): array
+    private function normalizeBelongsToFieldData(string $resourceClass, array $payload, array $fields): array
     {
+        $resolver = new BelongsToRelationMetadataResolver($this->resourceRegistry);
+
         foreach ($fields as $field) {
             if (!$this->isBelongsToField($field)) {
                 continue;
@@ -276,6 +280,15 @@ final readonly class ResourceFormPersister
             if ($payload[$key] === '') {
                 $payload[$key] = null;
             }
+
+            $metadata = $resolver->resolve($resourceClass, $field);
+            $foreignKey = trim($metadata->foreignKey);
+            if ($foreignKey === '' || $foreignKey === $key) {
+                continue;
+            }
+
+            $payload[$foreignKey] = $payload[$key];
+            unset($payload[$key]);
         }
 
         return $payload;
