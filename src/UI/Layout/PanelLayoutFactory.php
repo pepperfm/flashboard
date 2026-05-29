@@ -33,6 +33,7 @@ final readonly class PanelLayoutFactory
     ): PanelLayout {
         $metadata = $context->metadata()->toArray();
         $title = $this->titleFromContext($context);
+        $panelHref = $this->panelHref($metadata);
 
         return new PanelLayout(
             title: $title,
@@ -40,11 +41,10 @@ final readonly class PanelLayoutFactory
             breadcrumbs: [
                 [
                     'label' => (string) Arr::get($metadata, 'panel_name', 'Panel'),
-                    'href' => '/',
+                    'href' => $panelHref,
                 ],
                 [
                     'label' => $title,
-                    'href' => '#',
                 ],
             ],
             headerActions: [],
@@ -67,6 +67,16 @@ final readonly class PanelLayoutFactory
         }
 
         return $context->panel()->name();
+    }
+
+    /**
+     * @param array<string, mixed> $metadata
+     */
+    private function panelHref(array $metadata): string
+    {
+        $panelPath = trim((string) Arr::get($metadata, 'panel_path', ''), '/');
+
+        return $panelPath === '' ? '/' : '/' . $panelPath;
     }
 
     /**

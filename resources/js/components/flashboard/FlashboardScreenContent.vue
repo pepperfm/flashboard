@@ -151,7 +151,7 @@ type PayloadShape = {
 type TableSortDirection = 'asc' | 'desc'
 
 const props = defineProps<{
-  breadcrumbs?: Array<{ href: string; label: string }>
+  breadcrumbs?: Array<{ label: string; to?: string }>
   payload: PayloadShape
 }>()
 
