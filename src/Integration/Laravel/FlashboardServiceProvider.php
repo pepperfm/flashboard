@@ -4,9 +4,11 @@ declare(strict_types=1);
 
 namespace Pepperfm\Flashboard\Integration\Laravel;
 
+use Pepperfm\Flashboard\Contracts\Authorization\ResourcePolicyGateContract;
 use Pepperfm\Flashboard\Contracts\Panel\PanelDefinitionContract;
 use Pepperfm\Flashboard\Core\Panel\PanelConfig;
 use Pepperfm\Flashboard\Flashboard;
+use Pepperfm\Flashboard\Integration\Laravel\Auth\PolicyBridge;
 use Pepperfm\Flashboard\Integration\Laravel\Console\BuildAssetsCommand;
 use Pepperfm\Flashboard\Integration\Laravel\Console\InstallCommand;
 use Pepperfm\Flashboard\Integration\Laravel\Console\PlaygroundInfoCommand;
@@ -35,6 +37,7 @@ final class FlashboardServiceProvider extends \Illuminate\Support\ServiceProvide
                 dirname(__DIR__, 3),
             )
         );
+        $this->app->singleton(ResourcePolicyGateContract::class, PolicyBridge::class);
 
         if ($this->app->runningInConsole()) {
             $this->commands([

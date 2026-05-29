@@ -6,7 +6,7 @@ namespace Pepperfm\Flashboard;
 
 final class Flashboard
 {
-    public const string VERSION = '0.1.9';
+    public const string VERSION = '0.2.0';
 
     public const string CONFIG_NAME = 'flashboard';
 

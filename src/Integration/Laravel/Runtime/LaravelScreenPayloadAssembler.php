@@ -2,7 +2,7 @@
 
 declare(strict_types=1);
 
-namespace Pepperfm\Flashboard\Core\Runtime\Assemblers;
+namespace Pepperfm\Flashboard\Integration\Laravel\Runtime;
 
 use Illuminate\Container\Attributes\Singleton;
 use Illuminate\Support\Arr;
@@ -15,17 +15,18 @@ use Pepperfm\Flashboard\Core\Extensions\ExtensionRegistry;
 use Pepperfm\Flashboard\Core\Hooks\RuntimeHookDispatcher;
 use Pepperfm\Flashboard\Core\Navigation\Builders\NavigationItem;
 use Pepperfm\Flashboard\Core\Resources\ResourceSurfaceResolver;
+use Pepperfm\Flashboard\Core\Runtime\Assemblers\ActionPayloadAssembler;
+use Pepperfm\Flashboard\Core\Runtime\Assemblers\TablePayloadAssembler;
 use Pepperfm\Flashboard\Core\Runtime\Context\RuntimeRequestContext;
 use Pepperfm\Flashboard\Core\Runtime\Payloads\ScreenPayload;
-use Pepperfm\Flashboard\Core\Runtime\Screens\ScreenKind;
 use Pepperfm\Flashboard\Core\Runtime\Workspaces\WorkspacePayloadAssembler;
 use Pepperfm\Flashboard\Integration\Laravel\Auth\PanelAuthenticator;
 use Pepperfm\Flashboard\Integration\Laravel\DataSources\ResourceDetailDataSource;
-use Pepperfm\Flashboard\Integration\Laravel\DataSources\ResourceListDataSource;
 use Pepperfm\Flashboard\Integration\Laravel\DataSources\ResourceFormDataSource;
+use Pepperfm\Flashboard\Integration\Laravel\DataSources\ResourceListDataSource;
 
 #[Singleton]
-final readonly class ScreenPayloadAssembler
+final readonly class LaravelScreenPayloadAssembler
 {
     public function __construct(
         private ActionPayloadAssembler $actionPayloadAssembler,
@@ -156,6 +157,7 @@ final readonly class ScreenPayloadAssembler
 
     /**
      * @param list<ActionContract> $actions
+     * @param class-string<Resource> $resourceClass
      *
      * @return list<array<string, mixed>>
      */
@@ -166,13 +168,11 @@ final readonly class ScreenPayloadAssembler
                 $payload = $this->actionPayloadAssembler->assemble($action)->toArray();
                 $payload['url'] = $recordKey === null
                     ? route(
-                        config('flashboard.route_name_prefix', 'flashboard.')
-                        . 'resources.' . $resourceClass::key() . '.actions.index',
+                        config('flashboard.route_name_prefix', 'flashboard.') . 'resources.' . $resourceClass::key() . '.actions.index',
                         ['action' => $action->key()],
                     )
                     : route(
-                        config('flashboard.route_name_prefix', 'flashboard.')
-                        . 'resources.' . $resourceClass::key() . '.actions.record',
+                        config('flashboard.route_name_prefix', 'flashboard.') . 'resources.' . $resourceClass::key() . '.actions.record',
                         ['record' => $recordKey, 'action' => $action->key()],
                     );
                 $payload['method'] = 'post';
@@ -194,25 +194,21 @@ final readonly class ScreenPayloadAssembler
 
         return [
             'index' => route(
-                config('flashboard.route_name_prefix', 'flashboard.')
-                . 'resources.' . $resourceClass::key() . '.index',
+                config('flashboard.route_name_prefix', 'flashboard.') . 'resources.' . $resourceClass::key() . '.index',
             ),
             'create' => route(
-                config('flashboard.route_name_prefix', 'flashboard.')
-                . 'resources.' . $resourceClass::key() . '.create',
+                config('flashboard.route_name_prefix', 'flashboard.') . 'resources.' . $resourceClass::key() . '.create',
             ),
             'detail' => $recordKey === null || !$hasDetailSurface
                 ? null
                 : route(
-                    config('flashboard.route_name_prefix', 'flashboard.')
-                    . 'resources.' . $resourceClass::key() . '.detail',
+                    config('flashboard.route_name_prefix', 'flashboard.') . 'resources.' . $resourceClass::key() . '.detail',
                     ['record' => $recordKey],
                 ),
             'edit' => $recordKey === null
                 ? null
                 : route(
-                    config('flashboard.route_name_prefix', 'flashboard.')
-                    . 'resources.' . $resourceClass::key() . '.edit',
+                    config('flashboard.route_name_prefix', 'flashboard.') . 'resources.' . $resourceClass::key() . '.edit',
                     ['record' => $recordKey],
                 ),
         ];

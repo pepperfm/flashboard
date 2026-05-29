@@ -6,10 +6,11 @@ namespace Pepperfm\Flashboard\Integration\Laravel\Auth;
 
 use Illuminate\Container\Attributes\Singleton;
 use Illuminate\Database\Eloquent\Model;
+use Pepperfm\Flashboard\Contracts\Authorization\ResourcePolicyGateContract;
 use Pepperfm\Flashboard\Contracts\Resources\Resource;
 
 #[Singleton]
-final class PolicyBridge
+final class PolicyBridge implements ResourcePolicyGateContract
 {
     /**
      * @param class-string<Resource> $resourceClass

@@ -6,12 +6,9 @@ namespace Pepperfm\Flashboard\Core\Relations;
 
 use Pepperfm\Flashboard\Contracts\Resources\Relations\RelationDefinitionContract;
 use Pepperfm\Flashboard\Contracts\Resources\Resource;
-use Pepperfm\Flashboard\Core\Relations\Concerns\InfersRelationshipName;
 
 abstract class RelationManagerDefinition implements RelationDefinitionContract
 {
-    use InfersRelationshipName;
-
     public const string ATTRIBUTE_ATTACHABLE = 'attachable';
     public const string ATTRIBUTE_DETACHABLE = 'detachable';
     public const string ATTRIBUTE_FOREIGN_KEY = 'foreign_key';
@@ -74,7 +71,7 @@ abstract class RelationManagerDefinition implements RelationDefinitionContract
         private ?string $relationship = null,
     ) {
         $this->label ??= str($this->key)->headline()->value();
-        $this->relationship ??= self::inferRelationshipName($this->key);
+        $this->relationship ??= trim($this->key);
     }
 
     public static function make(string $key, ?string $label = null, ?string $relationship = null): static

@@ -2,6 +2,15 @@
 
 ## Unreleased
 
+## 0.2.0 - 2026-05-29
+
+- add advanced resource form fields for dates, uploads, rich text, passwords, and relation selects
+- add keyed typed-node label arguments across form fields, table nodes, and relation definitions
+- add `BelongsTo` relation select fields with lazy protected option loading and relationship/resource inference
+- add `HasOne` and `HasMany` inverse relation managers with safe attach, detach, replace, and sync-style controls
+- move Laravel-bound screen payload assembly behind the Laravel integration layer and decouple core screen access from the concrete policy bridge
+- update package docs, companion docs, raw markdown, and MCP-facing content for the new fields and relation manager APIs
+
 ## 0.1.12 - 2026-05-26
 
 - tighten destructive row-action confirmation popover styling to use Nuxt UI content and utility classes

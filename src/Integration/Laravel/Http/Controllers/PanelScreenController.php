@@ -7,10 +7,10 @@ namespace Pepperfm\Flashboard\Integration\Laravel\Http\Controllers;
 use Pepperfm\Flashboard\Core\Authorization\Visibility\ScreenAccessResolver;
 use Pepperfm\Flashboard\Core\Navigation\NavigationBuilder;
 use Pepperfm\Flashboard\Core\Panel\FlashboardManager;
-use Pepperfm\Flashboard\Core\Runtime\Assemblers\ScreenPayloadAssembler;
 use Pepperfm\Flashboard\Core\Runtime\Context\RuntimeContextFactory;
 use Pepperfm\Flashboard\Flashboard;
 use Pepperfm\Flashboard\Integration\Laravel\Auth\PanelAuthenticator;
+use Pepperfm\Flashboard\Integration\Laravel\Runtime\LaravelScreenPayloadAssembler;
 use Pepperfm\Flashboard\UI\Layout\PanelLayoutFactory;
 use Pepperfm\Flashboard\UI\Renderers\InertiaScreenRenderer;
 use Pepperfm\Flashboard\UI\Renderers\JsonScreenRenderer;
@@ -21,7 +21,7 @@ final readonly class PanelScreenController
     public function __construct(
         private FlashboardManager $manager,
         private RuntimeContextFactory $runtimeContextFactory,
-        private ScreenPayloadAssembler $screenPayloadAssembler,
+        private LaravelScreenPayloadAssembler $screenPayloadAssembler,
         private NavigationBuilder $navigationBuilder,
         private PanelLayoutFactory $panelLayoutFactory,
         private PanelAuthenticator $authenticator,
@@ -36,6 +36,7 @@ final readonly class PanelScreenController
         $panel = $this->manager->panel();
         $context = $this->runtimeContextFactory->make($request, $panel);
         $user = $this->authenticator->user();
+        /** @var class-string<\Pepperfm\Flashboard\Contracts\Resources\Resource> $resourceClass */
         $resourceClass = $context->screen()->resourceClass();
         $resourcePage = (string) ($request->route()?->defaults['flashboard.resource_page'] ?? 'index');
         $record = is_string($resourceClass) && in_array($resourcePage, ['detail', 'edit'], true)
@@ -48,7 +49,6 @@ final readonly class PanelScreenController
         ) {
             abort(403);
         }
-
         if (
             is_string($resourceClass) &&
             !$this->canAccessResourceScreen($resourceClass, $resourcePage, $record, $user)

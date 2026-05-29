@@ -6,15 +6,15 @@ namespace Pepperfm\Flashboard\Core\Authorization\Visibility;
 
 use Illuminate\Container\Attributes\Singleton;
 use Illuminate\Database\Eloquent\Model;
+use Pepperfm\Flashboard\Contracts\Authorization\ResourcePolicyGateContract;
 use Pepperfm\Flashboard\Contracts\Pages\PageDefinitionContract;
 use Pepperfm\Flashboard\Contracts\Resources\Resource;
-use Pepperfm\Flashboard\Integration\Laravel\Auth\PolicyBridge;
 
 #[Singleton]
 final readonly class ScreenAccessResolver
 {
     public function __construct(
-        private PolicyBridge $policyBridge,
+        private ResourcePolicyGateContract $policyGate,
     ) {
     }
 
@@ -39,7 +39,7 @@ final readonly class ScreenAccessResolver
      */
     public function canAccessResource(string $resourceClass, ?\Illuminate\Contracts\Auth\Authenticatable $user): bool
     {
-        return $resourceClass::canAccess($user) && $this->policyBridge->canViewAny($resourceClass, $user);
+        return $resourceClass::canAccess($user) && $this->policyGate->canViewAny($resourceClass, $user);
     }
 
     /**
@@ -60,7 +60,7 @@ final readonly class ScreenAccessResolver
         ?\Illuminate\Contracts\Auth\Authenticatable $user,
         ?Model $record
     ): bool {
-        return $resourceClass::canAccess($user) && $this->policyBridge->canView($resourceClass, $user, $record);
+        return $resourceClass::canAccess($user) && $this->policyGate->canView($resourceClass, $user, $record);
     }
 
     /**
@@ -68,7 +68,7 @@ final readonly class ScreenAccessResolver
      */
     public function canCreateRecord(string $resourceClass, ?\Illuminate\Contracts\Auth\Authenticatable $user): bool
     {
-        return $resourceClass::canAccess($user) && $this->policyBridge->canCreate($resourceClass, $user);
+        return $resourceClass::canAccess($user) && $this->policyGate->canCreate($resourceClass, $user);
     }
 
     /**
@@ -79,7 +79,7 @@ final readonly class ScreenAccessResolver
         ?\Illuminate\Contracts\Auth\Authenticatable $user,
         ?Model $record
     ): bool {
-        return $resourceClass::canAccess($user) && $this->policyBridge->canUpdate($resourceClass, $user, $record);
+        return $resourceClass::canAccess($user) && $this->policyGate->canUpdate($resourceClass, $user, $record);
     }
 
     /**
@@ -90,7 +90,7 @@ final readonly class ScreenAccessResolver
         ?\Illuminate\Contracts\Auth\Authenticatable $user,
         ?Model $record
     ): bool {
-        return $resourceClass::canAccess($user) && $this->policyBridge->canDelete($resourceClass, $user, $record);
+        return $resourceClass::canAccess($user) && $this->policyGate->canDelete($resourceClass, $user, $record);
     }
 
     /**
@@ -103,7 +103,7 @@ final readonly class ScreenAccessResolver
     ): bool {
         $ability = $this->abilityForKey($resourceClass::fieldAbilityMap(), $fieldKey);
 
-        return $ability === null || $this->policyBridge->allows($resourceClass, $ability, $user);
+        return $ability === null || $this->policyGate->allows($resourceClass, $ability, $user);
     }
 
     /**
@@ -116,7 +116,7 @@ final readonly class ScreenAccessResolver
     ): bool {
         $ability = $this->abilityForKey($resourceClass::actionAbilityMap(), $actionKey);
 
-        return $ability === null || $this->policyBridge->allows($resourceClass, $ability, $user);
+        return $ability === null || $this->policyGate->allows($resourceClass, $ability, $user);
     }
 
     /**
@@ -129,7 +129,7 @@ final readonly class ScreenAccessResolver
     ): bool {
         $ability = $this->abilityForKey($resourceClass::relationAbilityMap(), $relationKey);
 
-        return $ability === null || $this->policyBridge->allows($resourceClass, $ability, $user);
+        return $ability === null || $this->policyGate->allows($resourceClass, $ability, $user);
     }
 
     /**
