@@ -9,6 +9,7 @@ use Illuminate\Contracts\Auth\Factory;
 use Illuminate\Contracts\Auth\Guard;
 use Illuminate\Contracts\Auth\StatefulGuard;
 use Illuminate\Database\Capsule\Manager as Capsule;
+use Illuminate\Database\Eloquent\Builder;
 use Pepperfm\Flashboard\Contracts\Forms\FormContract;
 use Pepperfm\Flashboard\Contracts\Resources\Resource;
 use Pepperfm\Flashboard\Core\Authorization\Visibility\ScreenAccessResolver;
@@ -210,6 +211,27 @@ final class ResourceFormDataSourceTest extends TestCase
             'value' => $category->getKey(),
             'url' => '/flashboard.resources.belongs_to_category.detail',
         ], $field['selected_option']);
+    }
+
+    public function test_belongs_to_selected_option_respects_field_query_modifier(): void
+    {
+        $this->fakeUrlGenerator();
+        $this->fakeGateForFieldVisibility();
+        $this->createBelongsToTables();
+
+        $category = BelongsToCategory::query()->create([
+            'name' => 'Hidden',
+            'slug' => 'hidden',
+        ]);
+        $record = BelongsToProduct::query()->create([
+            'name' => 'Desk',
+            'category_id' => $category->getKey(),
+        ]);
+        $payload = $this->makeDataSource($this->belongsToRegistry())
+            ->resolve($this->queryModifiedBelongsToResourceClass(), $record);
+        $fields = array_column($payload['fields'], null, 'key');
+
+        self::assertNull($fields['category_id']['selected_option']);
     }
 
     public function test_belongs_to_metadata_is_enriched_recursively_in_sections_and_tabs(): void
@@ -645,6 +667,30 @@ final class ResourceFormDataSourceTest extends TestCase
                     BelongsTo::make('category_id', 'Category')
                         ->resource(InaccessibleBelongsToCategoryResource::class)
                         ->titleAttribute('name'),
+                ]);
+            }
+        });
+    }
+
+    /**
+     * @return class-string<Resource>
+     */
+    private function queryModifiedBelongsToResourceClass(): string
+    {
+        return get_class(new class() extends Resource
+        {
+            public static function model(): string
+            {
+                return BelongsToProduct::class;
+            }
+
+            public static function form(FormContract $form): FormContract
+            {
+                return $form->schema([
+                    BelongsTo::make('category_id', 'Category')
+                        ->resource(BelongsToCategoryResource::class)
+                        ->titleAttribute('name')
+                        ->modifyQueryUsing(static fn (Builder $query): Builder => $query->where('slug', '!=', 'hidden')),
                 ]);
             }
         });

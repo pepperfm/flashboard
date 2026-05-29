@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Pepperfm\Flashboard\Tests\Feature;
 
 use Illuminate\Database\Capsule\Manager as Capsule;
+use Illuminate\Database\Eloquent\Builder;
 use Pepperfm\Flashboard\Contracts\Extensions\QueryExtensionContract;
 use Pepperfm\Flashboard\Contracts\Resources\Resource;
 use Pepperfm\Flashboard\Core\Authorization\Visibility\ScreenAccessResolver;
@@ -168,6 +169,67 @@ final class ResourceRelationManagerPersisterTest extends TestCase
         }
     }
 
+    public function test_attach_respects_relation_attach_options_query_modifier(): void
+    {
+        $this->createTables();
+        $order = RelationManagerOrder::query()->create(['name' => 'Order 1']);
+        $allowed = RelationManagerOrderItem::query()->create([
+            'order_id' => null,
+            'name' => 'Allowed item',
+            'sku' => 'allowed',
+        ]);
+        $blocked = RelationManagerOrderItem::query()->create([
+            'order_id' => null,
+            'name' => 'Blocked item',
+            'sku' => 'blocked',
+        ]);
+
+        $this->expectException(\Symfony\Component\HttpKernel\Exception\NotFoundHttpException::class);
+
+        try {
+            $this->persister($this->modifiedRegistry())->attach(
+                ModifiedPersisterRelationManagerOrderResource::class,
+                $order,
+                'items',
+                $blocked->getKey(),
+            );
+        } finally {
+            self::assertNull($blocked->refresh()->getAttribute('order_id'));
+
+            $this->persister($this->modifiedRegistry())->attach(
+                ModifiedPersisterRelationManagerOrderResource::class,
+                $order,
+                'items',
+                $allowed->getKey(),
+            );
+            self::assertSame($order->getKey(), $allowed->refresh()->getAttribute('order_id'));
+        }
+    }
+
+    public function test_detach_respects_relation_records_query_modifier(): void
+    {
+        $this->createTables();
+        $order = RelationManagerOrder::query()->create(['name' => 'Order 1']);
+        $hidden = RelationManagerOrderItem::query()->create([
+            'order_id' => $order->getKey(),
+            'name' => 'Hidden item',
+            'sku' => 'hidden',
+        ]);
+
+        $this->expectException(\Symfony\Component\HttpKernel\Exception\NotFoundHttpException::class);
+
+        try {
+            $this->persister($this->modifiedRegistry())->detach(
+                ModifiedPersisterRelationManagerOrderResource::class,
+                $order,
+                'items',
+                [$hidden->getKey()],
+            );
+        } finally {
+            self::assertSame($order->getKey(), $hidden->refresh()->getAttribute('order_id'));
+        }
+    }
+
     private function createTables(bool $nullableForeignKey = true): void
     {
         $this->database = new Capsule();
@@ -241,6 +303,15 @@ final class ResourceRelationManagerPersisterTest extends TestCase
 
         return $registry;
     }
+
+    private function modifiedRegistry(): ResourceRegistry
+    {
+        $registry = new ResourceRegistry();
+        $registry->register(ModifiedPersisterRelationManagerOrderResource::class);
+        $registry->register(RelationManagerOrderItemResource::class);
+
+        return $registry;
+    }
 }
 
 final class ReadOnlyRelationManagerOrderResource extends Resource
@@ -295,6 +366,27 @@ final class ScopedRelationManagerOrderItemResource extends Resource
                     return $query->where('name', '!=', 'Hidden item');
                 }
             },
+        ];
+    }
+}
+
+final class ModifiedPersisterRelationManagerOrderResource extends Resource
+{
+    public static function model(): string
+    {
+        return RelationManagerOrder::class;
+    }
+
+    public static function relations(): array
+    {
+        return [
+            HasMany::make('items', 'Items')
+                ->resource(RelationManagerOrderItemResource::class)
+                ->attachable()
+                ->detachable()
+                ->syncable()
+                ->modifyRecordsQueryUsing(static fn (Builder $query): Builder => $query->where('sku', 'visible'))
+                ->modifyAttachOptionsQueryUsing(static fn (Builder $query): Builder => $query->where('sku', 'allowed')),
         ];
     }
 }

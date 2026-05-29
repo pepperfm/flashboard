@@ -165,12 +165,14 @@ Use `BelongsTo` when a form should store one local foreign key and let the opera
 
 ```php
 use App\Flashboard\CategoryResource;
+use Illuminate\Database\Eloquent\Builder;
 use Pepperfm\Flashboard\Core\Forms\Fields\BelongsTo;
 
 BelongsTo::make('category_id', 'Category')
     ->resource(CategoryResource::class)
     ->titleAttribute('name')
     ->searchable(['name', 'slug'])
+    ->modifyQueryUsing(static fn (Builder $query): Builder => $query->with('parent'))
     ->required();
 ```
 
@@ -183,9 +185,10 @@ Resolution rules:
 - `resource(CategoryResource::class)` overrides related resource resolution
 - when no explicit resource is set, Flashboard can infer one from the registered resource whose `model()` matches the related model; ambiguous matches fail fast and should be fixed with `resource()`
 - `model(RelatedModel::class)` enables an explicit model fallback for option loading when no related resource exists
+- `modifyQueryUsing(fn (Builder $query): Builder => ...)` applies a server-only field-level query modifier after the related resource query and query extensions; the callback must return an Eloquent `Builder`
 - empty submitted values are normalized to `null`; v1 does not call `associate()` implicitly
 
-At runtime `BelongsTo` renders as a lazy `relation_select` field. The form payload includes relation metadata plus `options_url`, `options_per_page`, `selected_option` on edit, and `related_routes` only when the related resource is accessible and has a detail surface. The options endpoint is protected, searchable, paginated, and uses the related resource query plus query extensions when a related resource is available.
+At runtime `BelongsTo` renders as a lazy `relation_select` field. The form payload includes relation metadata plus `options_url`, `options_per_page`, `selected_option` on edit, and `related_routes` only when the related resource is accessible and has a detail surface. The options endpoint is protected, searchable, paginated, and uses the related resource query plus query extensions when a related resource is available. Field-level query modifiers are not serialized into payloads; they run only on the server for option pages and selected-option hydration.
 
 Validation still starts from the normalized field payload. Required relation fields infer `required`; optional ones infer `nullable`; both receive an `exists:<related_table>,<owner_key>` rule when relation metadata resolves safely. Explicit form builder rules merge on top.
 

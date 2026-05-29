@@ -22,6 +22,8 @@ class BelongsTo extends Field
 
     public const int DEFAULT_OPTIONS_PER_PAGE = 15;
 
+    private ?\Closure $modifyQueryUsing = null;
+
     public static function make(string $key, ?string $label = null, ?string $relationship = null): static
     {
         return parent::make($key, $label)
@@ -104,6 +106,21 @@ class BelongsTo extends Field
     public function optionsPerPage(int $count): static
     {
         return $this->attribute(self::ATTRIBUTE_OPTIONS_PER_PAGE, max(1, $count));
+    }
+
+    /**
+     * @param (callable(\Illuminate\Database\Eloquent\Builder<\Illuminate\Database\Eloquent\Model>): \Illuminate\Database\Eloquent\Builder<\Illuminate\Database\Eloquent\Model>)|null $callback
+     */
+    public function modifyQueryUsing(?callable $callback): static
+    {
+        $this->modifyQueryUsing = $callback === null ? null : $callback(...);
+
+        return $this;
+    }
+
+    public function queryModifier(): ?\Closure
+    {
+        return $this->modifyQueryUsing;
     }
 
     protected function defaultRenderer(): ?FieldRenderer

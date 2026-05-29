@@ -9,6 +9,7 @@ use Illuminate\Contracts\Auth\Factory;
 use Illuminate\Contracts\Auth\Guard;
 use Illuminate\Contracts\Auth\StatefulGuard;
 use Illuminate\Database\Capsule\Manager as Capsule;
+use Illuminate\Database\Eloquent\Builder;
 use Pepperfm\Flashboard\Contracts\Extensions\QueryExtensionContract;
 use Pepperfm\Flashboard\Contracts\Forms\FormContract;
 use Pepperfm\Flashboard\Contracts\Resources\Resource;
@@ -21,6 +22,7 @@ use Pepperfm\Flashboard\Core\Resources\ResourceSurfaceResolver;
 use Pepperfm\Flashboard\Integration\Laravel\Auth\PanelAuthenticator;
 use Pepperfm\Flashboard\Integration\Laravel\Auth\PolicyBridge;
 use Pepperfm\Flashboard\Integration\Laravel\DataSources\ResourceRelationOptionsDataSource;
+use Pepperfm\Flashboard\Integration\Laravel\Relations\RelationQueryModifier;
 use Pepperfm\Flashboard\Tests\Fixtures\Models\BelongsToCategory;
 use Pepperfm\Flashboard\Tests\Fixtures\Models\BelongsToProduct;
 use Pepperfm\Flashboard\Tests\Fixtures\Resources\BelongsToCategoryResource;
@@ -178,6 +180,42 @@ final class ResourceRelationOptionsDataSourceTest extends TestCase
         self::assertContains('Software', $labels);
     }
 
+    public function test_relation_options_respect_field_query_modifier_for_options_and_selected_values(): void
+    {
+        $registry = $this->defaultRegistry();
+        $registry->register(ModifiedRelationOptionsProductResource::class);
+
+        $payload = $this->dataSource($registry)->resolve(
+            ModifiedRelationOptionsProductResource::class,
+            'category_id',
+            \Illuminate\Http\Request::create('/', 'GET', [
+                'selected' => $this->hidden->getKey(),
+            ]),
+        );
+        $labels = array_column($payload['items'], 'label');
+
+        self::assertNotContains('Hidden', $labels);
+        self::assertContains('Hardware', $labels);
+        self::assertContains('Software', $labels);
+    }
+
+    public function test_relation_options_use_last_duplicate_field_query_modifier(): void
+    {
+        $registry = $this->defaultRegistry();
+        $registry->register(DuplicateModifierRelationOptionsProductResource::class);
+
+        $payload = $this->dataSource($registry)->resolve(
+            DuplicateModifierRelationOptionsProductResource::class,
+            'category_id',
+            \Illuminate\Http\Request::create('/'),
+        );
+        $labels = array_column($payload['items'], 'label');
+
+        self::assertNotContains('Hidden', $labels);
+        self::assertContains('Hardware', $labels);
+        self::assertContains('Software', $labels);
+    }
+
     public function test_relation_options_can_use_explicit_model_fallback_without_related_resource(): void
     {
         $registry = new ResourceRegistry();
@@ -197,6 +235,18 @@ final class ResourceRelationOptionsDataSourceTest extends TestCase
                 'value' => $this->hardware->getKey(),
             ],
         ], $payload['items']);
+    }
+
+    public function test_relation_query_modifier_requires_builder_return_value(): void
+    {
+        $this->expectException(\UnexpectedValueException::class);
+        $this->expectExceptionMessage('must return an Eloquent query builder');
+
+        RelationQueryModifier::apply(
+            static fn (Builder $query) => null,
+            BelongsToCategory::query(),
+            'category_id',
+        );
     }
 
     private function dataSource(ResourceRegistry $resourceRegistry): ResourceRelationOptionsDataSource
@@ -534,6 +584,46 @@ final class ModelFallbackRelationOptionsProductResource extends Resource
                 ->model(BelongsToCategory::class)
                 ->titleAttribute('name')
                 ->searchable('name'),
+        ]);
+    }
+}
+
+final class ModifiedRelationOptionsProductResource extends Resource
+{
+    public static function model(): string
+    {
+        return BelongsToProduct::class;
+    }
+
+    public static function form(FormContract $form): FormContract
+    {
+        return $form->schema([
+            BelongsTo::make('category_id', 'Category')
+                ->resource(BelongsToCategoryResource::class)
+                ->titleAttribute('name')
+                ->modifyQueryUsing(static fn (Builder $query): Builder => $query->where('visible', true)),
+        ]);
+    }
+}
+
+final class DuplicateModifierRelationOptionsProductResource extends Resource
+{
+    public static function model(): string
+    {
+        return BelongsToProduct::class;
+    }
+
+    public static function form(FormContract $form): FormContract
+    {
+        return $form->schema([
+            BelongsTo::make('category_id', 'Category')
+                ->resource(BelongsToCategoryResource::class)
+                ->titleAttribute('name')
+                ->modifyQueryUsing(static fn (Builder $query): Builder => $query->where('visible', false)),
+            BelongsTo::make('category_id', 'Category')
+                ->resource(BelongsToCategoryResource::class)
+                ->titleAttribute('name')
+                ->modifyQueryUsing(static fn (Builder $query): Builder => $query->where('visible', true)),
         ]);
     }
 }

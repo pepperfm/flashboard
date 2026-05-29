@@ -65,6 +65,10 @@ abstract class RelationManagerDefinition implements RelationDefinitionContract
 
     private bool $visible = true;
 
+    private ?\Closure $modifyRecordsQueryUsing = null;
+
+    private ?\Closure $modifyAttachOptionsQueryUsing = null;
+
     final protected function __construct(
         private readonly string $key,
         private ?string $label = null,
@@ -224,6 +228,48 @@ abstract class RelationManagerDefinition implements RelationDefinitionContract
         $this->visible = $condition;
 
         return $this;
+    }
+
+    /**
+     * Applies the same server-side query modifier to displayed records and attach options.
+     *
+     * @param (callable(\Illuminate\Database\Eloquent\Builder<\Illuminate\Database\Eloquent\Model>): \Illuminate\Database\Eloquent\Builder<\Illuminate\Database\Eloquent\Model>)|null $callback
+     */
+    public function modifyQueryUsing(?callable $callback): static
+    {
+        return $this
+            ->modifyRecordsQueryUsing($callback)
+            ->modifyAttachOptionsQueryUsing($callback);
+    }
+
+    /**
+     * @param (callable(\Illuminate\Database\Eloquent\Builder<\Illuminate\Database\Eloquent\Model>): \Illuminate\Database\Eloquent\Builder<\Illuminate\Database\Eloquent\Model>)|null $callback
+     */
+    public function modifyRecordsQueryUsing(?callable $callback): static
+    {
+        $this->modifyRecordsQueryUsing = $callback === null ? null : $callback(...);
+
+        return $this;
+    }
+
+    /**
+     * @param (callable(\Illuminate\Database\Eloquent\Builder<\Illuminate\Database\Eloquent\Model>): \Illuminate\Database\Eloquent\Builder<\Illuminate\Database\Eloquent\Model>)|null $callback
+     */
+    public function modifyAttachOptionsQueryUsing(?callable $callback): static
+    {
+        $this->modifyAttachOptionsQueryUsing = $callback === null ? null : $callback(...);
+
+        return $this;
+    }
+
+    public function recordsQueryModifier(): ?\Closure
+    {
+        return $this->modifyRecordsQueryUsing;
+    }
+
+    public function attachOptionsQueryModifier(): ?\Closure
+    {
+        return $this->modifyAttachOptionsQueryUsing;
     }
 
     /**

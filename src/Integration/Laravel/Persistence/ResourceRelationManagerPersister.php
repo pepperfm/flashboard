@@ -8,6 +8,7 @@ use Illuminate\Container\Attributes\Singleton;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Arr;
+use Pepperfm\Flashboard\Contracts\Resources\Relations\RelationDefinitionContract;
 use Pepperfm\Flashboard\Contracts\Resources\Resource;
 use Pepperfm\Flashboard\Core\Authorization\Visibility\ScreenAccessResolver;
 use Pepperfm\Flashboard\Core\Extensions\ExtensionRegistry;
@@ -17,6 +18,7 @@ use Pepperfm\Flashboard\Core\Relations\HasOne;
 use Pepperfm\Flashboard\Core\Relations\RelationManagerDefinition;
 use Pepperfm\Flashboard\Integration\Laravel\Relations\RelationManagerMetadata;
 use Pepperfm\Flashboard\Integration\Laravel\Relations\RelationManagerMetadataResolver;
+use Pepperfm\Flashboard\Integration\Laravel\Relations\RelationQueryModifier;
 
 #[Singleton]
 final readonly class ResourceRelationManagerPersister
@@ -38,10 +40,10 @@ final readonly class ResourceRelationManagerPersister
         mixed $relatedKey,
         ?\Illuminate\Contracts\Auth\Authenticatable $user = null,
     ): void {
-        [, $metadata] = $this->definitionAndMetadata($resourceClass, $relationKey);
+        [$relation, $metadata] = $this->definitionAndMetadata($resourceClass, $relationKey);
         $this->assertMode($metadata->attachable, 'Relation manager attach is not enabled.');
         $this->assertCanMutate($resourceClass, $parent, $metadata, $user);
-        $related = $this->relatedRecord($metadata, $relatedKey);
+        $related = $this->relatedRecord($metadata, $relation, $relatedKey);
         $this->assertCanMutateRelated($metadata, $related, $user);
 
         $parent->getConnection()->transaction(function () use ($metadata, $parent, $related): void {
@@ -63,11 +65,11 @@ final readonly class ResourceRelationManagerPersister
         array $relatedKeys = [],
         ?\Illuminate\Contracts\Auth\Authenticatable $user = null,
     ): void {
-        [, $metadata] = $this->definitionAndMetadata($resourceClass, $relationKey);
+        [$relation, $metadata] = $this->definitionAndMetadata($resourceClass, $relationKey);
         $this->assertMode($metadata->detachable, 'Relation manager detach is not enabled.');
         $this->assertForeignKeyCanBeCleared($metadata, $parent);
         $this->assertCanMutate($resourceClass, $parent, $metadata, $user);
-        $records = $this->relatedRecordsForDetach($metadata, $parent, $relatedKeys);
+        $records = $this->relatedRecordsForDetach($metadata, $parent, $relation, $relatedKeys);
 
         $parent->getConnection()->transaction(function () use ($metadata, $records, $user): void {
             foreach ($records as $record) {
@@ -88,14 +90,14 @@ final readonly class ResourceRelationManagerPersister
         mixed $relatedKey,
         ?\Illuminate\Contracts\Auth\Authenticatable $user = null,
     ): void {
-        [, $metadata] = $this->definitionAndMetadata($resourceClass, $relationKey);
+        [$relation, $metadata] = $this->definitionAndMetadata($resourceClass, $relationKey);
         $this->assertMode($metadata->type === HasOne::TYPE && $metadata->replaceable, 'Relation manager replace is not enabled.');
         $this->assertMode($metadata->detachable, 'Relation manager replace requires detach to be enabled.');
         $this->assertForeignKeyCanBeCleared($metadata, $parent);
         $this->assertCanMutate($resourceClass, $parent, $metadata, $user);
-        $replacement = $this->relatedRecord($metadata, $relatedKey);
+        $replacement = $this->relatedRecord($metadata, $relation, $relatedKey);
         $this->assertCanMutateRelated($metadata, $replacement, $user);
-        $current = $this->relationQuery($metadata, $parent)->first();
+        $current = $this->relationQuery($metadata, $parent, $relation)->first();
 
         $parent->getConnection()->transaction(function () use ($metadata, $parent, $current, $replacement, $user): void {
             if ($current instanceof Model) {
@@ -122,17 +124,17 @@ final readonly class ResourceRelationManagerPersister
         array $relatedKeys,
         ?\Illuminate\Contracts\Auth\Authenticatable $user = null,
     ): void {
-        [, $metadata] = $this->definitionAndMetadata($resourceClass, $relationKey);
+        [$relation, $metadata] = $this->definitionAndMetadata($resourceClass, $relationKey);
         $this->assertMode($metadata->type === HasMany::TYPE && $metadata->syncable, 'Relation manager sync is not enabled.');
         $this->assertMode($metadata->detachable, 'Relation manager sync requires detach to be enabled.');
         $this->assertForeignKeyCanBeCleared($metadata, $parent);
         $this->assertCanMutate($resourceClass, $parent, $metadata, $user);
-        $selectedRecords = $this->relatedRecordsByKeys($metadata, $relatedKeys);
+        $selectedRecords = $this->relatedRecordsByKeys($metadata, $relation, $relatedKeys);
         $selectedKeys = array_fill_keys(array_map(
             static fn (Model $record): string => (string) $record->getAttribute($metadata->recordKeyName),
             $selectedRecords,
         ), true);
-        $currentRecords = $this->relationQuery($metadata, $parent)->get()->all();
+        $currentRecords = $this->relationQuery($metadata, $parent, $relation)->get()->all();
 
         $parent->getConnection()->transaction(function () use ($metadata, $parent, $currentRecords, $selectedRecords, $selectedKeys, $user): void {
             foreach ($currentRecords as $currentRecord) {
@@ -161,7 +163,7 @@ final readonly class ResourceRelationManagerPersister
     /**
      * @param class-string<Resource> $resourceClass
      *
-     * @return array{0: array<string, mixed>, 1: RelationManagerMetadata}
+     * @return array{0: RelationDefinitionContract, 1: RelationManagerMetadata}
      */
     private function definitionAndMetadata(string $resourceClass, string $relationKey): array
     {
@@ -177,7 +179,7 @@ final readonly class ResourceRelationManagerPersister
             }
 
             return [
-                $definition,
+                $relation,
                 new RelationManagerMetadataResolver($this->resourceRegistry)->resolve($resourceClass, $definition),
             ];
         }
@@ -185,9 +187,13 @@ final readonly class ResourceRelationManagerPersister
         throw new \Symfony\Component\HttpKernel\Exception\NotFoundHttpException();
     }
 
-    private function relatedRecord(RelationManagerMetadata $metadata, mixed $relatedKey): Model
+    private function relatedRecord(
+        RelationManagerMetadata $metadata,
+        RelationDefinitionContract $relation,
+        mixed $relatedKey,
+    ): Model
     {
-        $record = $this->relatedQuery($metadata)
+        $record = $this->relatedQuery($metadata, $relation)
             ->where($metadata->recordKeyName, $relatedKey)
             ->first();
         if (!$record instanceof Model) {
@@ -202,14 +208,18 @@ final readonly class ResourceRelationManagerPersister
      *
      * @return list<Model>
      */
-    private function relatedRecordsByKeys(RelationManagerMetadata $metadata, array $relatedKeys): array
+    private function relatedRecordsByKeys(
+        RelationManagerMetadata $metadata,
+        RelationDefinitionContract $relation,
+        array $relatedKeys,
+    ): array
     {
         $relatedKeys = $this->uniqueRelatedKeys($relatedKeys);
         if ($relatedKeys === []) {
             return [];
         }
 
-        $records = $this->modelList($this->relatedQuery($metadata)
+        $records = $this->modelList($this->relatedQuery($metadata, $relation)
             ->whereIn($metadata->recordKeyName, $relatedKeys)
             ->get()
             ->all());
@@ -225,9 +235,14 @@ final readonly class ResourceRelationManagerPersister
      *
      * @return list<Model>
      */
-    private function relatedRecordsForDetach(RelationManagerMetadata $metadata, Model $parent, array $relatedKeys): array
+    private function relatedRecordsForDetach(
+        RelationManagerMetadata $metadata,
+        Model $parent,
+        RelationDefinitionContract $relation,
+        array $relatedKeys,
+    ): array
     {
-        $query = $this->relationQuery($metadata, $parent);
+        $query = $this->relationQuery($metadata, $parent, $relation);
 
         if ($metadata->type === HasOne::TYPE && $relatedKeys === []) {
             $record = $query->first();
@@ -253,29 +268,57 @@ final readonly class ResourceRelationManagerPersister
     /**
      * @return Builder<Model>
      */
-    private function relatedQuery(RelationManagerMetadata $metadata): Builder
+    private function relatedQuery(RelationManagerMetadata $metadata, RelationDefinitionContract $relation): Builder
     {
         if ($metadata->relatedResource !== null) {
             $query = $metadata->relatedResource::query();
 
-            return $this->extensionRegistry?->extendQuery($metadata->relatedResource, $query) ?? $query;
+            $query = $this->extensionRegistry?->extendQuery($metadata->relatedResource, $query) ?? $query;
+
+            return RelationQueryModifier::apply(
+                $this->attachOptionsQueryModifier($relation),
+                $query,
+                $metadata->key . ':attach-options',
+            );
         }
 
-        return $metadata->relatedModel::query();
+        return RelationQueryModifier::apply(
+            $this->attachOptionsQueryModifier($relation),
+            $metadata->relatedModel::query(),
+            $metadata->key . ':attach-options',
+        );
     }
 
     /**
      * @return Builder<Model>
      */
-    private function relationQuery(RelationManagerMetadata $metadata, Model $parent): Builder
+    private function relationQuery(
+        RelationManagerMetadata $metadata,
+        Model $parent,
+        RelationDefinitionContract $relation,
+    ): Builder
     {
         $query = $parent->{$metadata->relationship}()->getQuery();
 
         if ($metadata->relatedResource !== null) {
-            return $this->extensionRegistry?->extendQuery($metadata->relatedResource, $query) ?? $query;
+            $query = $this->extensionRegistry?->extendQuery($metadata->relatedResource, $query) ?? $query;
         }
 
-        return $query;
+        return RelationQueryModifier::apply(
+            $this->recordsQueryModifier($relation),
+            $query,
+            $metadata->key . ':records',
+        );
+    }
+
+    private function recordsQueryModifier(RelationDefinitionContract $relation): ?\Closure
+    {
+        return $relation instanceof RelationManagerDefinition ? $relation->recordsQueryModifier() : null;
+    }
+
+    private function attachOptionsQueryModifier(RelationDefinitionContract $relation): ?\Closure
+    {
+        return $relation instanceof RelationManagerDefinition ? $relation->attachOptionsQueryModifier() : null;
     }
 
     /**

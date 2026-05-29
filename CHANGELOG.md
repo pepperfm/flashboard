@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- add server-only relation query modifiers for `BelongsTo`, `HasOne`, and `HasMany` fields/managers; callbacks receive and must return an Eloquent `Builder`
+
 ## 0.2.0 - 2026-05-29
 
 - add advanced resource form fields for dates, uploads, rich text, passwords, and relation selects

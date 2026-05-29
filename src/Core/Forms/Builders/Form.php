@@ -5,13 +5,15 @@ declare(strict_types=1);
 namespace Pepperfm\Flashboard\Core\Forms\Builders;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Arr;
+use Pepperfm\Flashboard\Contracts\Forms\FormContract;
 use Pepperfm\Flashboard\Contracts\Forms\FormLayoutAlign;
 use Pepperfm\Flashboard\Contracts\Forms\FormLayoutAttribute;
 use Pepperfm\Flashboard\Contracts\Forms\FormLayoutDirection;
 use Pepperfm\Flashboard\Contracts\Forms\FormLayoutJustify;
 use Pepperfm\Flashboard\Contracts\Forms\FormLayoutMode;
+use Pepperfm\Flashboard\Contracts\Forms\FormSchemaNodeKind;
 use Pepperfm\Flashboard\Contracts\Schema\KeyedSchemaNodeContract;
-use Pepperfm\Flashboard\Contracts\Forms\FormContract;
 use Pepperfm\Flashboard\Core\Forms\Normalization\FormSchemaNormalizer;
 
 final class Form implements FormContract
@@ -186,6 +188,14 @@ final class Form implements FormContract
     }
 
     /**
+     * @return list<array<string, mixed>|KeyedSchemaNodeContract>
+     */
+    public function fieldNodes(): array
+    {
+        return $this->flattenFieldNodes($this->rootSchemaNodes());
+    }
+
+    /**
      * @return array<string, mixed>
      */
     public function defaultState(): array
@@ -224,5 +234,59 @@ final class Form implements FormContract
         $this->layout[$key] = $value;
 
         return $this;
+    }
+
+    /**
+     * @return list<array<string, mixed>|KeyedSchemaNodeContract>
+     */
+    private function rootSchemaNodes(): array
+    {
+        $nodes = [...$this->schema, ...$this->fields, ...$this->sections];
+
+        if ($this->tabs !== []) {
+            $nodes[] = [
+                'kind' => FormSchemaNodeKind::Tabs->value,
+                'key' => 'tabs',
+                'tabs' => $this->tabs,
+            ];
+        }
+
+        return $nodes;
+    }
+
+    /**
+     * @param list<array<string, mixed>|KeyedSchemaNodeContract> $nodes
+     *
+     * @return list<array<string, mixed>|KeyedSchemaNodeContract>
+     */
+    private function flattenFieldNodes(array $nodes): array
+    {
+        $fields = [];
+
+        foreach ($nodes as $node) {
+            $payload = $node instanceof KeyedSchemaNodeContract ? $node->toArray() : $node;
+            $tabs = Arr::get($payload, 'tabs');
+
+            if (is_array($tabs)) {
+                foreach ($this->flattenFieldNodes($tabs) as $field) {
+                    $fields[] = $field;
+                }
+
+                continue;
+            }
+
+            $schema = Arr::get($payload, 'schema');
+            if (is_array($schema)) {
+                foreach ($this->flattenFieldNodes($schema) as $field) {
+                    $fields[] = $field;
+                }
+
+                continue;
+            }
+
+            $fields[] = $node;
+        }
+
+        return $fields;
     }
 }

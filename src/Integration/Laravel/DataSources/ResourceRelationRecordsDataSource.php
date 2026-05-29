@@ -8,6 +8,7 @@ use Illuminate\Container\Attributes\Singleton;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Arr;
+use Pepperfm\Flashboard\Contracts\Resources\Relations\RelationDefinitionContract;
 use Pepperfm\Flashboard\Contracts\Resources\Resource;
 use Pepperfm\Flashboard\Core\Authorization\Visibility\ScreenAccessResolver;
 use Pepperfm\Flashboard\Core\Extensions\ExtensionRegistry;
@@ -19,6 +20,7 @@ use Pepperfm\Flashboard\Core\Resources\ResourceSurfaceResolver;
 use Pepperfm\Flashboard\Integration\Laravel\Auth\PanelAuthenticator;
 use Pepperfm\Flashboard\Integration\Laravel\Relations\RelationManagerMetadata;
 use Pepperfm\Flashboard\Integration\Laravel\Relations\RelationManagerMetadataResolver;
+use Pepperfm\Flashboard\Integration\Laravel\Relations\RelationQueryModifier;
 
 #[Singleton]
 final readonly class ResourceRelationRecordsDataSource
@@ -60,7 +62,7 @@ final readonly class ResourceRelationRecordsDataSource
                 continue;
             }
 
-            $payloads[] = $this->payload($resourceClass, $record, $definition, $user, 1);
+            $payloads[] = $this->payload($resourceClass, $record, $relation, $definition, $user, 1);
         }
 
         return $payloads;
@@ -73,10 +75,11 @@ final readonly class ResourceRelationRecordsDataSource
      */
     public function resolve(string $resourceClass, Model $record, string $relationKey, \Illuminate\Http\Request $request): array
     {
-        $definition = $this->findRelationManager($resourceClass, $relationKey);
-        if ($definition === null) {
+        $relation = $this->findRelationManager($resourceClass, $relationKey);
+        if ($relation === null) {
             throw new \Symfony\Component\HttpKernel\Exception\NotFoundHttpException();
         }
+        $definition = $relation->toArray();
 
         $user = $this->authenticator->user();
         if (!$this->screenAccessResolver->canViewRelation($resourceClass, $relationKey, $user)) {
@@ -85,7 +88,7 @@ final readonly class ResourceRelationRecordsDataSource
 
         $page = max(1, (int) $request->query('page', '1'));
 
-        return $this->payload($resourceClass, $record, $definition, $user, $page);
+        return $this->payload($resourceClass, $record, $relation, $definition, $user, $page);
     }
 
     /**
@@ -97,13 +100,14 @@ final readonly class ResourceRelationRecordsDataSource
     private function payload(
         string $resourceClass,
         Model $record,
+        RelationDefinitionContract $relation,
         array $definition,
         ?\Illuminate\Contracts\Auth\Authenticatable $user,
         int $page,
     ): array {
         $metadata = $this->metadataResolver()->resolve($resourceClass, $definition);
         $perPage = min(self::MAX_PER_PAGE, max(1, $metadata->perPage));
-        $records = $this->records($metadata, $record, $user, $page, $perPage);
+        $records = $this->records($metadata, $record, $relation, $user, $page, $perPage);
         $hasMore = count($records) > $perPage;
         $records = array_slice($records, 0, $perPage);
 
@@ -144,11 +148,12 @@ final readonly class ResourceRelationRecordsDataSource
     private function records(
         RelationManagerMetadata $metadata,
         Model $record,
+        RelationDefinitionContract $relation,
         ?\Illuminate\Contracts\Auth\Authenticatable $user,
         int $page,
         int $perPage,
     ): array {
-        $query = $this->relationQuery($metadata, $record);
+        $query = $this->relationQuery($metadata, $record, $relation);
 
         if ($metadata->type === HasOne::TYPE) {
             $relatedRecord = $query->first();
@@ -185,16 +190,24 @@ final readonly class ResourceRelationRecordsDataSource
     /**
      * @return Builder<Model>
      */
-    private function relationQuery(RelationManagerMetadata $metadata, Model $record): Builder
+    private function relationQuery(
+        RelationManagerMetadata $metadata,
+        Model $record,
+        RelationDefinitionContract $relation,
+    ): Builder
     {
-        $relation = $record->{$metadata->relationship}();
-        $query = $relation->getQuery();
+        $eloquentRelation = $record->{$metadata->relationship}();
+        $query = $eloquentRelation->getQuery();
 
         if ($metadata->relatedResource !== null) {
-            return $this->extensionRegistry->extendQuery($metadata->relatedResource, $query);
+            $query = $this->extensionRegistry->extendQuery($metadata->relatedResource, $query);
         }
 
-        return $query;
+        return RelationQueryModifier::apply(
+            $this->recordsQueryModifier($relation),
+            $query,
+            $metadata->key . ':records',
+        );
     }
 
     /**
@@ -392,9 +405,9 @@ final readonly class ResourceRelationRecordsDataSource
     /**
      * @param class-string<Resource> $resourceClass
      *
-     * @return array<string, mixed>|null
+     * @return RelationDefinitionContract|null
      */
-    private function findRelationManager(string $resourceClass, string $relationKey): ?array
+    private function findRelationManager(string $resourceClass, string $relationKey): ?RelationDefinitionContract
     {
         foreach ($resourceClass::relations() as $relation) {
             $definition = $relation->toArray();
@@ -402,10 +415,15 @@ final readonly class ResourceRelationRecordsDataSource
                 continue;
             }
 
-            return $this->isRelationManager($definition) ? $definition : null;
+            return $this->isRelationManager($definition) ? $relation : null;
         }
 
         return null;
+    }
+
+    private function recordsQueryModifier(RelationDefinitionContract $relation): ?\Closure
+    {
+        return $relation instanceof RelationManagerDefinition ? $relation->recordsQueryModifier() : null;
     }
 
     /**

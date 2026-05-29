@@ -8,6 +8,7 @@ use Illuminate\Container\Attributes\Singleton;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Arr;
+use Pepperfm\Flashboard\Contracts\Resources\Relations\RelationDefinitionContract;
 use Pepperfm\Flashboard\Contracts\Resources\Resource;
 use Pepperfm\Flashboard\Core\Authorization\Visibility\ScreenAccessResolver;
 use Pepperfm\Flashboard\Core\Extensions\ExtensionRegistry;
@@ -19,6 +20,7 @@ use Pepperfm\Flashboard\Core\Resources\ResourceSurfaceResolver;
 use Pepperfm\Flashboard\Integration\Laravel\Auth\PanelAuthenticator;
 use Pepperfm\Flashboard\Integration\Laravel\Relations\RelationManagerMetadata;
 use Pepperfm\Flashboard\Integration\Laravel\Relations\RelationManagerMetadataResolver;
+use Pepperfm\Flashboard\Integration\Laravel\Relations\RelationQueryModifier;
 
 #[Singleton]
 final readonly class ResourceRelationAttachOptionsDataSource
@@ -42,10 +44,11 @@ final readonly class ResourceRelationAttachOptionsDataSource
      */
     public function resolve(string $resourceClass, Model $record, string $relationKey, \Illuminate\Http\Request $request): array
     {
-        $definition = $this->findRelationManager($resourceClass, $relationKey);
-        if ($definition === null) {
+        $relation = $this->findRelationManager($resourceClass, $relationKey);
+        if ($relation === null) {
             throw new \Symfony\Component\HttpKernel\Exception\NotFoundHttpException();
         }
+        $definition = $relation->toArray();
 
         $user = $this->authenticator->user();
         if (!$this->screenAccessResolver->canViewRelation($resourceClass, $relationKey, $user)) {
@@ -61,12 +64,12 @@ final readonly class ResourceRelationAttachOptionsDataSource
         $perPage = min(self::MAX_PER_PAGE, max(1, (int) $request->query('per_page', (string) $metadata->perPage)));
         $search = trim((string) $request->query('search', ''));
         $selectedValues = $this->scalarValues($request->query('selected'));
-        $items = $this->optionRows($metadata, $record, $user, $search, $page, $perPage);
+        $items = $this->optionRows($metadata, $record, $relation, $user, $search, $page, $perPage);
         $hasMore = count($items) > $perPage;
         $items = array_slice($items, 0, $perPage);
 
         if ($selectedValues !== []) {
-            $selectedItems = $this->selectedOptions($metadata, $record, $selectedValues, $user);
+            $selectedItems = $this->selectedOptions($metadata, $record, $relation, $selectedValues, $user);
             $missingSelectedItems = [];
 
             foreach ($selectedItems as $selectedItem) {
@@ -104,12 +107,13 @@ final readonly class ResourceRelationAttachOptionsDataSource
     private function optionRows(
         RelationManagerMetadata $metadata,
         Model $record,
+        RelationDefinitionContract $relation,
         ?\Illuminate\Contracts\Auth\Authenticatable $user,
         string $search,
         int $page,
         int $perPage,
     ): array {
-        $query = $this->attachableQuery($metadata, $record);
+        $query = $this->attachableQuery($metadata, $record, $relation);
 
         if ($search !== '' && $metadata->searchColumns !== []) {
             $query->where(function (Builder $query) use ($metadata, $search): void {
@@ -139,10 +143,11 @@ final readonly class ResourceRelationAttachOptionsDataSource
     private function selectedOptions(
         RelationManagerMetadata $metadata,
         Model $record,
+        RelationDefinitionContract $relation,
         array $selectedValues,
         ?\Illuminate\Contracts\Auth\Authenticatable $user,
     ): array {
-        $records = $this->attachableQuery($metadata, $record)
+        $records = $this->attachableQuery($metadata, $record, $relation)
             ->whereIn($metadata->recordKeyName, $selectedValues)
             ->get()
             ->all();
@@ -153,11 +158,20 @@ final readonly class ResourceRelationAttachOptionsDataSource
     /**
      * @return Builder<Model>
      */
-    private function attachableQuery(RelationManagerMetadata $metadata, Model $record): Builder
+    private function attachableQuery(
+        RelationManagerMetadata $metadata,
+        Model $record,
+        RelationDefinitionContract $relation,
+    ): Builder
     {
         $query = $metadata->relatedResource !== null
             ? $this->extensionRegistry->extendQuery($metadata->relatedResource, $metadata->relatedResource::query())
             : $metadata->relatedModel::query();
+        $query = RelationQueryModifier::apply(
+            $this->attachOptionsQueryModifier($relation),
+            $query,
+            $metadata->key . ':attach-options',
+        );
 
         $parentKey = data_get($record, $metadata->localKey);
 
@@ -258,9 +272,9 @@ final readonly class ResourceRelationAttachOptionsDataSource
     /**
      * @param class-string<Resource> $resourceClass
      *
-     * @return array<string, mixed>|null
+     * @return RelationDefinitionContract|null
      */
-    private function findRelationManager(string $resourceClass, string $relationKey): ?array
+    private function findRelationManager(string $resourceClass, string $relationKey): ?RelationDefinitionContract
     {
         foreach ($resourceClass::relations() as $relation) {
             $definition = $relation->toArray();
@@ -269,10 +283,15 @@ final readonly class ResourceRelationAttachOptionsDataSource
                 continue;
             }
 
-            return $this->isRelationManager($definition) ? $definition : null;
+            return $this->isRelationManager($definition) ? $relation : null;
         }
 
         return null;
+    }
+
+    private function attachOptionsQueryModifier(RelationDefinitionContract $relation): ?\Closure
+    {
+        return $relation instanceof RelationManagerDefinition ? $relation->attachOptionsQueryModifier() : null;
     }
 
     /**

@@ -93,6 +93,7 @@ Migration rules:
 - prefer purpose-built form fields over renderer overrides for relations, dates, uploads, rich text, and passwords
 - replace one-record FK selects with `BelongsTo::make('related_id', 'Related')` when the model has an Eloquent `belongsTo` relation; pass the relationship as the third `make()` argument or call `relationship()` when the FK name does not match the relation method
 - replace inverse read-only relation badges with `HasOne::make('profile', 'Profile')` or `HasMany::make('items', 'Items')` when operators should manage related records from the parent resource; enable mutation modes explicitly with `attachable()`, `detachable()`, `replaceable()`, or `syncable()`
+- move one-off eager loading or option scoping for relation fields/managers to `modifyQueryUsing(fn (Builder $query): Builder => ...)`, `modifyRecordsQueryUsing(...)`, or `modifyAttachOptionsQueryUsing(...)`; every callback must return the modified Eloquent `Builder`
 - keep legacy `RelationDefinition::make(...)` only for read-only compatibility payloads; new relation-manager UIs expect `type=has_one` or `type=has_many` plus protected nested route URLs
 - review nullable FK behavior before enabling `detachable()`, `replaceable()`, or `syncable()` because inverse managers clear or move related records but never delete them
 - JSON/form consumers should handle the new `relation_select` renderer and its lazy option payload keys before relying on raw `select` behavior for related records

@@ -8,10 +8,12 @@ use Illuminate\Contracts\Auth\Factory;
 use Illuminate\Contracts\Auth\Guard;
 use Illuminate\Contracts\Auth\StatefulGuard;
 use Illuminate\Database\Capsule\Manager as Capsule;
+use Illuminate\Database\Eloquent\Builder;
 use Pepperfm\Flashboard\Contracts\Resources\Resource;
 use Pepperfm\Flashboard\Core\Authorization\Visibility\ScreenAccessResolver;
 use Pepperfm\Flashboard\Core\Extensions\ExtensionRegistry;
 use Pepperfm\Flashboard\Core\Registry\ResourceRegistry;
+use Pepperfm\Flashboard\Core\Relations\HasMany;
 use Pepperfm\Flashboard\Core\Relations\RelationDefinition;
 use Pepperfm\Flashboard\Core\Relations\RelationPayloadFactory;
 use Pepperfm\Flashboard\Core\Resources\ResourceSurfaceResolver;
@@ -134,6 +136,42 @@ final class ResourceRelationRecordsDataSourceTest extends TestCase
         self::assertNotContains($this->attachedItem->getKey(), array_column($payload['items'], 'value'));
     }
 
+    public function test_relation_records_respect_records_query_modifier(): void
+    {
+        RelationManagerOrderItem::query()->create([
+            'order_id' => $this->order->getKey(),
+            'name' => 'Filtered item',
+            'sku' => 'B-1',
+        ]);
+
+        $payload = $this->recordsDataSource($this->modifiedRegistry())->resolve(
+            ModifiedRelationManagerOrderResource::class,
+            $this->order,
+            'items',
+            \Illuminate\Http\Request::create('/'),
+        );
+
+        self::assertSame(['Attached item'], array_column($payload['records'], 'title'));
+    }
+
+    public function test_relation_attach_options_respect_attach_options_query_modifier(): void
+    {
+        RelationManagerOrderItem::query()->create([
+            'order_id' => null,
+            'name' => 'Filtered orphan item',
+            'sku' => 'O-2',
+        ]);
+
+        $payload = $this->attachOptionsDataSource($this->modifiedRegistry())->resolve(
+            ModifiedRelationManagerOrderResource::class,
+            $this->order,
+            'items',
+            \Illuminate\Http\Request::create('/'),
+        );
+
+        self::assertSame(['Orphan item'], array_column($payload['items'], 'label'));
+    }
+
     public function test_legacy_relation_payload_factory_stays_backward_compatible(): void
     {
         $payload = (new RelationPayloadFactory())->make(LegacyRelationManagerOrderResource::class, $this->order);
@@ -148,7 +186,7 @@ final class ResourceRelationRecordsDataSourceTest extends TestCase
         ], $payload[0]['records']);
     }
 
-    private function recordsDataSource(): ResourceRelationRecordsDataSource
+    private function recordsDataSource(?ResourceRegistry $registry = null): ResourceRelationRecordsDataSource
     {
         $screenAccessResolver = new ScreenAccessResolver(new PolicyBridge());
 
@@ -156,12 +194,12 @@ final class ResourceRelationRecordsDataSourceTest extends TestCase
             $this->authenticator(),
             $screenAccessResolver,
             new ExtensionRegistry(),
-            $this->registry(),
+            $registry ?? $this->registry(),
             new ResourceSurfaceResolver($screenAccessResolver),
         );
     }
 
-    private function attachOptionsDataSource(): ResourceRelationAttachOptionsDataSource
+    private function attachOptionsDataSource(?ResourceRegistry $registry = null): ResourceRelationAttachOptionsDataSource
     {
         $screenAccessResolver = new ScreenAccessResolver(new PolicyBridge());
 
@@ -169,7 +207,7 @@ final class ResourceRelationRecordsDataSourceTest extends TestCase
             $this->authenticator(),
             $screenAccessResolver,
             new ExtensionRegistry(),
-            $this->registry(),
+            $registry ?? $this->registry(),
             new ResourceSurfaceResolver($screenAccessResolver),
         );
     }
@@ -179,6 +217,15 @@ final class ResourceRelationRecordsDataSourceTest extends TestCase
         $registry = new ResourceRegistry();
         $registry->register(RelationManagerOrderResource::class);
         $registry->register(RelationManagerProfileResource::class);
+        $registry->register(RelationManagerOrderItemResource::class);
+
+        return $registry;
+    }
+
+    private function modifiedRegistry(): ResourceRegistry
+    {
+        $registry = new ResourceRegistry();
+        $registry->register(ModifiedRelationManagerOrderResource::class);
         $registry->register(RelationManagerOrderItemResource::class);
 
         return $registry;
@@ -292,6 +339,28 @@ final class LegacyRelationManagerOrderResource extends Resource
         return [
             RelationDefinition::make('items', 'Items')
                 ->titleAttribute('name'),
+        ];
+    }
+}
+
+final class ModifiedRelationManagerOrderResource extends Resource
+{
+    public static function model(): string
+    {
+        return RelationManagerOrder::class;
+    }
+
+    public static function relations(): array
+    {
+        return [
+            HasMany::make('items', 'Items')
+                ->resource(RelationManagerOrderItemResource::class)
+                ->searchable(['name', 'sku'])
+                ->attachable()
+                ->detachable()
+                ->syncable()
+                ->modifyRecordsQueryUsing(static fn (Builder $query): Builder => $query->where('sku', 'A-1'))
+                ->modifyAttachOptionsQueryUsing(static fn (Builder $query): Builder => $query->where('sku', 'O-1')),
         ];
     }
 }

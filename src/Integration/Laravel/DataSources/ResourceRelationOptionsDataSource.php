@@ -9,6 +9,7 @@ use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Arr;
 use Pepperfm\Flashboard\Contracts\Forms\FieldRenderer;
+use Pepperfm\Flashboard\Contracts\Forms\FormContract;
 use Pepperfm\Flashboard\Contracts\Resources\Resource;
 use Pepperfm\Flashboard\Core\Authorization\Visibility\ScreenAccessResolver;
 use Pepperfm\Flashboard\Core\Extensions\ExtensionRegistry;
@@ -20,6 +21,7 @@ use Pepperfm\Flashboard\Core\Forms\Relations\BelongsToRelationMetadataResolver;
 use Pepperfm\Flashboard\Core\Registry\ResourceRegistry;
 use Pepperfm\Flashboard\Core\Resources\ResourceSurfaceResolver;
 use Pepperfm\Flashboard\Integration\Laravel\Auth\PanelAuthenticator;
+use Pepperfm\Flashboard\Integration\Laravel\Relations\RelationQueryModifier;
 
 #[Singleton]
 final readonly class ResourceRelationOptionsDataSource
@@ -43,10 +45,12 @@ final readonly class ResourceRelationOptionsDataSource
      */
     public function resolve(string $resourceClass, string $fieldKey, \Illuminate\Http\Request $request): array
     {
-        $field = $this->findBelongsToField($resourceClass, $fieldKey);
+        $form = $resourceClass::form(Form::make());
+        $field = $this->findBelongsToField($form, $fieldKey);
         if ($field === null) {
             throw new \Symfony\Component\HttpKernel\Exception\NotFoundHttpException();
         }
+        $queryModifier = $this->findBelongsToQueryModifier($form, $fieldKey);
 
         $user = $this->authenticator->user();
         if (!$this->screenAccessResolver->canViewField($resourceClass, $fieldKey, $user)) {
@@ -65,12 +69,12 @@ final readonly class ResourceRelationOptionsDataSource
         );
         $search = trim((string) $request->query('search', ''));
         $selectedValues = $this->scalarValues($request->query('selected'));
-        $items = $this->optionRows($metadata, $user, $search, $page, $perPage);
+        $items = $this->optionRows($metadata, $user, $search, $page, $perPage, $queryModifier);
         $hasMore = count($items) > $perPage;
         $items = array_slice($items, 0, $perPage);
 
         if ($selectedValues !== []) {
-            $selectedItems = $this->selectedOptions($metadata, $selectedValues, $user);
+            $selectedItems = $this->selectedOptions($metadata, $selectedValues, $user, $queryModifier);
             $missingSelectedItems = [];
 
             foreach ($selectedItems as $selectedItem) {
@@ -92,13 +96,11 @@ final readonly class ResourceRelationOptionsDataSource
     }
 
     /**
-     * @param class-string<Resource> $resourceClass
-     *
      * @return array<string, mixed>|null
      */
-    private function findBelongsToField(string $resourceClass, string $fieldKey): ?array
+    private function findBelongsToField(FormContract $form, string $fieldKey): ?array
     {
-        foreach ($resourceClass::form(Form::make())->fieldSchema() as $field) {
+        foreach ($form->fieldSchema() as $field) {
             if ((string) Arr::get($field, 'key', '') !== $fieldKey) {
                 continue;
             }
@@ -110,6 +112,25 @@ final readonly class ResourceRelationOptionsDataSource
         }
 
         return null;
+    }
+
+    private function findBelongsToQueryModifier(FormContract $form, string $fieldKey): ?\Closure
+    {
+        if (!$form instanceof Form) {
+            return null;
+        }
+
+        $queryModifier = null;
+
+        foreach ($form->fieldNodes() as $field) {
+            if (!$field instanceof BelongsTo || $field->key() !== $fieldKey) {
+                continue;
+            }
+
+            $queryModifier = $field->queryModifier();
+        }
+
+        return $queryModifier;
     }
 
     /**
@@ -145,8 +166,9 @@ final readonly class ResourceRelationOptionsDataSource
         string $search,
         int $page,
         int $perPage,
+        ?\Closure $queryModifier,
     ): array {
-        $query = $this->optionsQuery($metadata);
+        $query = $this->optionsQuery($metadata, $queryModifier);
 
         if ($search !== '' && $metadata->searchColumns !== []) {
             $query->where(function (Builder $query) use ($metadata, $search): void {
@@ -177,8 +199,9 @@ final readonly class ResourceRelationOptionsDataSource
         BelongsToRelationMetadata $metadata,
         array $selectedValues,
         ?\Illuminate\Contracts\Auth\Authenticatable $user,
+        ?\Closure $queryModifier,
     ): array {
-        $records = $this->optionsQuery($metadata)
+        $records = $this->optionsQuery($metadata, $queryModifier)
             ->whereIn($metadata->ownerKey, $selectedValues)
             ->get()
             ->all();
@@ -189,18 +212,20 @@ final readonly class ResourceRelationOptionsDataSource
     /**
      * @return Builder<Model>
      */
-    private function optionsQuery(BelongsToRelationMetadata $metadata): Builder
+    private function optionsQuery(BelongsToRelationMetadata $metadata, ?\Closure $queryModifier): Builder
     {
         if ($metadata->relatedResource !== null) {
-            return $this->extensionRegistry->extendQuery(
+            $query = $this->extensionRegistry->extendQuery(
                 $metadata->relatedResource,
                 $metadata->relatedResource::query(),
             );
+
+            return RelationQueryModifier::apply($queryModifier, $query, $metadata->fieldKey);
         }
 
         $modelClass = $metadata->relatedModel;
 
-        return $modelClass::query();
+        return RelationQueryModifier::apply($queryModifier, $modelClass::query(), $metadata->fieldKey);
     }
 
     /**

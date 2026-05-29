@@ -173,6 +173,7 @@ Keep this separate from `Resource::relations()`. `BelongsTo` writes the current 
 Use `HasOne` and `HasMany` in `relations()` when a parent resource should display and manage related records without embedding those controls into the normal form field schema.
 
 ```php
+use Illuminate\Database\Eloquent\Builder;
 use Pepperfm\Flashboard\Core\Relations\HasMany;
 use Pepperfm\Flashboard\Core\Relations\HasOne;
 
@@ -188,6 +189,8 @@ public static function relations(): array
             ->resource(OrderItemsResource::class)
             ->searchable(['name', 'sku'])
             ->perPage(10)
+            ->modifyRecordsQueryUsing(static fn (Builder $query): Builder => $query->with('product'))
+            ->modifyAttachOptionsQueryUsing(static fn (Builder $query): Builder => $query->where('archived', false))
             ->attachable()
             ->detachable()
             ->syncable(),
@@ -196,6 +199,8 @@ public static function relations(): array
 ```
 
 `make(string $key, ?string $label = null, ?string $relationship = null)` follows the typed-node label convention. The relationship name is inferred from `$key` by default; pass the third argument or call `relationship()` when the Eloquent method differs. Flashboard resolves Eloquent `HasOne` / `HasMany` metadata through the Laravel integration layer, infers a related resource when exactly one registered resource matches the related model, and lets `resource()` override inference.
+
+Use `modifyRecordsQueryUsing(fn (Builder $query): Builder => ...)` to customize displayed/current related records, `modifyAttachOptionsQueryUsing(fn (Builder $query): Builder => ...)` to customize attach/replace/sync candidate options, or `modifyQueryUsing(fn (Builder $query): Builder => ...)` when the same modifier should apply to both. These callbacks are server-only, run after related resource query extensions, must return an Eloquent `Builder`, and are not included in runtime payloads.
 
 Relation managers render on detail screens by default. Use `showOnEdit()` when the manager should also appear below an edit form. Legacy `RelationDefinition` output remains read-only and keeps the old badge-style payload.
 
@@ -206,7 +211,7 @@ Mutation modes are opt-in:
 - `replaceable()` on `HasOne` detaches the current related record and attaches the replacement in one transaction
 - `syncable()` on `HasMany` explicitly moves selected records and detaches omitted current records; it never deletes records
 
-Relation records, attach options, and mutation actions are served through protected nested resource routes. Related resource query extensions and policy checks are applied before records or options are exposed, and selected records are re-resolved server-side for every mutation. Related create actions open the related resource create form with a server-resolved parent context; submitted FK values are overwritten by the server before persistence, so client-side FK tampering does not decide the relationship.
+Relation records, attach options, and mutation actions are served through protected nested resource routes. Related resource query extensions, relation query modifiers, and policy checks are applied before records or options are exposed, and selected records are re-resolved server-side for every mutation. Related create actions open the related resource create form with a server-resolved parent context; submitted FK values are overwritten by the server before persistence, so client-side FK tampering does not decide the relationship.
 
 Normal relation-manager reads and mutations do not log. HTTP-boundary failures may emit sanitized WARN/ERROR context such as resource class, relation key, action, failure category, exception class, and coarse SQL state only. Search terms, selected IDs, labels, titles, model attributes, and request payloads should not be logged.
 

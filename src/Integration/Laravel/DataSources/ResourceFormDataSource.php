@@ -5,13 +5,16 @@ declare(strict_types=1);
 namespace Pepperfm\Flashboard\Integration\Laravel\DataSources;
 
 use Illuminate\Container\Attributes\Singleton;
+use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Arr;
 use Pepperfm\Flashboard\Contracts\Forms\FieldRenderer;
+use Pepperfm\Flashboard\Contracts\Forms\FormContract;
 use Pepperfm\Flashboard\Contracts\Forms\FormSchemaNodeKind;
 use Pepperfm\Flashboard\Contracts\Resources\Resource;
 use Pepperfm\Flashboard\Core\Authorization\Visibility\ScreenAccessResolver;
 use Pepperfm\Flashboard\Core\Extensions\ExtensionRegistry;
+use Pepperfm\Flashboard\Core\Forms\Builders\Form;
 use Pepperfm\Flashboard\Core\Forms\Fields\BelongsTo;
 use Pepperfm\Flashboard\Core\Forms\Fields\Field;
 use Pepperfm\Flashboard\Core\Forms\Fields\RichText;
@@ -20,10 +23,10 @@ use Pepperfm\Flashboard\Core\Forms\Relations\BelongsToRelationMetadataResolver;
 use Pepperfm\Flashboard\Core\Registry\ResourceRegistry;
 use Pepperfm\Flashboard\Core\Resources\ResourceSurfaceResolver;
 use Pepperfm\Flashboard\Core\Runtime\Assemblers\FormPayloadAssembler;
-use Pepperfm\Flashboard\Core\Forms\Builders\Form;
 use Pepperfm\Flashboard\Integration\Laravel\Auth\PanelAuthenticator;
 use Pepperfm\Flashboard\Integration\Laravel\Relations\RelationCreateContext;
 use Pepperfm\Flashboard\Integration\Laravel\Relations\RelationCreateContextResolver;
+use Pepperfm\Flashboard\Integration\Laravel\Relations\RelationQueryModifier;
 
 #[Singleton]
 final readonly class ResourceFormDataSource
@@ -52,6 +55,7 @@ final readonly class ResourceFormDataSource
         $schema = $this->formPayloadAssembler->assemble($resourceClass);
         $state = $form->defaultState();
         $user = $this->authenticator->user();
+        $belongsToQueryModifiers = $this->belongsToQueryModifiers($form);
         $filteredSchema = $this->filterSchemaNodes(
             $schema->schema(),
             $resourceClass,
@@ -63,7 +67,7 @@ final readonly class ResourceFormDataSource
             $filteredSchema = $this->withExistingFileMetadata($filteredSchema, $record);
         }
 
-        $filteredSchema = $this->withBelongsToMetadata($filteredSchema, $resourceClass, $record, $user);
+        $filteredSchema = $this->withBelongsToMetadata($filteredSchema, $resourceClass, $record, $user, $belongsToQueryModifiers);
 
         $fields = $this->flattenFieldNodes($filteredSchema);
         $state = $this->applyImplicitFieldDefaults($state, $fields);
@@ -379,6 +383,7 @@ final readonly class ResourceFormDataSource
     /**
      * @param list<array<string, mixed>> $schema
      * @param class-string<Resource> $resourceClass
+     * @param array<string, \Closure> $queryModifiers
      *
      * @return list<array<string, mixed>>
      */
@@ -387,9 +392,10 @@ final readonly class ResourceFormDataSource
         string $resourceClass,
         ?Model $record,
         ?\Illuminate\Contracts\Auth\Authenticatable $user,
+        array $queryModifiers,
     ): array {
         return array_values(array_map(
-            fn(array $node): array => $this->withBelongsToMetadataForNode($node, $resourceClass, $record, $user),
+            fn(array $node): array => $this->withBelongsToMetadataForNode($node, $resourceClass, $record, $user, $queryModifiers),
             $schema,
         ));
     }
@@ -397,6 +403,7 @@ final readonly class ResourceFormDataSource
     /**
      * @param array<string, mixed> $node
      * @param class-string<Resource> $resourceClass
+     * @param array<string, \Closure> $queryModifiers
      *
      * @return array<string, mixed>
      */
@@ -405,6 +412,7 @@ final readonly class ResourceFormDataSource
         string $resourceClass,
         ?Model $record,
         ?\Illuminate\Contracts\Auth\Authenticatable $user,
+        array $queryModifiers,
     ): array {
         $kind = FormSchemaNodeKind::from((string) Arr::get($node, 'kind', FormSchemaNodeKind::Field->value));
         if ($kind === FormSchemaNodeKind::Field) {
@@ -412,7 +420,7 @@ final readonly class ResourceFormDataSource
                 return $node;
             }
 
-            return $this->withBelongsToFieldMetadata($node, $resourceClass, $record, $user);
+            return $this->withBelongsToFieldMetadata($node, $resourceClass, $record, $user, $queryModifiers);
         }
         if ($kind === FormSchemaNodeKind::Tabs) {
             $node['tabs'] = $this->withBelongsToMetadata(
@@ -420,6 +428,7 @@ final readonly class ResourceFormDataSource
                 $resourceClass,
                 $record,
                 $user,
+                $queryModifiers,
             );
 
             return $node;
@@ -430,6 +439,7 @@ final readonly class ResourceFormDataSource
             $resourceClass,
             $record,
             $user,
+            $queryModifiers,
         );
 
         return $node;
@@ -438,6 +448,7 @@ final readonly class ResourceFormDataSource
     /**
      * @param array<string, mixed> $field
      * @param class-string<Resource> $resourceClass
+     * @param array<string, \Closure> $queryModifiers
      *
      * @return array<string, mixed>
      */
@@ -446,6 +457,7 @@ final readonly class ResourceFormDataSource
         string $resourceClass,
         ?Model $record,
         ?\Illuminate\Contracts\Auth\Authenticatable $user,
+        array $queryModifiers,
     ): array {
         $metadata = $this->belongsToRelationMetadataResolver()->resolve($resourceClass, $field);
         $field = array_merge($field, $metadata->toPayload());
@@ -459,7 +471,12 @@ final readonly class ResourceFormDataSource
             );
         }
         if ($record !== null) {
-            $field['selected_option'] = $this->selectedBelongsToOption($metadata, $record, $user);
+            $field['selected_option'] = $this->selectedBelongsToOption(
+                $metadata,
+                $record,
+                $user,
+                $queryModifiers[$metadata->fieldKey] ?? null,
+            );
         }
         if (
             $metadata->relatedResource !== null
@@ -484,13 +501,14 @@ final readonly class ResourceFormDataSource
         BelongsToRelationMetadata $metadata,
         Model $record,
         ?\Illuminate\Contracts\Auth\Authenticatable $user,
+        ?\Closure $queryModifier,
     ): ?array {
         $selectedValue = $this->optionValue(data_get($record, $metadata->fieldKey));
         if ($selectedValue === null || !$this->canQueryBelongsToOptions($metadata, $user)) {
             return null;
         }
 
-        $relatedRecord = $this->belongsToOptionsQuery($metadata)
+        $relatedRecord = $this->belongsToOptionsQuery($metadata, $queryModifier)
             ->where($metadata->ownerKey, $selectedValue)
             ->first();
         if (!$relatedRecord instanceof Model) {
@@ -511,18 +529,44 @@ final readonly class ResourceFormDataSource
         return $this->screenAccessResolver->canAccessResource($metadata->relatedResource, $user);
     }
 
-    private function belongsToOptionsQuery(BelongsToRelationMetadata $metadata): \Illuminate\Database\Eloquent\Builder
+    private function belongsToOptionsQuery(
+        BelongsToRelationMetadata $metadata,
+        ?\Closure $queryModifier,
+    ): Builder
     {
         if ($metadata->relatedResource !== null) {
-            return $this->extensionRegistry->extendQuery(
+            $query = $this->extensionRegistry->extendQuery(
                 $metadata->relatedResource,
                 $metadata->relatedResource::query(),
             );
+
+            return RelationQueryModifier::apply($queryModifier, $query, $metadata->fieldKey);
         }
 
         $modelClass = $metadata->relatedModel;
 
-        return $modelClass::query();
+        return RelationQueryModifier::apply($queryModifier, $modelClass::query(), $metadata->fieldKey);
+    }
+
+    /**
+     * @return array<string, \Closure>
+     */
+    private function belongsToQueryModifiers(FormContract $form): array
+    {
+        if (!$form instanceof Form) {
+            return [];
+        }
+
+        $modifiers = [];
+        foreach ($form->fieldNodes() as $field) {
+            if (!$field instanceof BelongsTo || $field->queryModifier() === null) {
+                continue;
+            }
+
+            $modifiers[$field->key()] = $field->queryModifier();
+        }
+
+        return $modifiers;
     }
 
     /**

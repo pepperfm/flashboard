@@ -51,5 +51,6 @@ final class AuditHook implements \Pepperfm\Flashboard\Contracts\Extensions\Runti
 
 - prefer extensions over forks
 - keep extensions resource-scoped
+- use relation field/manager `modifyQueryUsing(...)` callbacks for one-off relation option or record scoping; callbacks are server-only and must return the Eloquent `Builder`
 - reserve payload extensions for shape changes that cannot be expressed declaratively
 - avoid logging full hook contexts; resource form hooks redact passwords and upload objects, but extension logs should still stay minimal

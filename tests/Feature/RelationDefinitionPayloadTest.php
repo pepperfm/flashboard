@@ -71,6 +71,19 @@ final class RelationDefinitionPayloadTest extends TestCase
         self::assertTrue($payload['syncable']);
     }
 
+    public function test_relation_query_modifiers_are_server_only(): void
+    {
+        $definition = HasMany::make('items', 'Items')
+            ->modifyQueryUsing(static fn (\Illuminate\Database\Eloquent\Builder $query): \Illuminate\Database\Eloquent\Builder => $query);
+        $payload = $definition->toArray();
+
+        self::assertInstanceOf(\Closure::class, $definition->recordsQueryModifier());
+        self::assertInstanceOf(\Closure::class, $definition->attachOptionsQueryModifier());
+        self::assertArrayNotHasKey('modify_query_using', $payload);
+        self::assertArrayNotHasKey('records_query_modifier', $payload);
+        self::assertArrayNotHasKey('attach_options_query_modifier', $payload);
+    }
+
     public function test_relationship_defaults_to_relation_key(): void
     {
         self::assertSame('profile', HasOne::make('profile')->toArray()['relationship']);
