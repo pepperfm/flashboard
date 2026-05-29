@@ -93,6 +93,16 @@ final class FormShellRenderingTest extends TestCase
         self::assertStringNotContainsString('Object.fromEntries', $screen);
     }
 
+    public function test_screen_content_does_not_render_breadcrumbs(): void
+    {
+        $screenPage = $this->fixture('resources/js/Pages/Flashboard/Screen.vue');
+        $screenContent = $this->fixture('resources/js/components/flashboard/FlashboardScreenContent.vue');
+
+        self::assertStringNotContainsString('breadcrumbs', $screenPage);
+        self::assertStringNotContainsString('UBreadcrumb', $screenContent);
+        self::assertStringNotContainsString('screen-breadcrumbs', $screenContent);
+    }
+
     private function fixture(string $path): string
     {
         return (string) file_get_contents(dirname(__DIR__, 2) . '/' . $path);

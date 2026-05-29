@@ -151,7 +151,6 @@ type PayloadShape = {
 type TableSortDirection = 'asc' | 'desc'
 
 const props = defineProps<{
-  breadcrumbs?: Array<{ label: string; to?: string }>
   payload: PayloadShape
 }>()
 
@@ -1104,10 +1103,6 @@ function formatValue(value: unknown): string {
 </script>
 
 <template>
-  <div v-if="breadcrumbs?.length" class="screen-breadcrumbs">
-    <UBreadcrumb :items="breadcrumbs" />
-  </div>
-
   <template v-if="payload.resource?.page === 'index'">
     <UCard variant="outline">
       <template #header>
@@ -1535,12 +1530,6 @@ function formatValue(value: unknown): string {
   display: flex;
   flex-wrap: wrap;
   gap: 0.75rem;
-}
-
-.screen-breadcrumbs {
-  margin-bottom: 0.875rem;
-  display: flex;
-  justify-content: flex-start;
 }
 
 .form-page-shell {

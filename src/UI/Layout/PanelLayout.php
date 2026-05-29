@@ -8,7 +8,6 @@ final readonly class PanelLayout
 {
     /**
      * @param list<array<string, mixed>> $navigation
-     * @param list<array<string, string>> $breadcrumbs
      * @param list<array<string, string>> $headerActions
      * @param list<array<string, string>> $userMenu
      * @param list<array<string, string>> $notifications
@@ -17,7 +16,6 @@ final readonly class PanelLayout
     public function __construct(
         private string $title,
         private array $navigation,
-        private array $breadcrumbs,
         private array $headerActions,
         private array $userMenu,
         private array $notifications,
@@ -32,7 +30,6 @@ final readonly class PanelLayout
         return [
             'title' => $this->title,
             'navigation' => $this->navigation,
-            'breadcrumbs' => $this->breadcrumbs,
             'header_actions' => $this->headerActions,
             'user_menu' => $this->userMenu,
             'notifications' => $this->notifications,

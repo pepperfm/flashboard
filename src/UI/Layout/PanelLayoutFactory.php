@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace Pepperfm\Flashboard\UI\Layout;
 
 use Illuminate\Container\Attributes\Singleton;
-use Illuminate\Support\Arr;
 use Pepperfm\Flashboard\Core\Runtime\Context\RuntimeRequestContext;
 use Pepperfm\Flashboard\UI\Notifications\NotificationCenter;
 use Pepperfm\Flashboard\UI\Overlays\OverlayFactory;
@@ -31,22 +30,11 @@ final readonly class PanelLayoutFactory
         array $payload,
         ?\Illuminate\Contracts\Auth\Authenticatable $user,
     ): PanelLayout {
-        $metadata = $context->metadata()->toArray();
         $title = $this->titleFromContext($context);
-        $panelHref = $this->panelHref($metadata);
 
         return new PanelLayout(
             title: $title,
             navigation: $navigation,
-            breadcrumbs: [
-                [
-                    'label' => (string) Arr::get($metadata, 'panel_name', 'Panel'),
-                    'href' => $panelHref,
-                ],
-                [
-                    'label' => $title,
-                ],
-            ],
             headerActions: [],
             userMenu: $this->userMenu($user),
             notifications: $this->notificationCenter->current(),
@@ -67,16 +55,6 @@ final readonly class PanelLayoutFactory
         }
 
         return $context->panel()->name();
-    }
-
-    /**
-     * @param array<string, mixed> $metadata
-     */
-    private function panelHref(array $metadata): string
-    {
-        $panelPath = trim((string) Arr::get($metadata, 'panel_path', ''), '/');
-
-        return $panelPath === '' ? '/' : '/' . $panelPath;
     }
 
     /**

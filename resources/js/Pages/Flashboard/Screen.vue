@@ -25,19 +25,7 @@ type LayoutState = {
   message: string
 }
 
-type LayoutBreadcrumb = {
-  href?: string | null
-  label: string
-  to?: string | null
-}
-
-type ScreenBreadcrumb = {
-  label: string
-  to?: string
-}
-
 type LayoutShape = {
-  breadcrumbs: LayoutBreadcrumb[]
   header_actions: LayoutAction[]
   navigation: Array<{ href?: string; label?: string }>
   notifications: Array<{ id?: string; level: string; message: string }>
@@ -106,41 +94,6 @@ if (typeof window !== 'undefined') {
 
     window.sessionStorage.setItem(FLASHBOARD_CURRENT_URL_KEY, currentUrl)
   }
-}
-
-const visibleBreadcrumbs = computed(() => {
-  if (props.payload.page?.key === 'dashboard' || props.payload.page?.type === 'dashboard') {
-    return []
-  }
-
-  if (props.payload.metadata.screen_key === 'dashboard') {
-    return []
-  }
-
-  return props.layout.breadcrumbs
-    .map(normalizeBreadcrumb)
-    .filter((breadcrumb): breadcrumb is ScreenBreadcrumb => Boolean(breadcrumb))
-})
-
-function normalizeBreadcrumb(item: LayoutBreadcrumb): ScreenBreadcrumb | null {
-  const label = item.label.trim()
-  if (!label) {
-    return null
-  }
-
-  const to = normalizeBreadcrumbTarget(item.to ?? item.href)
-
-  return to === undefined ? { label } : { label, to }
-}
-
-function normalizeBreadcrumbTarget(target?: string | null): string | undefined {
-  if (!target) {
-    return undefined
-  }
-
-  const normalizedTarget = target.trim()
-
-  return normalizedTarget === '' || normalizedTarget === '#' ? undefined : normalizedTarget
 }
 
 const navbarActions = computed<LayoutAction[]>(() => {
@@ -274,7 +227,6 @@ function logout() {
 
             <div class="stack">
               <FlashboardScreenContent
-                :breadcrumbs="visibleBreadcrumbs"
                 :payload="props.payload"
               />
             </div>
