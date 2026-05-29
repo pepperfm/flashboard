@@ -19,6 +19,7 @@ use Pepperfm\Flashboard\Contracts\Tables\TableContract;
 use Pepperfm\Flashboard\Core\Forms\Builders\Form;
 use Pepperfm\Flashboard\Core\Forms\Fields\BelongsTo;
 use Pepperfm\Flashboard\Core\Forms\Fields\Field;
+use Pepperfm\Flashboard\Core\Forms\Relations\BelongsToManyRelationMetadataResolver;
 use Pepperfm\Flashboard\Core\Forms\Relations\BelongsToRelationMetadataResolver;
 
 abstract class Resource
@@ -258,8 +259,11 @@ abstract class Resource
 
         $form = static::form(Form::make())->toArray();
 
-        return self::withBelongsToRules(
-            (array) ($form['rules'] ?? []),
+        return self::withBelongsToManyRules(
+            self::withBelongsToRules(
+                (array) ($form['rules'] ?? []),
+                (array) ($form['fields'] ?? []),
+            ),
             (array) ($form['fields'] ?? []),
         );
     }
@@ -294,6 +298,39 @@ abstract class Resource
     }
 
     /**
+     * @param array<string, mixed> $rules
+     * @param list<array<string, mixed>> $fields
+     *
+     * @return array<string, mixed>
+     */
+    private static function withBelongsToManyRules(array $rules, array $fields): array
+    {
+        $resolver = new BelongsToManyRelationMetadataResolver();
+
+        foreach ($fields as $field) {
+            if (!self::isBelongsToManyField($field)) {
+                continue;
+            }
+
+            $key = trim((string) \Illuminate\Support\Arr::get($field, 'key', ''));
+            if ($key === '') {
+                continue;
+            }
+
+            $metadata = $resolver->resolve(static::class, $field);
+            $fieldRules = (array) ($rules[$key] ?? []);
+            $fieldRules[] = 'array';
+            $rules[$key] = array_values(array_unique($fieldRules));
+
+            $itemRules = (array) ($rules[$key . '.*'] ?? []);
+            $itemRules[] = "exists:$metadata->relatedTable,$metadata->relatedKey";
+            $rules[$key . '.*'] = array_values(array_unique($itemRules));
+        }
+
+        return $rules;
+    }
+
+    /**
      * @param array<string, mixed> $field
      */
     private static function isBelongsToField(array $field): bool
@@ -303,7 +340,23 @@ abstract class Resource
 
         return $type === Field::TYPE_BELONGS_TO
             || $renderer === \Pepperfm\Flashboard\Contracts\Forms\FieldRenderer::RelationSelect->value
-            || \Illuminate\Support\Arr::has($field, BelongsTo::ATTRIBUTE_RELATIONSHIP);
+            || (
+                $type !== Field::TYPE_BELONGS_TO_MANY
+                && $renderer !== \Pepperfm\Flashboard\Contracts\Forms\FieldRenderer::RelationMultiSelect->value
+                && \Illuminate\Support\Arr::has($field, BelongsTo::ATTRIBUTE_RELATIONSHIP)
+            );
+    }
+
+    /**
+     * @param array<string, mixed> $field
+     */
+    private static function isBelongsToManyField(array $field): bool
+    {
+        $type = (string) \Illuminate\Support\Arr::get($field, Field::ATTRIBUTE_TYPE, '');
+        $renderer = (string) \Illuminate\Support\Arr::get($field, Field::ATTRIBUTE_RENDERER, '');
+
+        return $type === Field::TYPE_BELONGS_TO_MANY
+            || $renderer === \Pepperfm\Flashboard\Contracts\Forms\FieldRenderer::RelationMultiSelect->value;
     }
 
     /**

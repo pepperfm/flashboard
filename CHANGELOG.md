@@ -1,8 +1,9 @@
 # Changelog
 
-## Unreleased
+## 0.2.1 - 2026-05-29
 
 - add server-only relation query modifiers for `BelongsTo`, `HasOne`, and `HasMany` fields/managers; callbacks receive and must return an Eloquent `Builder`
+- add `BelongsToMany` form fields with lazy multi-select option loading, selected hydration, validation, and transaction-safe pivot sync
 
 ## 0.2.0 - 2026-05-29
 

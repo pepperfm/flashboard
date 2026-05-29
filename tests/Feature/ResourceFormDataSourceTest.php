@@ -15,6 +15,7 @@ use Pepperfm\Flashboard\Contracts\Resources\Resource;
 use Pepperfm\Flashboard\Core\Authorization\Visibility\ScreenAccessResolver;
 use Pepperfm\Flashboard\Core\Extensions\ExtensionRegistry;
 use Pepperfm\Flashboard\Core\Forms\Fields\BelongsTo;
+use Pepperfm\Flashboard\Core\Forms\Fields\BelongsToMany;
 use Pepperfm\Flashboard\Core\Forms\Fields\Checkbox;
 use Pepperfm\Flashboard\Core\Forms\Fields\DateInput;
 use Pepperfm\Flashboard\Core\Forms\Fields\FileUpload;
@@ -32,8 +33,12 @@ use Pepperfm\Flashboard\Integration\Laravel\Auth\PanelAuthenticator;
 use Pepperfm\Flashboard\Integration\Laravel\Auth\PolicyBridge;
 use Pepperfm\Flashboard\Integration\Laravel\DataSources\ResourceFormDataSource;
 use Pepperfm\Flashboard\Tests\Fixtures\Models\BelongsToCategory;
+use Pepperfm\Flashboard\Tests\Fixtures\Models\BelongsToManyProduct;
+use Pepperfm\Flashboard\Tests\Fixtures\Models\BelongsToManyTag;
 use Pepperfm\Flashboard\Tests\Fixtures\Models\BelongsToProduct;
 use Pepperfm\Flashboard\Tests\Fixtures\Resources\BelongsToCategoryResource;
+use Pepperfm\Flashboard\Tests\Fixtures\Resources\BelongsToManyProductResource;
+use Pepperfm\Flashboard\Tests\Fixtures\Resources\BelongsToManyTagResource;
 use Pepperfm\Flashboard\Tests\Fixtures\Resources\BelongsToProductResource;
 use Pepperfm\Flashboard\Tests\TestCase;
 
@@ -270,6 +275,137 @@ final class ResourceFormDataSourceTest extends TestCase
         self::assertNull($fields['category_id']['selected_option']);
     }
 
+    public function test_belongs_to_many_fields_are_enriched_with_relation_metadata_and_selected_options(): void
+    {
+        $this->fakeUrlGenerator();
+        $this->fakeGateForFieldVisibility();
+        $this->createBelongsToManyTables();
+
+        $tag = BelongsToManyTag::query()->create([
+            'name' => 'Visible',
+            'slug' => 'visible',
+        ]);
+        $record = BelongsToManyProduct::query()->create([
+            'name' => 'Keyboard',
+        ]);
+        $record->tags()->attach($tag->getKey());
+
+        $payload = $this->makeDataSource($this->belongsToManyRegistry())
+            ->resolve(BelongsToManyProductResource::class, $record);
+        $fields = array_column($payload['fields'], null, 'key');
+        $field = $fields['tags'];
+
+        self::assertSame([$tag->getKey()], $payload['state']['tags']);
+        self::assertSame('belongs_to_many', $field['type']);
+        self::assertSame('relation_multi_select', $field['renderer']);
+        self::assertSame('tags', $field['relationship']);
+        self::assertSame(BelongsToManyTag::class, $field['related_model']);
+        self::assertSame(BelongsToManyTagResource::class, $field['related_resource']);
+        self::assertSame('belongs_to_many_tags', $field['related_table']);
+        self::assertSame('belongs_to_many_product_tag', $field['pivot_table']);
+        self::assertSame('/flashboard.resources.belongs_to_many_product.relations.options', $field['options_url']);
+        self::assertSame(['detail' => true], $field['related_routes']);
+        self::assertSame([
+            [
+                'label' => 'Visible',
+                'value' => $tag->getKey(),
+                'url' => '/flashboard.resources.belongs_to_many_tag.detail',
+            ],
+        ], $field['selected_options']);
+    }
+
+    public function test_belongs_to_many_selected_options_respect_field_query_modifier(): void
+    {
+        $this->fakeUrlGenerator();
+        $this->fakeGateForFieldVisibility();
+        $this->createBelongsToManyTables();
+
+        $tag = BelongsToManyTag::query()->create([
+            'name' => 'Hidden',
+            'slug' => 'hidden',
+        ]);
+        $record = BelongsToManyProduct::query()->create([
+            'name' => 'Desk',
+        ]);
+        $record->tags()->attach($tag->getKey());
+
+        $payload = $this->makeDataSource($this->belongsToManyRegistry())
+            ->resolve($this->queryModifiedBelongsToManyResourceClass(), $record);
+        $fields = array_column($payload['fields'], null, 'key');
+
+        self::assertSame([], $fields['tags']['selected_options']);
+        self::assertSame([], $payload['state']['tags']);
+    }
+
+    public function test_belongs_to_many_metadata_is_enriched_recursively_in_sections_and_tabs(): void
+    {
+        $this->fakeUrlGenerator();
+        $this->fakeGateForFieldVisibility();
+
+        $payload = $this->makeDataSource($this->belongsToManyRegistry())
+            ->resolve($this->nestedBelongsToManyResourceClass());
+
+        self::assertSame('relation_multi_select', $payload['schema'][0]['schema'][0]['renderer']);
+        self::assertSame('belongs_to_many_product_tag', $payload['schema'][0]['schema'][0]['pivot_table']);
+        self::assertSame('relation_multi_select', $payload['schema'][1]['tabs'][0]['schema'][0]['renderer']);
+        self::assertSame('belongs_to_many_product_tag', $payload['schema'][1]['tabs'][0]['schema'][0]['pivot_table']);
+    }
+
+    public function test_belongs_to_many_related_routes_and_selected_options_are_hidden_when_related_resource_is_inaccessible(): void
+    {
+        $this->fakeUrlGenerator();
+        $this->fakeGateForFieldVisibility();
+        $this->createBelongsToManyTables();
+
+        $tag = BelongsToManyTag::query()->create([
+            'name' => 'Hidden',
+            'slug' => 'hidden',
+        ]);
+        $record = BelongsToManyProduct::query()->create([
+            'name' => 'Desk',
+        ]);
+        $record->tags()->attach($tag->getKey());
+
+        $payload = $this->makeDataSource($this->belongsToManyRegistry())
+            ->resolve($this->inaccessibleBelongsToManyRelatedResourceClass(), $record);
+        $fields = array_column($payload['fields'], null, 'key');
+
+        self::assertArrayNotHasKey('related_routes', $fields['tags']);
+        self::assertSame([], $fields['tags']['selected_options']);
+        self::assertSame([], $payload['state']['tags']);
+    }
+
+    public function test_belongs_to_many_selected_options_can_use_explicit_model_fallback_without_related_resource(): void
+    {
+        $this->fakeUrlGenerator();
+        $this->fakeGateForFieldVisibility();
+        $this->createBelongsToManyTables();
+
+        $tag = BelongsToManyTag::query()->create([
+            'name' => 'Visible',
+            'slug' => 'visible',
+        ]);
+        $record = BelongsToManyProduct::query()->create([
+            'name' => 'Desk',
+        ]);
+        $record->tags()->attach($tag->getKey());
+
+        $payload = $this->makeDataSource(new ResourceRegistry())
+            ->resolve($this->modelFallbackBelongsToManyResourceClass(), $record);
+        $fields = array_column($payload['fields'], null, 'key');
+
+        self::assertSame([$tag->getKey()], $payload['state']['tags']);
+        self::assertNull($fields['tags']['related_resource']);
+        self::assertTrue($fields['tags']['allow_model_fallback']);
+        self::assertArrayNotHasKey('related_routes', $fields['tags']);
+        self::assertSame([
+            [
+                'label' => 'Visible',
+                'value' => $tag->getKey(),
+            ],
+        ], $fields['tags']['selected_options']);
+    }
+
     private function fakeUrlGenerator(): void
     {
         $this->app->instance('url', new class()
@@ -492,11 +628,45 @@ final class ResourceFormDataSourceTest extends TestCase
         });
     }
 
+    private function createBelongsToManyTables(): void
+    {
+        $database = new Capsule();
+        $database->addConnection([
+            'driver' => 'sqlite',
+            'database' => ':memory:',
+            'prefix' => '',
+        ]);
+        $database->setAsGlobal();
+        $database->bootEloquent();
+        $database->schema()->create('belongs_to_many_products', static function (\Illuminate\Database\Schema\Blueprint $table): void {
+            $table->increments('id');
+            $table->string('name');
+        });
+        $database->schema()->create('belongs_to_many_tags', static function (\Illuminate\Database\Schema\Blueprint $table): void {
+            $table->increments('id');
+            $table->string('name');
+            $table->string('slug')->nullable();
+        });
+        $database->schema()->create('belongs_to_many_product_tag', static function (\Illuminate\Database\Schema\Blueprint $table): void {
+            $table->unsignedInteger('product_id');
+            $table->unsignedInteger('tag_id');
+        });
+    }
+
     private function belongsToRegistry(): ResourceRegistry
     {
         $registry = new ResourceRegistry();
         $registry->register(BelongsToCategoryResource::class);
         $registry->register(BelongsToProductResource::class);
+
+        return $registry;
+    }
+
+    private function belongsToManyRegistry(): ResourceRegistry
+    {
+        $registry = new ResourceRegistry();
+        $registry->register(BelongsToManyProductResource::class);
+        $registry->register(BelongsToManyTagResource::class);
 
         return $registry;
     }
@@ -652,6 +822,35 @@ final class ResourceFormDataSourceTest extends TestCase
     /**
      * @return class-string<Resource>
      */
+    private function nestedBelongsToManyResourceClass(): string
+    {
+        return get_class(new class() extends Resource
+        {
+            public static function model(): string
+            {
+                return BelongsToManyProduct::class;
+            }
+
+            public static function form(FormContract $form): FormContract
+            {
+                return $form->schema([
+                    Section::make('relationships')->label('Relationships')->schema([
+                        BelongsToMany::make('tags', 'Tags')->resource(BelongsToManyTagResource::class),
+                    ]),
+                    Tabs::make('more')->tabs([
+                        Tab::make('secondary')->label('Secondary')->schema([
+                            BelongsToMany::make('visible_tags', 'Visible tags', 'tags')
+                                ->resource(BelongsToManyTagResource::class),
+                        ]),
+                    ]),
+                ]);
+            }
+        });
+    }
+
+    /**
+     * @return class-string<Resource>
+     */
     private function inaccessibleRelatedResourceClass(): string
     {
         return get_class(new class() extends Resource
@@ -666,6 +865,29 @@ final class ResourceFormDataSourceTest extends TestCase
                 return $form->schema([
                     BelongsTo::make('category_id', 'Category')
                         ->resource(InaccessibleBelongsToCategoryResource::class)
+                        ->titleAttribute('name'),
+                ]);
+            }
+        });
+    }
+
+    /**
+     * @return class-string<Resource>
+     */
+    private function inaccessibleBelongsToManyRelatedResourceClass(): string
+    {
+        return get_class(new class() extends Resource
+        {
+            public static function model(): string
+            {
+                return BelongsToManyProduct::class;
+            }
+
+            public static function form(FormContract $form): FormContract
+            {
+                return $form->schema([
+                    BelongsToMany::make('tags', 'Tags')
+                        ->resource(InaccessibleBelongsToManyTagResource::class)
                         ->titleAttribute('name'),
                 ]);
             }
@@ -695,6 +917,53 @@ final class ResourceFormDataSourceTest extends TestCase
             }
         });
     }
+
+    /**
+     * @return class-string<Resource>
+     */
+    private function queryModifiedBelongsToManyResourceClass(): string
+    {
+        return get_class(new class() extends Resource
+        {
+            public static function model(): string
+            {
+                return BelongsToManyProduct::class;
+            }
+
+            public static function form(FormContract $form): FormContract
+            {
+                return $form->schema([
+                    BelongsToMany::make('tags', 'Tags')
+                        ->resource(BelongsToManyTagResource::class)
+                        ->titleAttribute('name')
+                        ->modifyQueryUsing(static fn (Builder $query): Builder => $query->where('slug', '!=', 'hidden')),
+                ]);
+            }
+        });
+    }
+
+    /**
+     * @return class-string<Resource>
+     */
+    private function modelFallbackBelongsToManyResourceClass(): string
+    {
+        return get_class(new class() extends Resource
+        {
+            public static function model(): string
+            {
+                return BelongsToManyProduct::class;
+            }
+
+            public static function form(FormContract $form): FormContract
+            {
+                return $form->schema([
+                    BelongsToMany::make('tags', 'Tags')
+                        ->model(BelongsToManyTag::class)
+                        ->titleAttribute('name'),
+                ]);
+            }
+        });
+    }
 }
 
 final class ResourceFormDataSourceGeneratedKeyModel extends \Illuminate\Database\Eloquent\Model
@@ -707,6 +976,26 @@ final class InaccessibleBelongsToCategoryResource extends Resource
     public static function model(): string
     {
         return BelongsToCategory::class;
+    }
+
+    public static function canAccess(?\Illuminate\Contracts\Auth\Authenticatable $user = null): bool
+    {
+        return false;
+    }
+
+    public static function detail(\Pepperfm\Flashboard\Contracts\Detail\DetailContract $detail): \Pepperfm\Flashboard\Contracts\Detail\DetailContract
+    {
+        return $detail->entries([
+            \Pepperfm\Flashboard\Core\Detail\Entries\TextEntry::make('name', 'Name'),
+        ]);
+    }
+}
+
+final class InaccessibleBelongsToManyTagResource extends Resource
+{
+    public static function model(): string
+    {
+        return BelongsToManyTag::class;
     }
 
     public static function canAccess(?\Illuminate\Contracts\Auth\Authenticatable $user = null): bool

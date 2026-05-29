@@ -52,23 +52,45 @@ final class FormShellRenderingTest extends TestCase
 
         self::assertStringContainsString('FBDateInput', $map);
         self::assertStringContainsString('FBFileUpload', $map);
+        self::assertStringContainsString('FBRelationMultiSelect', $map);
         self::assertStringContainsString('FBRelationSelect', $map);
         self::assertStringContainsString('FBRichText', $map);
         self::assertStringContainsString('date: FBDateInput', $map);
         self::assertStringContainsString('file_upload: FBFileUpload', $map);
+        self::assertStringContainsString('relation_multi_select: FBRelationMultiSelect', $map);
         self::assertStringContainsString('relation_select: FBRelationSelect', $map);
         self::assertStringContainsString('rich_text: FBRichText', $map);
 
         self::assertStringContainsString("return 'date'", $resolver);
         self::assertStringContainsString("return 'file_upload'", $resolver);
+        self::assertStringContainsString("return 'relation_multi_select'", $resolver);
         self::assertStringContainsString("return 'relation_select'", $resolver);
         self::assertStringContainsString("return 'rich_text'", $resolver);
+        self::assertStringContainsString('selectedOptions: field.selected_options ?? []', $resolver);
+        self::assertStringContainsString('maxItems: field.max_items', $resolver);
         self::assertStringContainsString('forceFormData', $screen);
         self::assertStringContainsString("_method: 'put'", $screen);
         self::assertStringContainsString('update:remove-value', $this->fixture('resources/js/components/flashboard/forms/renderers/FormFieldRenderer.vue'));
         self::assertStringContainsString('Existing file will be removed', $this->fixture('resources/js/components/flashboard/forms/fields/FBFileUpload.vue'));
         self::assertStringContainsString('url: option.url ?? existingOption?.url', $this->fixture('resources/js/components/flashboard/forms/fields/FBRelationSelect.vue'));
+        self::assertStringContainsString("url.searchParams.append('selected[]'", $this->fixture('resources/js/components/flashboard/forms/fields/FBRelationMultiSelect.vue'));
+        self::assertStringContainsString('multiple', $this->fixture('resources/js/components/flashboard/forms/fields/FBRelationMultiSelect.vue'));
         self::assertStringNotContainsString('console.', $this->fixture('resources/js/components/flashboard/forms/fields/FBRelationSelect.vue'));
+        self::assertStringNotContainsString('console.', $this->fixture('resources/js/components/flashboard/forms/fields/FBRelationMultiSelect.vue'));
+    }
+
+    public function test_form_submit_path_preserves_array_field_values(): void
+    {
+        $screen = $this->fixture('resources/js/components/flashboard/FlashboardScreenContent.vue');
+        $renderer = $this->fixture('resources/js/components/flashboard/forms/renderers/FormFieldRenderer.vue');
+        $multiSelect = $this->fixture('resources/js/components/flashboard/forms/fields/FBRelationMultiSelect.vue');
+
+        self::assertStringContainsString('function updateFieldValue(fieldKey: string, value: unknown)', $screen);
+        self::assertStringContainsString('form[fieldKey] = value', $screen);
+        self::assertStringContainsString('@update:model-value="emit(\'update:modelValue\', $event)"', $renderer);
+        self::assertStringContainsString("'update:modelValue': [value: RelationOptionValue[]]", $multiSelect);
+        self::assertStringNotContainsString('JSON.stringify(form', $screen);
+        self::assertStringNotContainsString('Object.fromEntries', $screen);
     }
 
     private function fixture(string $path): string

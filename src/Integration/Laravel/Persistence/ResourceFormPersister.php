@@ -8,21 +8,34 @@ use Illuminate\Container\Attributes\Singleton;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Http\UploadedFile;
 use Illuminate\Support\Arr;
+use Illuminate\Validation\ValidationException;
 use Pepperfm\Flashboard\Contracts\Forms\FieldRenderer;
+use Pepperfm\Flashboard\Contracts\Forms\FormContract;
 use Pepperfm\Flashboard\Contracts\Resources\Resource;
+use Pepperfm\Flashboard\Core\Extensions\ExtensionRegistry;
 use Pepperfm\Flashboard\Core\Forms\Builders\Form;
 use Pepperfm\Flashboard\Core\Forms\Fields\BelongsTo;
+use Pepperfm\Flashboard\Core\Forms\Fields\BelongsToMany;
 use Pepperfm\Flashboard\Core\Forms\Fields\Field;
 use Pepperfm\Flashboard\Core\Forms\Fields\FileUpload;
+use Pepperfm\Flashboard\Core\Forms\Relations\BelongsToManyRelationMetadata;
+use Pepperfm\Flashboard\Core\Forms\Relations\BelongsToManyRelationMetadataResolver;
 use Pepperfm\Flashboard\Core\Hooks\RuntimeHookDispatcher;
+use Pepperfm\Flashboard\Core\Registry\ResourceRegistry;
+use Pepperfm\Flashboard\Integration\Laravel\Relations\RelationQueryModifier;
 
 #[Singleton]
 final readonly class ResourceFormPersister
 {
     private const string REDACTED_VALUE = '[redacted]';
+    private const string SYNC_FIELD_KEY = 'field_key';
+    private const string SYNC_IDS = 'ids';
+    private const string SYNC_RELATIONSHIP = 'relationship';
 
     public function __construct(
         private RuntimeHookDispatcher $runtimeHookDispatcher,
+        private ?ResourceRegistry $resourceRegistry = null,
+        private ?ExtensionRegistry $extensionRegistry = null,
     ) {
     }
 
@@ -41,22 +54,34 @@ final readonly class ResourceFormPersister
         $payload = $this->withoutEmptyPasswordFields($payload, $fields);
         $payload = $this->withoutPasswordConfirmationFields($payload, $fields);
         $payload = $this->normalizeBelongsToFieldData($payload, $fields);
+        $payload = $this->normalizeBelongsToManyFieldData($payload, $fields);
         $data = $form->mutateData($payload);
         $data = $resourceClass::mutateFormDataBeforeSave($data, null);
         $data = $this->normalizeFileFieldData($data, $fields, isUpdate: false);
+        [$data, $belongsToManySyncs] = $this->extractBelongsToManySyncs(
+            $resourceClass,
+            $form,
+            $data,
+            $fields,
+        );
         $modelClass = $resourceClass::model();
         $record = new $modelClass();
-        $record->forceFill($data);
-        $record->save();
 
-        $form->runAfterSave($record, $data);
-        $resourceClass::afterSave($record, $data);
-        $this->runtimeHookDispatcher->dispatch($resourceClass, 'resource.create.after', [
-            'payload' => $this->safeHookPayload($data, $fields),
-            'record' => $this->safeHookRecord($record, $fields),
-        ]);
+        return $record->getConnection()->transaction(function () use ($record, $data, $belongsToManySyncs, $form, $resourceClass, $fields): Model {
+            $record->forceFill($data);
+            $record->save();
 
-        return $record;
+            $this->syncBelongsToManyRelations($record, $belongsToManySyncs);
+
+            $form->runAfterSave($record, $data);
+            $resourceClass::afterSave($record, $data);
+            $this->runtimeHookDispatcher->dispatch($resourceClass, 'resource.create.after', [
+                'payload' => $this->safeHookPayload($data, $fields),
+                'record' => $this->safeHookRecord($record, $fields),
+            ]);
+
+            return $record;
+        });
     }
 
     /**
@@ -75,20 +100,32 @@ final readonly class ResourceFormPersister
         $payload = $this->withoutEmptyPasswordFields($payload, $fields);
         $payload = $this->withoutPasswordConfirmationFields($payload, $fields);
         $payload = $this->normalizeBelongsToFieldData($payload, $fields);
+        $payload = $this->normalizeBelongsToManyFieldData($payload, $fields);
         $data = $form->mutateData($payload, $record);
         $data = $resourceClass::mutateFormDataBeforeSave($data, $record);
         $data = $this->normalizeFileFieldData($data, $fields, isUpdate: true);
-        $record->forceFill($data);
-        $record->save();
+        [$data, $belongsToManySyncs] = $this->extractBelongsToManySyncs(
+            $resourceClass,
+            $form,
+            $data,
+            $fields,
+        );
 
-        $form->runAfterSave($record, $data);
-        $resourceClass::afterSave($record, $data);
-        $this->runtimeHookDispatcher->dispatch($resourceClass, 'resource.update.after', [
-            'payload' => $this->safeHookPayload($data, $fields),
-            'record' => $this->safeHookRecord($record, $fields),
-        ]);
+        return $record->getConnection()->transaction(function () use ($record, $data, $belongsToManySyncs, $form, $resourceClass, $fields): Model {
+            $record->forceFill($data);
+            $record->save();
 
-        return $record;
+            $this->syncBelongsToManyRelations($record, $belongsToManySyncs);
+
+            $form->runAfterSave($record, $data);
+            $resourceClass::afterSave($record, $data);
+            $this->runtimeHookDispatcher->dispatch($resourceClass, 'resource.update.after', [
+                'payload' => $this->safeHookPayload($data, $fields),
+                'record' => $this->safeHookRecord($record, $fields),
+            ]);
+
+            return $record;
+        });
     }
 
     /**
@@ -245,6 +282,227 @@ final readonly class ResourceFormPersister
     }
 
     /**
+     * @param array<string, mixed> $payload
+     * @param list<array<string, mixed>> $fields
+     *
+     * @return array<string, mixed>
+     */
+    private function normalizeBelongsToManyFieldData(array $payload, array $fields): array
+    {
+        foreach ($fields as $field) {
+            if (!$this->isBelongsToManyField($field)) {
+                continue;
+            }
+
+            $key = trim((string) Arr::get($field, 'key', ''));
+            if ($key === '' || !array_key_exists($key, $payload)) {
+                continue;
+            }
+
+            $payload[$key] = $this->normalizeBelongsToManyValues(
+                $payload[$key],
+                $key,
+                $this->positiveIntegerFieldValue($field, BelongsToMany::ATTRIBUTE_MAX_ITEMS),
+            );
+        }
+
+        return $payload;
+    }
+
+    /**
+     * @param class-string<Resource> $resourceClass
+     * @param array<string, mixed> $data
+     * @param list<array<string, mixed>> $fields
+     *
+     * @return array{0: array<string, mixed>, 1: list<array{field_key: string, relationship: string, ids: list<string|int|bool>}>}
+     */
+    private function extractBelongsToManySyncs(
+        string $resourceClass,
+        FormContract $form,
+        array $data,
+        array $fields,
+    ): array {
+        $syncs = [];
+        $queryModifiers = $this->belongsToManyQueryModifiers($form);
+        $resolver = new BelongsToManyRelationMetadataResolver($this->resourceRegistry);
+
+        foreach ($fields as $field) {
+            if (!$this->isBelongsToManyField($field)) {
+                continue;
+            }
+
+            $key = trim((string) Arr::get($field, 'key', ''));
+            if ($key === '' || !array_key_exists($key, $data)) {
+                continue;
+            }
+
+            $metadata = $resolver->resolve($resourceClass, $field);
+            $values = $this->normalizeBelongsToManyValues($data[$key], $key, $metadata->maxItems);
+            unset($data[$key]);
+
+            $syncs[] = [
+                self::SYNC_FIELD_KEY => $key,
+                self::SYNC_RELATIONSHIP => $metadata->relationship,
+                self::SYNC_IDS => $this->authorizedBelongsToManyIds(
+                    $metadata,
+                    $values,
+                    $queryModifiers[$key] ?? null,
+                ),
+            ];
+        }
+
+        return [$data, $syncs];
+    }
+
+    /**
+     * @return list<string|int|bool>
+     */
+    private function normalizeBelongsToManyValues(mixed $value, string $fieldKey, ?int $maxItems): array
+    {
+        if ($value === null || $value === '') {
+            return [];
+        }
+
+        $values = is_array($value) ? $value : [$value];
+        $normalized = [];
+
+        foreach ($values as $item) {
+            if ($item === null || $item === '') {
+                continue;
+            }
+            if (!is_scalar($item) && !$item instanceof \Stringable) {
+                throw ValidationException::withMessages([
+                    $fieldKey => ['The selected records are invalid.'],
+                ]);
+            }
+
+            $isIntItem = is_int($item) ? $item : (string) $item;
+            $normalizedValue = is_bool($item) ? $item : $isIntItem;
+            $normalized[(string) $normalizedValue] = $normalizedValue;
+        }
+
+        if ($maxItems !== null && count($normalized) > $maxItems) {
+            throw ValidationException::withMessages([
+                $fieldKey => ["The selected records may not have more than $maxItems items."],
+            ]);
+        }
+
+        return array_values($normalized);
+    }
+
+    /**
+     * @param list<string|int|bool> $values
+     *
+     * @return list<string|int|bool>
+     */
+    private function authorizedBelongsToManyIds(
+        BelongsToManyRelationMetadata $metadata,
+        array $values,
+        ?\Closure $queryModifier,
+    ): array {
+        if ($values === []) {
+            return [];
+        }
+
+        $records = $this->belongsToManyOptionsQuery($metadata, $queryModifier)
+            ->whereIn($metadata->relatedTable . '.' . $metadata->relatedKey, $values)
+            ->get()
+            ->all();
+        $allowedValues = [];
+
+        foreach ($records as $record) {
+            if (!$record instanceof Model) {
+                continue;
+            }
+
+            $value = $this->scalarValue(data_get($record, $metadata->relatedKey));
+            if ($value !== null) {
+                $allowedValues[(string) $value] = $value;
+            }
+        }
+
+        $orderedValues = [];
+        foreach ($values as $value) {
+            if (!array_key_exists((string) $value, $allowedValues)) {
+                throw ValidationException::withMessages([
+                    $metadata->fieldKey => ['The selected records are invalid.'],
+                ]);
+            }
+
+            $orderedValues[] = $allowedValues[(string) $value];
+        }
+
+        return $orderedValues;
+    }
+
+    /**
+     * @return \Illuminate\Database\Eloquent\Builder<Model>
+     */
+    private function belongsToManyOptionsQuery(
+        BelongsToManyRelationMetadata $metadata,
+        ?\Closure $queryModifier,
+    ): \Illuminate\Database\Eloquent\Builder {
+        if ($metadata->relatedResource !== null) {
+            $query = $metadata->relatedResource::query();
+
+            if ($this->extensionRegistry !== null) {
+                $query = $this->extensionRegistry->extendQuery($metadata->relatedResource, $query);
+            }
+
+            return RelationQueryModifier::apply($queryModifier, $query, $metadata->fieldKey);
+        }
+
+        $modelClass = $metadata->relatedModel;
+
+        return RelationQueryModifier::apply($queryModifier, $modelClass::query(), $metadata->fieldKey);
+    }
+
+    /**
+     * @param list<array{field_key: string, relationship: string, ids: list<string|int|bool>}> $syncs
+     */
+    private function syncBelongsToManyRelations(Model $record, array $syncs): void
+    {
+        foreach ($syncs as $sync) {
+            if (!method_exists($record, $sync[self::SYNC_RELATIONSHIP])) {
+                throw ValidationException::withMessages([
+                    $sync[self::SYNC_FIELD_KEY] => ['The selected relationship is invalid.'],
+                ]);
+            }
+
+            $relation = $record->{$sync[self::SYNC_RELATIONSHIP]}();
+            if (!$relation instanceof \Illuminate\Database\Eloquent\Relations\BelongsToMany) {
+                throw ValidationException::withMessages([
+                    $sync[self::SYNC_FIELD_KEY] => ['The selected relationship is invalid.'],
+                ]);
+            }
+
+            $relation->sync($sync[self::SYNC_IDS]);
+        }
+    }
+
+    /**
+     * @return array<string, \Closure>
+     */
+    private function belongsToManyQueryModifiers(FormContract $form): array
+    {
+        if (!$form instanceof Form) {
+            return [];
+        }
+
+        $modifiers = [];
+
+        foreach ($form->fieldNodes() as $field) {
+            if (!$field instanceof BelongsToMany || $field->queryModifier() === null) {
+                continue;
+            }
+
+            $modifiers[$field->key()] = $field->queryModifier();
+        }
+
+        return $modifiers;
+    }
+
+    /**
      * @param array<string, mixed> $field
      */
     private function isPasswordField(array $field): bool
@@ -279,7 +537,45 @@ final readonly class ResourceFormPersister
 
         return $type === Field::TYPE_BELONGS_TO
             || $renderer === FieldRenderer::RelationSelect->value
-            || Arr::has($field, BelongsTo::ATTRIBUTE_RELATIONSHIP);
+            || (
+                $type !== Field::TYPE_BELONGS_TO_MANY
+                && $renderer !== FieldRenderer::RelationMultiSelect->value
+                && Arr::has($field, BelongsTo::ATTRIBUTE_RELATIONSHIP)
+            );
+    }
+
+    /**
+     * @param array<string, mixed> $field
+     */
+    private function isBelongsToManyField(array $field): bool
+    {
+        $type = (string) Arr::get($field, Field::ATTRIBUTE_TYPE, '');
+        $renderer = (string) Arr::get($field, Field::ATTRIBUTE_RENDERER, '');
+
+        return $type === Field::TYPE_BELONGS_TO_MANY
+            || $renderer === FieldRenderer::RelationMultiSelect->value;
+    }
+
+    /**
+     * @param array<string, mixed> $field
+     */
+    private function positiveIntegerFieldValue(array $field, string $key): ?int
+    {
+        $value = Arr::get($field, $key);
+
+        return is_int($value) && $value > 0 ? $value : null;
+    }
+
+    private function scalarValue(mixed $value): string|int|bool|null
+    {
+        if (is_string($value) || is_int($value) || is_bool($value)) {
+            return $value;
+        }
+        if ($value instanceof \Stringable) {
+            return (string) $value;
+        }
+
+        return null;
     }
 
     private function isEmptyFileFieldValue(mixed $value): bool
@@ -292,11 +588,9 @@ final readonly class ResourceFormPersister
         if (is_bool($value)) {
             return $value;
         }
-
         if (is_int($value)) {
             return $value === 1;
         }
-
         if (is_string($value)) {
             return in_array(strtolower($value), ['1', 'true', 'on', 'yes'], true);
         }
@@ -309,7 +603,7 @@ final readonly class ResourceFormPersister
      */
     private function removedFileFieldValue(array $field): mixed
     {
-        return (bool) Arr::get($field, FileUpload::ATTRIBUTE_MULTIPLE, false) ? [] : null;
+        return Arr::get($field, FileUpload::ATTRIBUTE_MULTIPLE, false) ? [] : null;
     }
 
     private function containsUploadedFile(mixed $value): bool
@@ -317,18 +611,11 @@ final readonly class ResourceFormPersister
         if ($value instanceof UploadedFile) {
             return true;
         }
-
         if (!is_array($value)) {
             return false;
         }
 
-        foreach ($value as $item) {
-            if ($this->containsUploadedFile($item)) {
-                return true;
-            }
-        }
-
-        return false;
+        return array_any($value, fn($item) => $this->containsUploadedFile($item));
     }
 
     /**
@@ -339,7 +626,6 @@ final readonly class ResourceFormPersister
         if ($value instanceof UploadedFile) {
             return $this->storeUploadedFile($value, $field);
         }
-
         if (!is_array($value)) {
             return $value;
         }
@@ -377,13 +663,13 @@ final readonly class ResourceFormPersister
             }
 
             return $path;
-        } catch (\Throwable $exception) {
+        } catch (\Throwable $e) {
             logger()->warning('Flashboard file upload storage failed.', [
                 'field' => $key,
-                'exception' => $exception::class,
+                'exception' => $e::class,
             ]);
 
-            throw $exception;
+            throw $e;
         }
     }
 
@@ -401,25 +687,20 @@ final readonly class ResourceFormPersister
             if ($key === '') {
                 continue;
             }
-
             if ($this->isPasswordField($field)) {
                 $payload = $this->redactPasswordPayloadKeys($payload, $key);
                 continue;
             }
-
             if (!array_key_exists($key, $payload)) {
                 continue;
             }
-
             if (!$this->isFileField($field)) {
                 continue;
             }
-
             if ($this->containsUploadedFile($payload[$key])) {
                 $payload[$key] = $this->safeUploadedFilePayload($payload[$key]);
                 continue;
             }
-
             if (!$this->isEmptyFileFieldValue($payload[$key])) {
                 $payload[$key] = $this->safeStoredFilePayload($payload[$key]);
             }
@@ -450,7 +731,6 @@ final readonly class ResourceFormPersister
         }
 
         $confirmationKey = $key . '_confirmation';
-
         if (array_key_exists($confirmationKey, $payload)) {
             $payload[$confirmationKey] = $this->redactedPasswordValue($payload[$confirmationKey]);
         }

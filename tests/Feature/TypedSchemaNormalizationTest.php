@@ -11,6 +11,7 @@ use Pepperfm\Flashboard\Contracts\Resources\Resource;
 use Pepperfm\Flashboard\Contracts\Tables\TableContract;
 use Pepperfm\Flashboard\Core\Detail\Entries\TextEntry;
 use Pepperfm\Flashboard\Core\Forms\Fields\BelongsTo;
+use Pepperfm\Flashboard\Core\Forms\Fields\BelongsToMany;
 use Pepperfm\Flashboard\Core\Detail\Layout\Section as DetailSection;
 use Pepperfm\Flashboard\Core\Forms\Fields\Checkbox;
 use Pepperfm\Flashboard\Core\Forms\Fields\DateInput;
@@ -54,6 +55,7 @@ final class TypedSchemaNormalizationTest extends TestCase
             [RichText::make('body', 'Body'), 'Body'],
             [PasswordInput::make('password', 'Password'), 'Password'],
             [BelongsTo::make('category_id', 'Category', 'category'), 'Category'],
+            [BelongsToMany::make('tags', 'Tags'), 'Tags'],
             [TextEntry::make('summary', 'Summary'), 'Summary'],
             [TextColumn::make('name', 'Name'), 'Name'],
             [BadgeColumn::make('status', 'Status badge'), 'Status badge'],

@@ -12,8 +12,10 @@ declare(strict_types=1);
 namespace App\Flashboard;
 
 use App\Models\Order;
+use Illuminate\Database\Eloquent\Builder;
 use Pepperfm\Flashboard\Contracts\Resources\Resource;
 use Pepperfm\Flashboard\Core\Forms\Fields\BelongsTo;
+use Pepperfm\Flashboard\Core\Forms\Fields\BelongsToMany;
 use Pepperfm\Flashboard\Core\Forms\Fields\Checkbox;
 use Pepperfm\Flashboard\Core\Forms\Fields\DateInput;
 use Pepperfm\Flashboard\Core\Forms\Fields\FileUpload;
@@ -61,6 +63,11 @@ final class OrdersResource extends Resource
                     ->titleAttribute('name')
                     ->searchable(['name', 'email'])
                     ->required(),
+                BelongsToMany::make('tags', 'Tags')
+                    ->resource(TagsResource::class)
+                    ->titleAttribute('name')
+                    ->searchable(['name', 'slug'])
+                    ->maxItems(8),
                 TextInput::make('name', 'Name')->required(),
                 TextInput::make('email', 'Email')->email(),
                 Textarea::make('notes', 'Notes')->columnSpan(2),
@@ -166,7 +173,20 @@ BelongsTo::make('customer_id', 'Customer')
 
 The field renders as a lazy searchable select, submits only the scalar FK value, and persists through the normal `forceFill()` form save path. The third `make()` argument can override the relationship name, but Flashboard infers common FK names such as `customer_id` -> `customer`. Explicit `resource()` wins over auto-discovery; otherwise a related resource can be inferred from a single registered resource whose `model()` matches the Eloquent related model.
 
-Keep this separate from `Resource::relations()`. `BelongsTo` writes the current record's scalar FK from the form; `HasOne` and `HasMany` are inverse relation managers because they mutate related records' FK values from the parent resource context.
+`BelongsToMany` belongs in `form()` when the create/edit screen should write pivot membership for the current record:
+
+```php
+BelongsToMany::make('tags', 'Tags')
+    ->resource(TagsResource::class)
+    ->titleAttribute('name')
+    ->searchable(['name', 'slug'])
+    ->modifyQueryUsing(static fn (Builder $query): Builder => $query->where('archived', false))
+    ->maxItems(8);
+```
+
+The field renders as a lazy multi-select, submits an array of related record keys, and syncs the Eloquent `BelongsToMany` relation after the parent record is saved in the same transaction. Omitted fields are left untouched; an explicit empty array detaches all selected records. Pivot attributes and related-record create/update/delete flows stay outside this field.
+
+Keep these separate from `Resource::relations()`. `BelongsTo` writes the current record's scalar FK from the form, `BelongsToMany` syncs the current record's pivot membership, and `HasOne` / `HasMany` are inverse relation managers because they mutate related records' FK values from the parent resource context.
 
 ## Inverse Relation Managers
 
@@ -219,7 +239,7 @@ Normal relation-manager reads and mutations do not log. HTTP-boundary failures m
 
 - prefer `$form->schema([...])` for simple CRUD resources
 - introduce `Section` and `Tabs` nodes inside `schema()` when the form has meaningful operator-facing grouping
-- use purpose-built fields such as `TextInput`, `Textarea`, `NumberInput`, `DateInput`, `FileUpload`, `RichText`, `PasswordInput`, `BelongsTo`, `Select`, `Checkbox`, and `Toggle`; `Toggle` renders as a switch-style boolean control
+- use purpose-built fields such as `TextInput`, `Textarea`, `NumberInput`, `DateInput`, `FileUpload`, `RichText`, `PasswordInput`, `BelongsTo`, `BelongsToMany`, `Select`, `Checkbox`, and `Toggle`; `Toggle` renders as a switch-style boolean control
 - pass the label as the optional second argument to keyed typed nodes, for example `TextInput::make('name', 'Name')`; keep `->label()` for later overrides
 - use `columns()`, `gap()`, `columnSpan()`, and `fullWidth()` to place multiple fields on one row without extra row/container nodes
 - use `layout(FormLayoutMode::Flex)` with `direction()/justify()/align()/wrap()` only when a grouped form needs inline controls instead of a grid
@@ -232,7 +252,7 @@ If you do need grouped layout, Flashboard now renders one canonical schema tree 
 Flashboard currently supports both configuration styles:
 
 - typed schema nodes such as `TextColumn::make('status', 'Status')`
-- concept-aligned nodes such as `TextColumn::make('email', 'Email')`, `TextInput::make('name', 'Name')`, `BelongsTo::make('customer_id', 'Customer')`, `DateInput::make('published_on', 'Published on')`, `FileUpload::make('receipt', 'Receipt')`, `RichText::make('body', 'Body')`, `Section::make('content', 'Content')->schema([...])`, and `Tabs::make('settings')->tabs([...])`
+- concept-aligned nodes such as `TextColumn::make('email', 'Email')`, `TextInput::make('name', 'Name')`, `BelongsTo::make('customer_id', 'Customer')`, `BelongsToMany::make('tags', 'Tags')`, `DateInput::make('published_on', 'Published on')`, `FileUpload::make('receipt', 'Receipt')`, `RichText::make('body', 'Body')`, `Section::make('content', 'Content')->schema([...])`, and `Tabs::make('settings')->tabs([...])`
 - legacy compatibility arrays such as `['key' => 'status', 'label' => 'Status']`
 
 Typed nodes are the preferred public API going forward. Arrays remain supported while the package migrates the rest of the DSL toward the concept-first object style.

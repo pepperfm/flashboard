@@ -12,6 +12,7 @@ use Pepperfm\Flashboard\Contracts\Forms\FormLayoutDirection;
 use Pepperfm\Flashboard\Contracts\Forms\FormLayoutJustify;
 use Pepperfm\Flashboard\Contracts\Forms\FormLayoutMode;
 use Pepperfm\Flashboard\Contracts\Forms\FormSchemaNodeKind;
+use Pepperfm\Flashboard\Core\Forms\Fields\BelongsToMany;
 use Pepperfm\Flashboard\Core\Forms\Fields\DateInput;
 use Pepperfm\Flashboard\Core\Forms\Fields\Field;
 use Pepperfm\Flashboard\Core\Forms\Fields\FileUpload;
@@ -93,7 +94,6 @@ final class FormSchemaNormalizer
 
         foreach ($fields as $field) {
             $key = trim((string) Arr::get($field, 'key', ''));
-
             if ($key === '') {
                 continue;
             }
@@ -109,27 +109,22 @@ final class FormSchemaNormalizer
             if ($this->fieldInfersStringRule($field, $renderer, $type, $inputType)) {
                 $fieldRules[] = 'string';
             }
-
             if ($inputType === 'email') {
                 $fieldRules[] = 'email';
             }
-
             if ($inputType === 'number') {
                 $fieldRules[] = 'numeric';
             }
-
             if ($this->isDateField($field, $renderer, $type, $inputType)) {
                 $fieldRules[] = 'date_format:Y-m-d';
 
                 if ($minDate = $this->stringAttribute($field, DateInput::ATTRIBUTE_MIN_DATE)) {
                     $fieldRules[] = 'after_or_equal:' . $minDate;
                 }
-
                 if ($maxDate = $this->stringAttribute($field, DateInput::ATTRIBUTE_MAX_DATE)) {
                     $fieldRules[] = 'before_or_equal:' . $maxDate;
                 }
             }
-
             if (
                 $renderer === FieldRenderer::Checkbox
                 || $renderer === FieldRenderer::Switch
@@ -138,42 +133,40 @@ final class FormSchemaNormalizer
             ) {
                 $fieldRules[] = 'boolean';
             }
-
             if ($this->isPasswordField($type, $inputType)) {
                 if ($minLength = $this->positiveIntegerAttribute($field, PasswordInput::ATTRIBUTE_MIN_LENGTH)) {
                     $fieldRules[] = 'min:' . $minLength;
                 }
-
                 if ($maxLength = $this->positiveIntegerAttribute($field, PasswordInput::ATTRIBUTE_MAX_LENGTH)) {
                     $fieldRules[] = 'max:' . $maxLength;
                 }
-
-                if ((bool) Arr::get($field, PasswordInput::ATTRIBUTE_CONFIRMED, false)) {
+                if (Arr::get($field, PasswordInput::ATTRIBUTE_CONFIRMED, false)) {
                     $fieldRules[] = 'confirmed';
                 }
             }
-
             if ($renderer === FieldRenderer::RichText || $type === Field::TYPE_RICH_TEXT) {
                 if ((string) Arr::get($field, RichText::ATTRIBUTE_CONTENT_FORMAT, RichText::FORMAT_HTML) === RichText::FORMAT_JSON) {
                     $fieldRules[] = 'array';
                 }
-
                 if ($minLength = $this->positiveIntegerAttribute($field, RichText::ATTRIBUTE_MIN_LENGTH)) {
                     $fieldRules[] = 'min:' . $minLength;
                 }
-
                 if ($maxLength = $this->positiveIntegerAttribute($field, RichText::ATTRIBUTE_MAX_LENGTH)) {
                     $fieldRules[] = 'max:' . $maxLength;
                 }
             }
-
+            if ($renderer === FieldRenderer::RelationMultiSelect || $type === Field::TYPE_BELONGS_TO_MANY) {
+                $fieldRules[] = 'array';
+                if ($maxItems = $this->positiveIntegerAttribute($field, BelongsToMany::ATTRIBUTE_MAX_ITEMS)) {
+                    $fieldRules[] = 'max:' . $maxItems;
+                }
+            }
             if ($renderer === FieldRenderer::FileUpload || $type === Field::TYPE_FILE || $inputType === 'file') {
                 $fileRules = $this->fileRulesFromField($field);
                 $rules[$key . FileUpload::REMOVE_REQUEST_SUFFIX] = ['nullable', 'boolean'];
 
-                if ((bool) Arr::get($field, FileUpload::ATTRIBUTE_MULTIPLE, false)) {
+                if (Arr::get($field, FileUpload::ATTRIBUTE_MULTIPLE, false)) {
                     $fieldRules[] = 'array';
-
                     if ($maxFiles = $this->positiveIntegerAttribute($field, FileUpload::ATTRIBUTE_MAX_FILES)) {
                         $fieldRules[] = 'max:' . $maxFiles;
                     }
@@ -591,6 +584,7 @@ final class FormSchemaNormalizer
 
         return match ((string) Arr::get($field, Field::ATTRIBUTE_TYPE, '')) {
             Field::TYPE_BELONGS_TO => FieldRenderer::RelationSelect,
+            Field::TYPE_BELONGS_TO_MANY => FieldRenderer::RelationMultiSelect,
             Field::TYPE_CHECKBOX => FieldRenderer::Checkbox,
             Field::TYPE_DATE => FieldRenderer::Date,
             Field::TYPE_FILE => FieldRenderer::FileUpload,

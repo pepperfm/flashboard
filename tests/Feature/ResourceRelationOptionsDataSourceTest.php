@@ -16,6 +16,7 @@ use Pepperfm\Flashboard\Contracts\Resources\Resource;
 use Pepperfm\Flashboard\Core\Authorization\Visibility\ScreenAccessResolver;
 use Pepperfm\Flashboard\Core\Extensions\ExtensionRegistry;
 use Pepperfm\Flashboard\Core\Forms\Fields\BelongsTo;
+use Pepperfm\Flashboard\Core\Forms\Fields\BelongsToMany;
 use Pepperfm\Flashboard\Core\Forms\Fields\TextInput;
 use Pepperfm\Flashboard\Core\Registry\ResourceRegistry;
 use Pepperfm\Flashboard\Core\Resources\ResourceSurfaceResolver;
@@ -24,8 +25,12 @@ use Pepperfm\Flashboard\Integration\Laravel\Auth\PolicyBridge;
 use Pepperfm\Flashboard\Integration\Laravel\DataSources\ResourceRelationOptionsDataSource;
 use Pepperfm\Flashboard\Integration\Laravel\Relations\RelationQueryModifier;
 use Pepperfm\Flashboard\Tests\Fixtures\Models\BelongsToCategory;
+use Pepperfm\Flashboard\Tests\Fixtures\Models\BelongsToManyProduct;
+use Pepperfm\Flashboard\Tests\Fixtures\Models\BelongsToManyTag;
 use Pepperfm\Flashboard\Tests\Fixtures\Models\BelongsToProduct;
 use Pepperfm\Flashboard\Tests\Fixtures\Resources\BelongsToCategoryResource;
+use Pepperfm\Flashboard\Tests\Fixtures\Resources\BelongsToManyProductResource;
+use Pepperfm\Flashboard\Tests\Fixtures\Resources\BelongsToManyTagResource;
 use Pepperfm\Flashboard\Tests\Fixtures\Resources\BelongsToProductResource;
 use Pepperfm\Flashboard\Tests\TestCase;
 
@@ -38,6 +43,12 @@ final class ResourceRelationOptionsDataSourceTest extends TestCase
     private BelongsToCategory $software;
 
     private BelongsToCategory $hidden;
+
+    private BelongsToManyTag $tagHardware;
+
+    private BelongsToManyTag $tagSoftware;
+
+    private BelongsToManyTag $tagHidden;
 
     protected function setUp(): void
     {
@@ -64,6 +75,20 @@ final class ResourceRelationOptionsDataSourceTest extends TestCase
             $table->string('name')->nullable();
             $table->unsignedInteger('category_id')->nullable();
         });
+        $this->database->schema()->create('belongs_to_many_products', static function (\Illuminate\Database\Schema\Blueprint $table): void {
+            $table->increments('id');
+            $table->string('name')->nullable();
+        });
+        $this->database->schema()->create('belongs_to_many_tags', static function (\Illuminate\Database\Schema\Blueprint $table): void {
+            $table->increments('id');
+            $table->string('name');
+            $table->string('slug')->nullable();
+            $table->boolean('visible')->default(true);
+        });
+        $this->database->schema()->create('belongs_to_many_product_tag', static function (\Illuminate\Database\Schema\Blueprint $table): void {
+            $table->unsignedInteger('product_id');
+            $table->unsignedInteger('tag_id');
+        });
 
         $this->hardware = BelongsToCategory::query()->create([
             'name' => 'Hardware',
@@ -76,6 +101,21 @@ final class ResourceRelationOptionsDataSourceTest extends TestCase
             'visible' => true,
         ]);
         $this->hidden = BelongsToCategory::query()->create([
+            'name' => 'Hidden',
+            'slug' => 'hidden',
+            'visible' => false,
+        ]);
+        $this->tagHardware = BelongsToManyTag::query()->create([
+            'name' => 'Hardware',
+            'slug' => 'hardware',
+            'visible' => true,
+        ]);
+        $this->tagSoftware = BelongsToManyTag::query()->create([
+            'name' => 'Software',
+            'slug' => 'software',
+            'visible' => true,
+        ]);
+        $this->tagHidden = BelongsToManyTag::query()->create([
             'name' => 'Hidden',
             'slug' => 'hidden',
             'visible' => false,
@@ -216,6 +256,128 @@ final class ResourceRelationOptionsDataSourceTest extends TestCase
         self::assertContains('Software', $labels);
     }
 
+    public function test_belongs_to_many_options_are_searchable_paginated_and_hydrate_selected_values(): void
+    {
+        $payload = $this->dataSource($this->belongsToManyRegistry())->resolve(
+            BelongsToManyProductResource::class,
+            'tags',
+            \Illuminate\Http\Request::create('/', 'GET', [
+                'page' => 1,
+                'per_page' => 1,
+                'selected' => [$this->tagSoftware->getKey(), $this->tagSoftware->getKey()],
+            ]),
+        );
+
+        self::assertSame([
+            [
+                'label' => 'Software',
+                'value' => $this->tagSoftware->getKey(),
+                'url' => '/flashboard.resources.belongs_to_many_tag.detail',
+            ],
+            [
+                'label' => 'Hardware',
+                'value' => $this->tagHardware->getKey(),
+                'url' => '/flashboard.resources.belongs_to_many_tag.detail',
+            ],
+        ], $payload['items']);
+        self::assertTrue($payload['meta']['has_more']);
+        self::assertSame(2, $payload['meta']['next_page']);
+
+        $searchedPayload = $this->dataSource($this->belongsToManyRegistry())->resolve(
+            BelongsToManyProductResource::class,
+            'tags',
+            \Illuminate\Http\Request::create('/', 'GET', [
+                'search' => 'soft',
+            ]),
+        );
+
+        self::assertSame([
+            [
+                'label' => 'Software',
+                'value' => $this->tagSoftware->getKey(),
+                'url' => '/flashboard.resources.belongs_to_many_tag.detail',
+            ],
+        ], $searchedPayload['items']);
+        self::assertFalse($searchedPayload['meta']['has_more']);
+        self::assertNull($searchedPayload['meta']['next_page']);
+    }
+
+    public function test_belongs_to_many_options_respect_field_query_modifier_for_options_and_selected_values(): void
+    {
+        $registry = $this->belongsToManyRegistry();
+        $registry->register(ModifiedBelongsToManyRelationOptionsProductResource::class);
+
+        $payload = $this->dataSource($registry)->resolve(
+            ModifiedBelongsToManyRelationOptionsProductResource::class,
+            'tags',
+            \Illuminate\Http\Request::create('/', 'GET', [
+                'selected' => [$this->tagHidden->getKey()],
+            ]),
+        );
+        $labels = array_column($payload['items'], 'label');
+
+        self::assertNotContains('Hidden', $labels);
+        self::assertContains('Hardware', $labels);
+        self::assertContains('Software', $labels);
+    }
+
+    public function test_belongs_to_many_options_use_last_duplicate_field_query_modifier(): void
+    {
+        $registry = $this->belongsToManyRegistry();
+        $registry->register(DuplicateModifierBelongsToManyRelationOptionsProductResource::class);
+
+        $payload = $this->dataSource($registry)->resolve(
+            DuplicateModifierBelongsToManyRelationOptionsProductResource::class,
+            'tags',
+            \Illuminate\Http\Request::create('/'),
+        );
+        $labels = array_column($payload['items'], 'label');
+
+        self::assertNotContains('Hidden', $labels);
+        self::assertContains('Hardware', $labels);
+        self::assertContains('Software', $labels);
+    }
+
+    public function test_belongs_to_many_options_reject_inaccessible_related_resources(): void
+    {
+        $this->expectException(\Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException::class);
+
+        $this->dataSource($this->belongsToManyRegistry())->resolve(
+            InaccessibleBelongsToManyRelationOptionsProductResource::class,
+            'tags',
+            \Illuminate\Http\Request::create('/'),
+        );
+    }
+
+    public function test_belongs_to_many_options_can_use_explicit_model_fallback_without_related_resource(): void
+    {
+        $registry = new ResourceRegistry();
+        $registry->register(ModelFallbackBelongsToManyRelationOptionsProductResource::class);
+
+        $payload = $this->dataSource($registry)->resolve(
+            ModelFallbackBelongsToManyRelationOptionsProductResource::class,
+            'tags',
+            \Illuminate\Http\Request::create('/', 'GET', [
+                'page' => 1,
+                'per_page' => 1,
+                'selected' => [$this->tagSoftware->getKey()],
+            ]),
+        );
+
+        self::assertSame([
+            [
+                'label' => 'Software',
+                'value' => $this->tagSoftware->getKey(),
+            ],
+            [
+                'label' => 'Hardware',
+                'value' => $this->tagHardware->getKey(),
+            ],
+        ], $payload['items']);
+        self::assertTrue($payload['meta']['has_more']);
+        self::assertSame(2, $payload['meta']['next_page']);
+    }
+
     public function test_relation_options_can_use_explicit_model_fallback_without_related_resource(): void
     {
         $registry = new ResourceRegistry();
@@ -279,6 +441,17 @@ final class ResourceRelationOptionsDataSourceTest extends TestCase
         $registry->register(BelongsToCategoryResource::class);
         $registry->register(BelongsToProductResource::class);
         $registry->register(ScopedRelationOptionsCategoryResource::class);
+
+        return $registry;
+    }
+
+    private function belongsToManyRegistry(): ResourceRegistry
+    {
+        $registry = new ResourceRegistry();
+        $registry->register(BelongsToManyProductResource::class);
+        $registry->register(BelongsToManyTagResource::class);
+        $registry->register(InaccessibleBelongsToManyRelationOptionsProductResource::class);
+        $registry->register(InaccessibleBelongsToManyRelationOptionsTagResource::class);
 
         return $registry;
     }
@@ -624,6 +797,92 @@ final class DuplicateModifierRelationOptionsProductResource extends Resource
                 ->resource(BelongsToCategoryResource::class)
                 ->titleAttribute('name')
                 ->modifyQueryUsing(static fn (Builder $query): Builder => $query->where('visible', true)),
+        ]);
+    }
+}
+
+final class ModifiedBelongsToManyRelationOptionsProductResource extends Resource
+{
+    public static function model(): string
+    {
+        return BelongsToManyProduct::class;
+    }
+
+    public static function form(FormContract $form): FormContract
+    {
+        return $form->schema([
+            BelongsToMany::make('tags', 'Tags')
+                ->resource(BelongsToManyTagResource::class)
+                ->titleAttribute('name')
+                ->modifyQueryUsing(static fn (Builder $query): Builder => $query->where('visible', true)),
+        ]);
+    }
+}
+
+final class DuplicateModifierBelongsToManyRelationOptionsProductResource extends Resource
+{
+    public static function model(): string
+    {
+        return BelongsToManyProduct::class;
+    }
+
+    public static function form(FormContract $form): FormContract
+    {
+        return $form->schema([
+            BelongsToMany::make('tags', 'Tags')
+                ->resource(BelongsToManyTagResource::class)
+                ->titleAttribute('name')
+                ->modifyQueryUsing(static fn (Builder $query): Builder => $query->where('visible', false)),
+            BelongsToMany::make('tags', 'Tags')
+                ->resource(BelongsToManyTagResource::class)
+                ->titleAttribute('name')
+                ->modifyQueryUsing(static fn (Builder $query): Builder => $query->where('visible', true)),
+        ]);
+    }
+}
+
+final class ModelFallbackBelongsToManyRelationOptionsProductResource extends Resource
+{
+    public static function model(): string
+    {
+        return BelongsToManyProduct::class;
+    }
+
+    public static function form(FormContract $form): FormContract
+    {
+        return $form->schema([
+            BelongsToMany::make('tags', 'Tags')
+                ->model(BelongsToManyTag::class)
+                ->titleAttribute('name')
+                ->searchable('name'),
+        ]);
+    }
+}
+
+final class InaccessibleBelongsToManyRelationOptionsTagResource extends Resource
+{
+    public static function model(): string
+    {
+        return BelongsToManyTag::class;
+    }
+
+    public static function canAccess(?\Illuminate\Contracts\Auth\Authenticatable $user = null): bool
+    {
+        return false;
+    }
+}
+
+final class InaccessibleBelongsToManyRelationOptionsProductResource extends Resource
+{
+    public static function model(): string
+    {
+        return BelongsToManyProduct::class;
+    }
+
+    public static function form(FormContract $form): FormContract
+    {
+        return $form->schema([
+            BelongsToMany::make('tags', 'Tags')->resource(InaccessibleBelongsToManyRelationOptionsTagResource::class),
         ]);
     }
 }

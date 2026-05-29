@@ -23,6 +23,7 @@ export type FormFieldShape = {
   layout?: FormFieldLayoutShape
   max_date?: string
   max_files?: number
+  max_items?: number
   max_size?: number
   min_date?: string
   mimes?: string[]
@@ -38,6 +39,7 @@ export type FormFieldShape = {
   renderer?: string
   required?: boolean
   selected_option?: FormOptionShape | null
+  selected_options?: FormOptionShape[] | null
   store_files?: boolean
   type?: string
 }
@@ -94,6 +96,10 @@ function fallbackRendererForType(type?: string): FormFieldRendererKey {
 
   if (type === 'belongs_to') {
     return 'relation_select'
+  }
+
+  if (type === 'belongs_to_many') {
+    return 'relation_multi_select'
   }
 
   if (type === 'select') {
@@ -174,6 +180,19 @@ export function resolveFormFieldRendererProps(field: FormFieldShape): Record<str
       relatedRoutes: field.related_routes,
       required: field.required,
       selectedOption: field.selected_option ?? null,
+    }
+  }
+
+  if (renderer === 'relation_multi_select') {
+    return {
+      maxItems: field.max_items,
+      name: field.key,
+      optionsPerPage: field.options_per_page,
+      optionsUrl: field.options_url,
+      placeholder,
+      relatedRoutes: field.related_routes,
+      required: field.required,
+      selectedOptions: field.selected_options ?? [],
     }
   }
 

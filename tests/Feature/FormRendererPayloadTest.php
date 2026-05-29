@@ -12,6 +12,7 @@ use Pepperfm\Flashboard\Contracts\Forms\FormLayoutMode;
 use Pepperfm\Flashboard\Contracts\Forms\FormSchemaNodeKind;
 use Pepperfm\Flashboard\Core\Forms\Builders\Form;
 use Pepperfm\Flashboard\Core\Forms\Fields\BelongsTo;
+use Pepperfm\Flashboard\Core\Forms\Fields\BelongsToMany;
 use Pepperfm\Flashboard\Core\Forms\Fields\Checkbox;
 use Pepperfm\Flashboard\Core\Forms\Fields\DateInput;
 use Pepperfm\Flashboard\Core\Forms\Fields\FileUpload;
@@ -185,6 +186,44 @@ final class FormRendererPayloadTest extends TestCase
         self::assertSame(['name', 'slug'], $fields['category_id']['search_columns']);
         self::assertSame(25, $fields['category_id']['options_per_page']);
         self::assertSame('author', $fields['author_uuid']['relationship']);
+    }
+
+    public function test_belongs_to_many_field_exposes_relation_multi_select_payload_contract(): void
+    {
+        $field = BelongsToMany::make('visible_tags', 'Visible tags', 'tags')
+            ->resource(BelongsToCategoryResource::class)
+            ->model(\Illuminate\Database\Eloquent\Model::class)
+            ->recordKeyName('uuid')
+            ->titleAttribute('name')
+            ->searchable(['name', 'slug', ''])
+            ->optionsPerPage(25)
+            ->maxItems(5)
+            ->modifyQueryUsing(static fn (\Illuminate\Database\Eloquent\Builder $query): \Illuminate\Database\Eloquent\Builder => $query)
+            ->required();
+
+        $payload = new FormPayload(
+            Form::make()
+                ->schema([
+                    $field,
+                    BelongsToMany::make('tags', 'Tags'),
+                ])
+                ->toArray(),
+        );
+
+        $fields = array_column($payload->fields(), null, 'key');
+
+        self::assertSame(FieldRenderer::RelationMultiSelect->value, $fields['visible_tags']['renderer']);
+        self::assertSame('belongs_to_many', $fields['visible_tags']['type']);
+        self::assertSame('tags', $fields['visible_tags']['relationship']);
+        self::assertSame(\Illuminate\Database\Eloquent\Model::class, $fields['visible_tags']['related_model']);
+        self::assertSame(BelongsToCategoryResource::class, $fields['visible_tags']['related_resource']);
+        self::assertSame('uuid', $fields['visible_tags']['record_key_name']);
+        self::assertSame('name', $fields['visible_tags']['title_attribute']);
+        self::assertSame(['name', 'slug'], $fields['visible_tags']['search_columns']);
+        self::assertSame(25, $fields['visible_tags']['options_per_page']);
+        self::assertSame(5, $fields['visible_tags']['max_items']);
+        self::assertSame('tags', $fields['tags']['relationship']);
+        self::assertNotNull($field->queryModifier());
     }
 
     public function test_grouped_form_payload_keeps_renderer_hints_inside_sections_and_tabs(): void

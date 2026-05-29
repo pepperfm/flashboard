@@ -10,6 +10,7 @@ enum FieldRenderer: string
     case Date = 'date';
     case FileUpload = 'file_upload';
     case Input = 'input';
+    case RelationMultiSelect = 'relation_multi_select';
     case RelationSelect = 'relation_select';
     case RichText = 'rich_text';
     case Select = 'select';

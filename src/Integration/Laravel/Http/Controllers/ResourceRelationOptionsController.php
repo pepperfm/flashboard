@@ -32,7 +32,7 @@ final readonly class ResourceRelationOptionsController
         try {
             return response()->json($this->dataSource->resolve($resourceClass, $field, $request));
         } catch (\Symfony\Component\HttpKernel\Exception\NotFoundHttpException $e) {
-            logger()->warning('BelongsTo relation options request was rejected.', [
+            logger()->warning('Relation field options request was rejected.', [
                 'resource' => $resourceClass,
                 'field' => $field,
                 'failure' => 'not_found',
@@ -40,7 +40,7 @@ final readonly class ResourceRelationOptionsController
 
             throw $e;
         } catch (\Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException $e) {
-            logger()->warning('BelongsTo relation options request was rejected.', [
+            logger()->warning('Relation field options request was rejected.', [
                 'resource' => $resourceClass,
                 'field' => $field,
                 'failure' => 'access_denied',
@@ -48,7 +48,7 @@ final readonly class ResourceRelationOptionsController
 
             throw $e;
         } catch (\InvalidArgumentException $e) {
-            logger()->warning('BelongsTo relation options request was rejected.', [
+            logger()->warning('Relation field options request was rejected.', [
                 'resource' => $resourceClass,
                 'field' => $field,
                 'failure' => 'invalid_configuration',
@@ -57,7 +57,7 @@ final readonly class ResourceRelationOptionsController
 
             throw new \Symfony\Component\HttpKernel\Exception\NotFoundHttpException(previous: $e);
         } catch (\Throwable $e) {
-            logger()->error('BelongsTo relation options request failed.', [
+            logger()->error('Relation field options request failed.', [
                 'resource' => $resourceClass,
                 'field' => $field,
                 'exception' => $e::class,

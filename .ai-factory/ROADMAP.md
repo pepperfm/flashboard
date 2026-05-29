@@ -1,258 +1,324 @@
 # Project Roadmap
 
-> Extend Flashboard relation editing beyond `BelongsTo` by introducing explicit `HasOne` and `HasMany` relation managers with safe selection, nested resource actions, and deterministic backend-driven payloads.
+> Add `BelongsToMany::make` as a backend-driven many-to-many form field that edits pivot membership through a lazy, authorization-aware multi-select while preserving the existing `BelongsTo`, `HasOne`, and `HasMany` semantics.
 
 ## Milestones
 
-- [x] **01. BelongsTo Relation Field Baseline** — existing relation metadata resolution, lazy single-select rendering, scalar FK persistence, authorization checks, and docs provide the foundation for inverse relation work
-- [x] **02. Inverse Relation Product Boundary** — define `HasOne` and `HasMany` as explicit relation manager surfaces rather than silent scalar fields, including where they may appear on detail/edit screens
-- [x] **03. Public Relation Definition API** — introduce typed `HasOne` and `HasMany` resource relation definitions with `make(string $key, ?string $label = null, ?string $relationship = null)`, resource inference, and explicit overrides
-- [x] **04. Laravel Relation Metadata Resolution** — resolve Eloquent `hasOne` and `hasMany` metadata behind Laravel integration boundaries, including local key, foreign key, related model, related resource, and nullable detach capability
-- [x] **05. Relation Manager Payload Contract** — add stable payload shapes for single-record and collection relation managers, including records, pagination, action availability, attach options, empty states, and related-resource navigation
-- [x] **06. Nested Relation Data Sources And Routes** — add protected endpoints for loading related records, loading attachable options, and executing create, attach, detach, replace, and sync-like actions with authorization and scoping
-- [x] **07. HasOne Manager UX** — render a one-record manager with empty, loading, error, existing-record, create, attach, open, edit, detach, and replace states using package-owned Vue/Nuxt UI wrappers
-- [x] **08. HasMany Manager UX** — render a collection manager with related rows, search, pagination, create, attach, detach, optional bulk actions, and explicit replace/sync affordances only when enabled
-- [x] **09. Persistence And Safety Semantics** — implement transaction-safe mutations that write related records' FK values, never delete by default, and require explicit opt-in for detach, replace, or sync behavior
-- [x] **10. Authorization, Tenant Scope And Failure Policy** — ensure all relation reads and writes respect resource visibility, Laravel policies, query extensions, tenant scoping, and fail closed for invalid or inaccessible relationships
-- [x] **11. Documentation, Examples And MCP Surface** — update package docs, generated examples, upgrade notes, docs mirror, raw markdown routes, and MCP artifacts with clear `BelongsTo` versus `HasOne`/`HasMany` guidance
-- [x] **12. QA And Compatibility Gates** — cover PHP payloads, Laravel metadata resolution, mutation safety, Vue type safety, frontend build, existing `BelongsTo` compatibility, and host-app browser smoke when a runnable validation host is available
+- [x] **01. Relation Field Foundation For BelongsToMany** — existing `BelongsTo`, `HasOne`, `HasMany`, relation option data sources, query modifiers, form normalization, and relation documentation provide the baseline for many-to-many work
+- [x] **02. Product Boundary And DX Contract** — define `BelongsToMany` as a normal form field for pivot membership, separate from scalar `BelongsTo` fields and inverse `HasOne`/`HasMany` relation managers
+- [x] **03. Public Field API And Typed Node** — add `BelongsToMany::make(string $key, ?string $label = null, ?string $relationship = null)` with relationship inference, resource/model overrides, search, pagination, record key, title attribute, max selection, and query modifier APIs
+- [x] **04. Payload And Renderer Contract** — introduce stable `belongs_to_many` field type payloads and a multi-select renderer contract that carries selected options, lazy option URLs, relation metadata, and related resource route capabilities
+- [x] **05. Laravel BelongsToMany Metadata Resolution** — resolve real Eloquent `BelongsToMany` metadata behind Laravel integration boundaries, including related model/resource, pivot table, pivot keys, parent/related keys, title/search columns, and safe fallback rules
+- [x] **06. Lazy Options, Search And Selected Hydration** — provide protected backend-loaded options with search, pagination, selected-value hydration, resource query extensions, field-level `modifyQueryUsing`, and consistent authorization behavior
+- [x] **07. Form State, Validation And Normalization** — normalize submitted values as a list of related record keys, validate them as array/list input, handle empty values as an empty selection, and keep selected option labels out of trusted write state
+- [x] **08. Pivot Persistence And Transaction Safety** — sync pivot membership after the parent model is saved, re-resolve submitted IDs through the authorized related query, never create/delete related records implicitly, and keep first pass pivot attributes out of scope
+- [x] **09. Frontend Multi-Select UX** — render `BelongsToMany` through a package-owned Vue/Nuxt UI multi-select with lazy search, infinite loading, selected chips, clearable/disabled/required states, detail links, and compact admin ergonomics
+- [x] **10. Authorization, Tenant Scope And Failure Policy** — ensure option reads and sync writes respect current resource access, related resource visibility, query extensions, tenant scopes, and fail closed without leaking inaccessible record existence
+- [x] **11. Documentation, Examples And MCP Surface** — update package docs, examples, docs site content, raw markdown routes, and MCP snippets so users understand when to use `BelongsTo`, `BelongsToMany`, `HasOne`, and `HasMany`
+- [x] **12. QA And Compatibility Gates** — cover public API, metadata resolution, option loading, selected hydration, persistence, authorization, frontend types/build, PHPStan, and backward compatibility for existing relation fields
 
-## HasOne And HasMany Implementation Map
+## BelongsToMany Implementation Map
 
-This roadmap treats `HasOne` and `HasMany` as relation manager surfaces. They may look like fields in the admin UI, but they do not behave like normal form fields because saving them mutates related records, not only the current resource record.
+This roadmap treats `BelongsToMany` as a form field, not as a relation manager. It edits the membership rows of an Eloquent many-to-many relation for the current resource record. The initial version should sync related record IDs only; pivot attributes belong to a future dedicated pivot editor.
 
 ### Product Boundary
 
-- `BelongsTo` remains the normal form field for one local FK on the current model.
-- `HasOne` manages zero or one related record whose FK usually lives on the related model.
-- `HasMany` manages a related collection whose FK values usually live on many related records.
-- Default behavior should be safe and explicit:
-  - view related records
-  - open related records
-  - create a related record in nested context
-  - attach existing records only when enabled
-  - detach or replace only when enabled and confirmed
-- Do not implement hidden automatic inverse syncing from a normal form submit.
-- Do not treat many-to-many as `HasMany`; reserve `BelongsToMany` or a dedicated relation manager for pivot semantics.
+- `BelongsTo` remains the scalar field for one local FK on the current model.
+- `BelongsToMany` edits the current model's many-to-many pivot membership through an Eloquent `belongsToMany` relationship.
+- `HasOne` and `HasMany` remain inverse relation managers that mutate related records' FK values and render outside normal scalar field persistence.
+- `BelongsToMany` should appear inside resource create/edit forms as a selectable list of related records.
+- A create submit must save the parent record first, then sync the pivot relation after the record has a key.
+- An update submit must sync the pivot relation after scalar attributes are saved.
+- The field must not create, update, or delete related records. It only attaches and detaches pivot membership.
+- Pivot attributes, ordering, duplicate pivot rows, custom intermediate models, and inline related-record creation are explicitly out of scope for the first implementation.
 
 ### Target Authoring API
 
 ```php
-use Pepperfm\Flashboard\Core\Relations\HasMany;
-use Pepperfm\Flashboard\Core\Relations\HasOne;
+use Illuminate\Database\Eloquent\Builder;
+use Pepperfm\Flashboard\Core\Forms\Fields\BelongsToMany;
 
-public static function relations(): array
-{
-    return [
-        HasOne::make('profile', 'Profile')
-            ->resource(ProfileResource::class)
-            ->attachable()
-            ->detachable(),
+BelongsToMany::make('tags', 'Tags')
+    ->resource(TagResource::class)
+    ->titleAttribute('name')
+    ->searchable(['name', 'slug'])
+    ->optionsPerPage(20)
+    ->modifyQueryUsing(static fn (Builder $query): Builder => $query->where('is_active', true));
 
-        HasMany::make('orders', 'Orders')
-            ->resource(OrderResource::class)
-            ->searchable(['number', 'status'])
-            ->perPage(10)
-            ->attachable(),
-
-        HasMany::make('recent_orders', 'Recent orders', 'orders')
-            ->resource(OrderResource::class)
-            ->readOnly(),
-    ];
-}
+BelongsToMany::make('visible_tags', 'Visible tags', 'tags')
+    ->resource(TagResource::class)
+    ->maxItems(5);
 ```
 
 Rules:
-- The first argument is the relation surface key used in payloads and routes.
-- The second argument is the label, matching the typed schema `make($key, $label)` convention.
+- The first argument is the form field key and defaults to the relationship name.
+- The second argument is the label, matching the existing typed field convention.
 - The third argument is the Eloquent relationship name. If omitted, infer it from the key.
 - `relationship(string $name)` remains available as a fluent override.
-- `resource(string $resourceClass)` remains available as a fluent override, while the default should be inferred from the related model and registered resources.
-- `HasOne` should default to a single-card manager.
-- `HasMany` should default to a compact related-record table/list manager.
-- Selection and synchronization behavior must be opt-in through explicit methods such as `attachable()`, `detachable()`, `replaceable()`, or `syncable()`.
+- `resource(string $resourceClass)` should override related resource inference.
+- `model(string $modelClass)` may be available as an explicit fallback when no related resource is registered, mirroring `BelongsTo`.
+- `titleAttribute(string $attribute)`, `searchable(list<string>|string|bool $columns = true)`, `recordKeyName(string $column)`, and `optionsPerPage(int $count)` should align with `BelongsTo`.
+- `modifyQueryUsing(callable $callback)` must require callbacks to return `Illuminate\Database\Eloquent\Builder`, matching the current relation query modifier standard.
+- `maxItems(int $count)` should cap the frontend selection and backend accepted list length when configured.
+- The field value is always a list of related record keys, even when a single value is submitted by a non-JS fallback.
 
 ### Public Contract Work
 
-- Add typed relation definition classes under `src/Core/Relations/`:
-  - `HasOne`
-  - `HasMany`
-- Keep them aligned with `RelationDefinitionContract` and current `Resource::relations()` usage.
-- Add stable relation type values:
-  - `has_one`
-  - `has_many`
-- Add explicit payload keys:
-  - `type`
-  - `key`
-  - `label`
-  - `relationship`
-  - `related_model`
-  - `related_resource`
-  - `local_key`
-  - `foreign_key`
-  - `record_key_name`
-  - `title_attribute`
-  - `search_columns`
-  - `records_url`
-  - `options_url`
-  - `actions`
-  - `records`
-  - `selected_record`
-  - `selected_records`
-  - `pagination`
-  - `empty_state`
-  - `read_only`
-- Preserve existing array-based relation definitions as compatibility input where practical.
+Implementation should add or update these package-level contracts:
+
+- `src/Core/Forms/Fields/BelongsToMany.php`
+  - typed field class with constants for payload attributes
+  - `make($key, $label, $relationship)` factory
+  - fluent metadata and query modifier methods
+  - default renderer set to a multi-select relation renderer
+- `src/Core/Forms/Fields/Field.php`
+  - add `TYPE_BELONGS_TO_MANY = 'belongs_to_many'`
+- `src/Contracts/Forms/FieldRenderer.php`
+  - add a stable renderer hint such as `RelationMultiSelect = 'relation_multi_select'`
+- `src/Support/Schema/SchemaNodeNormalizer.php`
+  - no special behavior unless typed node normalization exposes a new edge case
+- form schema flattening/normalization call sites
+  - ensure `BelongsToMany` field arrays survive nested sections/tabs with key, label, type, renderer, and relation metadata intact
+
+Preferred normalized payload keys:
+
+- `type`: `belongs_to_many`
+- `renderer`: `relation_multi_select`
+- `key`
+- `label`
+- `relationship`
+- `related_model`
+- `related_resource`
+- `related_table`
+- `pivot_table`
+- `foreign_pivot_key`
+- `related_pivot_key`
+- `parent_key`
+- `related_key`
+- `record_key_name`
+- `title_attribute`
+- `search_columns`
+- `options_url`
+- `options_per_page`
+- `selected_options`
+- `related_routes`
+- `max_items`
+- `required`
+- `disabled`
 
 ### Laravel Resolution And Data Sources
 
-- Resolve Eloquent-specific `HasOne` and `HasMany` metadata behind `Integration/Laravel` services rather than widening the current `Contracts\Resources\Resource` beta exception.
-- Infer metadata from real Eloquent relations where possible:
-  - relationship method exists on the current model
-  - relation instance is `Illuminate\Database\Eloquent\Relations\HasOne` or `HasMany`
-  - local key comes from the relation
-  - foreign key comes from the relation
-  - related model comes from the relation query/model
-  - related resource is inferred from the registered resource model map
-- Add a relation records data source for nested related-record loading.
-- Add an attach options data source for selectable existing records when `attachable()` is enabled.
-- Use related resource queries when available so query extensions and future tenant scopes apply consistently.
-- Support selected-record hydration for `HasOne` and paginated related-record hydration for `HasMany`.
-- Reject invalid relation keys, unsupported relation classes, ambiguous resource inference, inaccessible resources, and disallowed mutation modes with 404/403 as appropriate.
+Many-to-many Eloquent details should stay under `src/Integration/Laravel/` or relation-specific core resolvers that do not leak host app assumptions into contracts.
 
-### Routes And Mutation Actions
+Required resolver behavior:
 
-- Add protected nested relation routes under the current resource route group.
-- Read routes:
-  - load one `HasOne` record
-  - load paginated `HasMany` records
-  - load attachable options with search and selected hydration
-- Mutation routes:
-  - create related record in nested context
-  - attach existing related record
-  - detach related record when nullable and enabled
-  - replace existing `HasOne` record when enabled
-  - detach selected `HasMany` records when enabled
-  - replace/sync selected `HasMany` records only when explicitly enabled
-- Wrap write operations in transactions and return deterministic payload fragments or redirects compatible with the existing Inertia flow.
-- Keep destructive or moving operations behind explicit confirmations in the UI.
+- Instantiate the current resource model from `Resource::model()`.
+- Resolve the configured relationship method and require an `Illuminate\Database\Eloquent\Relations\BelongsToMany` instance.
+- Read related model from `$relation->getRelated()`.
+- Read pivot table from `$relation->getTable()`.
+- Read foreign pivot key from `$relation->getForeignPivotKeyName()`.
+- Read related pivot key from `$relation->getRelatedPivotKeyName()`.
+- Read parent key from `$relation->getParentKeyName()`.
+- Read related key from `$relation->getRelatedKeyName()`.
+- Infer related resource from `ResourceRegistry::resourcesForModel()` when no explicit `resource()` was provided.
+- Reject ambiguous related resource inference and require `resource()` in that case.
+- Preserve explicit `model()` as an option-query fallback only after a real `BelongsToMany` relationship has resolved; persistence still requires the relationship for pivot sync.
+- Use `titleAttribute('name')` by default and default search columns to the title attribute.
+
+Options and hydration can extend the current relation options endpoint if the contract remains clean, or use a dedicated many-to-many endpoint if single-select assumptions would make the code brittle. Either way, the backend must:
+
+- load selectable related records lazily
+- support search across configured search columns
+- paginate with deterministic `has_more` and `next_page` metadata
+- hydrate already selected values through a `selected[]` or equivalent parameter
+- apply related resource query extension hooks where available
+- apply `modifyQueryUsing(fn (Builder $query): Builder => ...)`
+- return only stable option shape: `value`, `label`, and optional `url`
+- never trust frontend-provided labels or URLs during persistence
+
+### Form State And Validation
+
+The persisted input contract should be intentionally small:
+
+- Submitted field value is `array<int|string>` after normalization.
+- `null`, empty string, and empty array normalize to an explicit empty list; an omitted key means the relation was not submitted and should not be synced.
+- Scalar values normalize to a one-item list for resilience, but frontend should always send arrays.
+- Duplicate submitted IDs are removed while preserving deterministic order where practical.
+- Non-scalar submitted values are rejected before sync.
+- Required `BelongsToMany` means the final normalized list must contain at least one related record key.
+- `maxItems()` means the normalized list count must not exceed the configured maximum.
+- Related IDs must be re-resolved through the authorized related query before sync.
+- Validation should fail with a normal form error when submitted IDs are invalid or inaccessible.
+
+### Persistence And Pivot Safety
+
+`ResourceFormPersister` should separate scalar model attributes from relationship sync work.
+
+Expected flow:
+
+- Before `forceFill`, remove `BelongsToMany` keys from scalar data so pivot arrays are not written as model attributes.
+- Normalize and retain relation sync payloads in a dedicated structure.
+- Save the parent model in the same transaction as pivot sync when the package owns the persistence flow.
+- After parent save, call the resolved Eloquent relationship's `sync($ids)` with the authorized related keys.
+- On create, sync only after the model key exists.
+- On update, scalar data and pivot sync should either both complete or both roll back.
+- Respect disabled/hidden field semantics if those fields are already excluded from submitted persistence.
+- Run form and resource after-save hooks after the pivot sync if hooks are expected to observe final relation membership; document the chosen ordering.
+- Do not support pivot attributes in the first pass.
+- Do not support destructive deletes of related records.
+- Avoid silently detaching records when the field is omitted from the submitted form due to authorization or disabled UI state.
 
 ### Frontend Rendering
 
-- Add package-owned relation manager wrappers:
-  - `resources/js/components/flashboard/relations/FBHasOneRelationManager.vue`
-  - `resources/js/components/flashboard/relations/FBHasManyRelationManager.vue`
-- Keep relation manager rendering separate from normal form-field rendering unless a shared container can be reused without blurring persistence semantics.
-- Use Nuxt UI primitives for buttons, menus, tables/lists, popovers, modals, empty states, and loading states.
-- `HasOne` required states:
-  - empty relation
-  - selected/existing record summary
-  - loading
-  - failed load
-  - create related record
-  - attach existing record
-  - open/edit related record
-  - detach/replace disabled or confirmed
-- `HasMany` required states:
-  - empty collection
-  - paginated related records
-  - search loading
-  - failed load
-  - create related record
-  - attach existing records
-  - detach selected records
-  - explicit replace/sync flow when enabled
-- Preserve compact, work-focused admin layout; relation managers should feel like operational controls, not marketing cards.
+Preferred frontend shape:
 
-### Persistence And Safety
+- Add `resources/js/components/flashboard/forms/fields/FBRelationMultiSelect.vue`.
+- Add the renderer mapping in `FormFieldRenderer.vue`.
+- Reuse safe pieces from `FBRelationSelect.vue` where practical:
+  - lazy request scheduling
+  - search debounce
+  - pagination/infinite scroll
+  - selected option hydration
+  - URL-safe option links
+  - request failure state
+- Keep the component controlled by an array model value.
+- Use Nuxt UI primitives for searchable multi-select behavior and selected chip rendering.
+- Keep the layout compact: a single field wrapper with selected chips, clear button, loading state, and optional open-record buttons.
+- Avoid visible explanatory text about implementation details; empty and error states should be short operational labels.
+- Do not emit console logs.
+- Do not store selected labels in the form model; labels are display-only option metadata.
 
-- `HasOne` attach should set the related record's FK to the current record key.
-- `HasOne` replace should detach the previous related record only when detach is allowed, then attach the new record in one transaction.
-- `HasOne` detach should be disabled when the related FK is non-nullable or policy access is missing.
-- `HasMany` attach should set selected related records' FK to the current record key.
-- `HasMany` detach should only clear FK values when nullable and enabled.
-- `HasMany` replace/sync should be disabled by default because it can move records away from another parent or detach records unexpectedly.
-- Never delete related records by default; deletion belongs to explicit related resource actions.
-- Prefer related resource form and action hooks for custom business rules instead of embedding host-specific workflow logic in relation managers.
+Required UI states:
+
+- no options loaded yet
+- loading first page
+- search loading
+- loading next page
+- selected values already hydrated from existing record
+- selected value no longer visible or no longer accessible
+- empty search result
+- request failed
+- disabled field
+- required field with no values
+- max items reached
 
 ### Authorization, Scope And Failure Policy
 
-- Check current resource access before loading or mutating a relation.
-- Check related resource view/create/update permissions before exposing corresponding actions.
-- Check per-record permissions for open, edit, detach, attach, and replace.
-- Apply related resource query extensions to relation records and attach options.
-- Prevent attach options from offering records the user cannot view or attach.
-- Fail closed when metadata cannot be resolved or the relationship is not a supported Eloquent relation.
-- Avoid leaking record existence through different error messages where authorization denies access.
+- Check current resource access before exposing or syncing a `BelongsToMany` field.
+- Check related resource visibility before exposing related options.
+- Reuse resource-level query extensions and future tenant scope hooks for option loading and selected hydration.
+- Apply field-level `modifyQueryUsing` after the base related query and resource extensions are established.
+- During sync, compare submitted IDs against the authorized resolved IDs, not raw database existence.
+- Return validation-style errors for invalid selections in form submits.
+- Return 403/404 from option endpoints when the resource, relation, or related resource is inaccessible.
+- Avoid error messages that reveal whether an inaccessible related record exists.
+- Keep route keys and relation names constrained to known field metadata, not arbitrary request input.
 
 ### Minimal Logging Policy
 
-- Keep normal relation loading, empty states, validation failures, and denied UI actions silent.
-- Use Laravel's host-configured logger only for exceptional server-side conditions:
-  - malformed relation manager route key
-  - resolver failure caused by an invalid relationship declaration
-  - mutation rejected because the configured mode is unsafe or unsupported
-  - unexpected exception during relation loading or mutation
+- Normal option loading, empty selections, validation failures, and denied UI actions should stay silent.
+- Log only exceptional server-side conditions:
+  - invalid `BelongsToMany` relationship declaration
+  - ambiguous related resource inference
+  - query modifier returning a non-Builder value
+  - unexpected option loader failure
+  - unexpected pivot sync exception
 - Log only sanitized operational context:
   - resource class
-  - relation key
+  - field key
   - relationship name
-  - relation type
   - related resource class when known
-  - action name
+  - action name such as `options`, `hydrate`, or `sync`
   - failure category
   - exception class
-- Never log search terms, selected labels, record titles, model attributes, full request payloads, or user-submitted form values.
+- Never log submitted IDs, labels, search terms, full request payloads, model attributes, pivot values, or user-entered form data.
 
 ### Documentation And MCP Surface
 
-- Update `docs/resources.md` with relation manager authoring examples.
-- Update `docs/forms.md` to reinforce that `BelongsTo` is a scalar form field while `HasOne` and `HasMany` are inverse relation managers.
-- Update `docs/contracts.md` with relation payload stability notes.
-- Update `docs/upgrading.md` if existing `relations()` arrays receive a typed-node migration path.
-- Mirror public docs changes in `flashboard-docs/content/`.
-- Review `flashboard-docs/server/mcp/` and `flashboard-docs/server/routes/raw/` for drift when headings, examples, or searchable snippets change.
+Update package docs and the docs companion project in the same implementation line:
+
+- `docs/forms.md`
+  - add `BelongsToMany::make` examples
+  - document array/list form state
+  - clarify selected option hydration and lazy search
+- `docs/resources.md`
+  - describe relationship field authoring alongside `BelongsTo`
+  - show explicit third-argument relationship override
+  - show explicit `resource()` override when inference is ambiguous
+- `docs/contracts.md`
+  - document `belongs_to_many` payload and `relation_multi_select` renderer stability
+  - document that pivot attributes are out of scope
+- `docs/upgrading.md`
+  - note beta payload additions and any renderer enum additions
+- `examples/`
+  - add a simple many-to-many demo resource pair when host validation fixtures allow it
+- `flashboard-docs/content/`
+  - mirror public docs changes
+- `flashboard-docs/server/mcp/`
+  - review MCP docs snippets/search surfaces for relation field drift
+- `flashboard-docs/server/routes/raw/`
+  - review raw markdown outputs if headings, filenames, or examples change
 
 ### QA Gates
 
-- PHP tests:
-  - `HasOne::make()` and `HasMany::make()` accept key, label, and relationship
-  - relationship inference from relation keys
-  - explicit `relationship()` and `resource()` overrides
-  - Eloquent `HasOne` and `HasMany` metadata resolution
-  - ambiguous related-resource inference requires explicit `resource()`
-  - payloads include deterministic records/options/action URLs
-  - attach, detach, replace, and sync modes fail closed unless enabled
-  - authorization blocks inaccessible relation reads and writes
-- Frontend checks:
-  - relation manager payload types cover `has_one` and `has_many`
-  - renderer selection resolves relation managers without touching normal field renderers
-  - empty, loading, failed, existing, attach, detach, and pagination states render correctly
-  - destructive actions require explicit confirmation
-- Package checks:
-  - focused PHPUnit feature tests for relation payloads, data sources, routing, and mutations
-  - PHPStan
-  - frontend typecheck/build
-  - existing `BelongsTo` tests remain unchanged
-  - host-app browser smoke test for a resource with `BelongsTo` on one side and `HasOne`/`HasMany` managers on the inverse side remains pending until a runnable validation host is available
-- Contract checks:
-  - existing form field payloads stay unchanged
-  - existing detail relation payloads remain backward compatible or receive documented beta upgrade notes
-  - docs MCP/raw markdown output stays aligned after documentation updates
+PHP package tests:
+
+- `BelongsToMany::make()` accepts key, label, and relationship.
+- Relationship inference matches `BelongsTo` expectations where applicable.
+- `relationship()`, `resource()`, `model()`, `titleAttribute()`, `searchable()`, `recordKeyName()`, `optionsPerPage()`, `maxItems()`, and `modifyQueryUsing()` serialize deterministic attributes.
+- Metadata resolver accepts Eloquent `BelongsToMany` and rejects unsupported relation types.
+- Ambiguous related resource inference requires explicit `resource()`.
+- Option endpoint returns paginated searchable options.
+- Selected hydration accepts multiple selected values.
+- Query modifier must return `Builder`.
+- Form data source includes selected options for existing records.
+- Persister excludes pivot field keys from scalar `forceFill`.
+- Create flow saves parent then syncs selected related IDs.
+- Update flow syncs selected related IDs transactionally.
+- Missing or disabled field does not detach existing relations accidentally.
+- Invalid, inaccessible, or duplicate IDs are handled deterministically.
+- Authorization blocks option reads and pivot sync.
+
+Frontend checks:
+
+- renderer mapping resolves `relation_multi_select`.
+- TypeScript model value is an array.
+- initial selected options render without extra user action.
+- search, pagination, failed request, disabled, required, and max item states render.
+- selected labels stay display-only and submitted model stays key-only.
+
+Package validation:
+
+- focused PHPUnit tests for field API, metadata, options, hydration, and persistence
+- full PHPUnit suite
+- PHPStan with the project memory limit convention
+- frontend typecheck/build
+- docs site typecheck/build after docs updates
+- `git diff --check` in package and docs repos
+- host-app smoke for a resource with `BelongsToMany::make` when a runnable validation host is available
+
+Compatibility checks:
+
+- existing `BelongsTo` payload and single-select frontend behavior remain unchanged.
+- existing `HasOne` and `HasMany` relation manager behavior remains unchanged.
+- existing relation query modifier semantics remain Builder-return-only.
+- beta payload changes are documented before release.
+- MCP/raw documentation surfaces stay aligned with public docs.
 
 ## Completed
 
 | Milestone | Date |
 |-----------|------|
-| 01. BelongsTo Relation Field Baseline | 2026-05-28 |
-| 02. Inverse Relation Product Boundary | 2026-05-29 |
-| 03. Public Relation Definition API | 2026-05-29 |
-| 04. Laravel Relation Metadata Resolution | 2026-05-29 |
-| 05. Relation Manager Payload Contract | 2026-05-29 |
-| 06. Nested Relation Data Sources And Routes | 2026-05-29 |
-| 07. HasOne Manager UX | 2026-05-29 |
-| 08. HasMany Manager UX | 2026-05-29 |
-| 09. Persistence And Safety Semantics | 2026-05-29 |
-| 10. Authorization, Tenant Scope And Failure Policy | 2026-05-29 |
-| 11. Documentation, Examples And MCP Surface | 2026-05-29 |
-| 12. QA And Compatibility Gates | 2026-05-29 |
+| 01. Relation Field Foundation For BelongsToMany | 2026-05-29 |
+| Legacy: BelongsTo Relation Field Baseline | 2026-05-28 |
+| Legacy: Inverse Relation Product Boundary | 2026-05-29 |
+| Legacy: Public Relation Definition API | 2026-05-29 |
+| Legacy: Laravel Relation Metadata Resolution | 2026-05-29 |
+| Legacy: Relation Manager Payload Contract | 2026-05-29 |
+| Legacy: Nested Relation Data Sources And Routes | 2026-05-29 |
+| Legacy: HasOne Manager UX | 2026-05-29 |
+| Legacy: HasMany Manager UX | 2026-05-29 |
+| Legacy: Persistence And Safety Semantics | 2026-05-29 |
+| Legacy: Authorization, Tenant Scope And Failure Policy | 2026-05-29 |
+| Legacy: Documentation, Examples And MCP Surface | 2026-05-29 |
+| Legacy: QA And Compatibility Gates | 2026-05-29 |

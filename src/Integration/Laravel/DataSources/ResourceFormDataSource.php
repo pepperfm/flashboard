@@ -16,8 +16,11 @@ use Pepperfm\Flashboard\Core\Authorization\Visibility\ScreenAccessResolver;
 use Pepperfm\Flashboard\Core\Extensions\ExtensionRegistry;
 use Pepperfm\Flashboard\Core\Forms\Builders\Form;
 use Pepperfm\Flashboard\Core\Forms\Fields\BelongsTo;
+use Pepperfm\Flashboard\Core\Forms\Fields\BelongsToMany;
 use Pepperfm\Flashboard\Core\Forms\Fields\Field;
 use Pepperfm\Flashboard\Core\Forms\Fields\RichText;
+use Pepperfm\Flashboard\Core\Forms\Relations\BelongsToManyRelationMetadata;
+use Pepperfm\Flashboard\Core\Forms\Relations\BelongsToManyRelationMetadataResolver;
 use Pepperfm\Flashboard\Core\Forms\Relations\BelongsToRelationMetadata;
 use Pepperfm\Flashboard\Core\Forms\Relations\BelongsToRelationMetadataResolver;
 use Pepperfm\Flashboard\Core\Registry\ResourceRegistry;
@@ -56,6 +59,7 @@ final readonly class ResourceFormDataSource
         $state = $form->defaultState();
         $user = $this->authenticator->user();
         $belongsToQueryModifiers = $this->belongsToQueryModifiers($form);
+        $belongsToManyQueryModifiers = $this->belongsToManyQueryModifiers($form);
         $filteredSchema = $this->filterSchemaNodes(
             $schema->schema(),
             $resourceClass,
@@ -68,6 +72,7 @@ final readonly class ResourceFormDataSource
         }
 
         $filteredSchema = $this->withBelongsToMetadata($filteredSchema, $resourceClass, $record, $user, $belongsToQueryModifiers);
+        $filteredSchema = $this->withBelongsToManyMetadata($filteredSchema, $resourceClass, $record, $user, $belongsToManyQueryModifiers);
 
         $fields = $this->flattenFieldNodes($filteredSchema);
         $state = $this->applyImplicitFieldDefaults($state, $fields);
@@ -86,9 +91,15 @@ final readonly class ResourceFormDataSource
                 if ($key === '') {
                     continue;
                 }
-
                 if ($this->isPasswordField($field) || $this->isFileField($field)) {
                     $state[$key] = null;
+                    continue;
+                }
+                if ($this->isBelongsToManyField($field)) {
+                    $state[$key] = array_values(array_map(
+                        static fn(array $option): string|int|bool => $option['value'],
+                        (array) Arr::get($field, 'selected_options', []),
+                    ));
                     continue;
                 }
 
@@ -202,7 +213,11 @@ final readonly class ResourceFormDataSource
                 continue;
             }
 
-            $state[$key] = $this->isBooleanField($field) ? false : null;
+            $state[$key] = match (true) {
+                $this->isBooleanField($field) => false,
+                $this->isBelongsToManyField($field) => [],
+                default => null,
+            };
         }
 
         return $state;
@@ -377,7 +392,23 @@ final readonly class ResourceFormDataSource
 
         return $type === Field::TYPE_BELONGS_TO
             || $renderer === FieldRenderer::RelationSelect->value
-            || Arr::has($field, BelongsTo::ATTRIBUTE_RELATIONSHIP);
+            || (
+                $type !== Field::TYPE_BELONGS_TO_MANY
+                && $renderer !== FieldRenderer::RelationMultiSelect->value
+                && Arr::has($field, BelongsTo::ATTRIBUTE_RELATIONSHIP)
+            );
+    }
+
+    /**
+     * @param array<string, mixed> $field
+     */
+    private function isBelongsToManyField(array $field): bool
+    {
+        $type = (string) Arr::get($field, Field::ATTRIBUTE_TYPE, '');
+        $renderer = (string) Arr::get($field, Field::ATTRIBUTE_RENDERER, '');
+
+        return $type === Field::TYPE_BELONGS_TO_MANY
+            || $renderer === FieldRenderer::RelationMultiSelect->value;
     }
 
     /**
@@ -613,6 +644,285 @@ final readonly class ResourceFormDataSource
             . 'resources.' . $metadata->relatedResource::key() . '.detail',
             ['record' => $record->getKey()],
         );
+    }
+
+    /**
+     * @param list<array<string, mixed>> $schema
+     * @param class-string<Resource> $resourceClass
+     * @param array<string, \Closure> $queryModifiers
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function withBelongsToManyMetadata(
+        array $schema,
+        string $resourceClass,
+        ?Model $record,
+        ?\Illuminate\Contracts\Auth\Authenticatable $user,
+        array $queryModifiers,
+    ): array {
+        return array_values(array_map(
+            fn(array $node): array => $this->withBelongsToManyMetadataForNode($node, $resourceClass, $record, $user, $queryModifiers),
+            $schema,
+        ));
+    }
+
+    /**
+     * @param array<string, mixed> $node
+     * @param class-string<Resource> $resourceClass
+     * @param array<string, \Closure> $queryModifiers
+     *
+     * @return array<string, mixed>
+     */
+    private function withBelongsToManyMetadataForNode(
+        array $node,
+        string $resourceClass,
+        ?Model $record,
+        ?\Illuminate\Contracts\Auth\Authenticatable $user,
+        array $queryModifiers,
+    ): array {
+        $kind = FormSchemaNodeKind::from((string) Arr::get($node, 'kind', FormSchemaNodeKind::Field->value));
+        if ($kind === FormSchemaNodeKind::Field) {
+            if (!$this->isBelongsToManyField($node)) {
+                return $node;
+            }
+
+            return $this->withBelongsToManyFieldMetadata($node, $resourceClass, $record, $user, $queryModifiers);
+        }
+        if ($kind === FormSchemaNodeKind::Tabs) {
+            $node['tabs'] = $this->withBelongsToManyMetadata(
+                (array) Arr::get($node, 'tabs', []),
+                $resourceClass,
+                $record,
+                $user,
+                $queryModifiers,
+            );
+
+            return $node;
+        }
+
+        $node['schema'] = $this->withBelongsToManyMetadata(
+            (array) Arr::get($node, 'schema', []),
+            $resourceClass,
+            $record,
+            $user,
+            $queryModifiers,
+        );
+
+        return $node;
+    }
+
+    /**
+     * @param array<string, mixed> $field
+     * @param class-string<Resource> $resourceClass
+     * @param array<string, \Closure> $queryModifiers
+     *
+     * @return array<string, mixed>
+     */
+    private function withBelongsToManyFieldMetadata(
+        array $field,
+        string $resourceClass,
+        ?Model $record,
+        ?\Illuminate\Contracts\Auth\Authenticatable $user,
+        array $queryModifiers,
+    ): array {
+        $metadata = $this->belongsToManyRelationMetadataResolver()->resolve($resourceClass, $field);
+        $field = array_merge($field, $metadata->toPayload());
+        $key = trim((string) Arr::get($field, 'key', ''));
+
+        if ($key !== '') {
+            $field['options_url'] = route(
+                config('flashboard.route_name_prefix', 'flashboard.')
+                . 'resources.' . $resourceClass::key() . '.relations.options',
+                ['field' => $key],
+            );
+        }
+        $field['selected_options'] = $record === null
+            ? []
+            : $this->selectedBelongsToManyOptions(
+                $metadata,
+                $record,
+                $user,
+                $queryModifiers[$metadata->fieldKey] ?? null,
+            );
+
+        if (
+            $metadata->relatedResource !== null
+            && $this->screenAccessResolver->canAccessResource($metadata->relatedResource, $user)
+            && $this->resourceSurfaceResolver->hasDetailSurfaceForResource($metadata->relatedResource)
+        ) {
+            $field['related_routes'] = ['detail' => true];
+        }
+
+        return $field;
+    }
+
+    private function belongsToManyRelationMetadataResolver(): BelongsToManyRelationMetadataResolver
+    {
+        return new BelongsToManyRelationMetadataResolver($this->resourceRegistry);
+    }
+
+    /**
+     * @return list<array{label: string, value: string|int|bool, url?: string}>
+     */
+    private function selectedBelongsToManyOptions(
+        BelongsToManyRelationMetadata $metadata,
+        Model $record,
+        ?\Illuminate\Contracts\Auth\Authenticatable $user,
+        ?\Closure $queryModifier,
+    ): array {
+        if (!$this->canQueryBelongsToManyOptions($metadata, $user) || !method_exists($record, $metadata->relationship)) {
+            return [];
+        }
+
+        $relation = $record->{$metadata->relationship}();
+        if (!$relation instanceof \Illuminate\Database\Eloquent\Relations\BelongsToMany) {
+            return [];
+        }
+
+        $selectedValues = [];
+        foreach ($relation->get() as $relatedRecord) {
+            if (!$relatedRecord instanceof Model) {
+                continue;
+            }
+
+            $value = $this->optionValue(data_get($relatedRecord, $metadata->relatedKey));
+            if ($value !== null) {
+                $selectedValues[(string) $value] = $value;
+            }
+        }
+
+        if ($selectedValues === []) {
+            return [];
+        }
+
+        $records = $this->belongsToManyOptionsQuery($metadata, $queryModifier)
+            ->whereIn($metadata->relatedTable . '.' . $metadata->relatedKey, array_values($selectedValues))
+            ->get()
+            ->all();
+
+        return $this->belongsToManyOptionsFromRecords($metadata, $records, $user);
+    }
+
+    private function canQueryBelongsToManyOptions(
+        BelongsToManyRelationMetadata $metadata,
+        ?\Illuminate\Contracts\Auth\Authenticatable $user,
+    ): bool {
+        if ($metadata->relatedResource === null) {
+            return $metadata->allowModelFallback;
+        }
+
+        return $this->screenAccessResolver->canAccessResource($metadata->relatedResource, $user);
+    }
+
+    private function belongsToManyOptionsQuery(
+        BelongsToManyRelationMetadata $metadata,
+        ?\Closure $queryModifier,
+    ): Builder {
+        if ($metadata->relatedResource !== null) {
+            $query = $this->extensionRegistry->extendQuery(
+                $metadata->relatedResource,
+                $metadata->relatedResource::query(),
+            );
+
+            return RelationQueryModifier::apply($queryModifier, $query, $metadata->fieldKey);
+        }
+
+        $modelClass = $metadata->relatedModel;
+
+        return RelationQueryModifier::apply($queryModifier, $modelClass::query(), $metadata->fieldKey);
+    }
+
+    /**
+     * @param array $records
+     *
+     * @return list<array{label: string, value: string|int|bool, url?: string}>
+     */
+    private function belongsToManyOptionsFromRecords(
+        BelongsToManyRelationMetadata $metadata,
+        iterable $records,
+        ?\Illuminate\Contracts\Auth\Authenticatable $user,
+    ): array {
+        $items = [];
+
+        foreach ($records as $record) {
+            if (!$record instanceof Model) {
+                continue;
+            }
+
+            $option = $this->belongsToManyOptionFromRecord($metadata, $record, $user);
+            if ($option !== null) {
+                $items[] = $option;
+            }
+        }
+
+        return $items;
+    }
+
+    /**
+     * @return array{label: string, value: string|int|bool, url?: string}|null
+     */
+    private function belongsToManyOptionFromRecord(
+        BelongsToManyRelationMetadata $metadata,
+        Model $record,
+        ?\Illuminate\Contracts\Auth\Authenticatable $user,
+    ): ?array {
+        $value = $this->optionValue(data_get($record, $metadata->relatedKey));
+        if ($value === null) {
+            return null;
+        }
+
+        $option = [
+            'label' => (string) ($this->optionValue(data_get($record, $metadata->titleAttribute)) ?? $value),
+            'value' => $value,
+        ];
+        $url = $this->belongsToManyDetailUrl($metadata, $record, $user);
+
+        if ($url !== null) {
+            $option['url'] = $url;
+        }
+
+        return $option;
+    }
+
+    private function belongsToManyDetailUrl(
+        BelongsToManyRelationMetadata $metadata,
+        Model $record,
+        ?\Illuminate\Contracts\Auth\Authenticatable $user,
+    ): ?string {
+        if (
+            $metadata->relatedResource === null
+            || !$this->resourceSurfaceResolver->hasDetailSurfaceForResource($metadata->relatedResource)
+            || !$this->screenAccessResolver->canViewRecord($metadata->relatedResource, $user, $record)
+        ) {
+            return null;
+        }
+
+        return route(
+            config('flashboard.route_name_prefix', 'flashboard.')
+            . 'resources.' . $metadata->relatedResource::key() . '.detail',
+            ['record' => $record->getKey()],
+        );
+    }
+
+    /**
+     * @return array<string, \Closure>
+     */
+    private function belongsToManyQueryModifiers(FormContract $form): array
+    {
+        if (!$form instanceof Form) {
+            return [];
+        }
+
+        $modifiers = [];
+        foreach ($form->fieldNodes() as $field) {
+            if (!$field instanceof BelongsToMany || $field->queryModifier() === null) {
+                continue;
+            }
+
+            $modifiers[$field->key()] = $field->queryModifier();
+        }
+
+        return $modifiers;
     }
 
     private function optionValue(mixed $value): string|int|bool|null

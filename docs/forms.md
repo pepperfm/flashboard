@@ -165,8 +165,10 @@ Use `BelongsTo` when a form should store one local foreign key and let the opera
 
 ```php
 use App\Flashboard\CategoryResource;
+use App\Flashboard\TagResource;
 use Illuminate\Database\Eloquent\Builder;
 use Pepperfm\Flashboard\Core\Forms\Fields\BelongsTo;
+use Pepperfm\Flashboard\Core\Forms\Fields\BelongsToMany;
 
 BelongsTo::make('category_id', 'Category')
     ->resource(CategoryResource::class)
@@ -174,6 +176,13 @@ BelongsTo::make('category_id', 'Category')
     ->searchable(['name', 'slug'])
     ->modifyQueryUsing(static fn (Builder $query): Builder => $query->with('parent'))
     ->required();
+
+BelongsToMany::make('tags', 'Tags')
+    ->resource(TagResource::class)
+    ->titleAttribute('name')
+    ->searchable(['name', 'slug'])
+    ->modifyQueryUsing(static fn (Builder $query): Builder => $query->with('group'))
+    ->maxItems(8);
 ```
 
 `BelongsTo::make(string $key, ?string $label = null, ?string $relationship = null)` follows the same label convention as other typed fields. When the third argument is omitted, Flashboard infers the Eloquent relationship from FK-like keys: `category_id`, `category_uuid`, and `category_ulid` all resolve to `category`. Use `relationship('...')` when the relationship method differs from the FK key.
@@ -192,7 +201,11 @@ At runtime `BelongsTo` renders as a lazy `relation_select` field. The form paylo
 
 Validation still starts from the normalized field payload. Required relation fields infer `required`; optional ones infer `nullable`; both receive an `exists:<related_table>,<owner_key>` rule when relation metadata resolves safely. Explicit form builder rules merge on top.
 
-`BelongsTo` is a form field, not an inverse relation manager. Use `Resource::relations()` with `HasOne` or `HasMany` when the parent resource should manage records on the inverse side. Those managers render outside the normal form schema, use protected nested routes, and overwrite any nested-create FK from server-resolved parent context before persistence.
+Use `BelongsToMany` when the current record owns a pivot membership and the form should choose several related records. `BelongsToMany::make(string $key, ?string $label = null, ?string $relationship = null)` infers the relationship from `$key`, accepts the same explicit `resource()`, `model()`, `titleAttribute()`, `searchable()`, `optionsPerPage()`, and `modifyQueryUsing()` helpers, and adds `maxItems()` for a backend-enforced selection cap.
+
+At runtime `BelongsToMany` renders as `relation_multi_select`. Form state is an array of related record keys, edit payloads include `selected_options`, and options use the same protected `_relation-options/{field}` route with repeated `selected[]` hydration. The persister removes the array from scalar mass assignment, saves the parent model inside a transaction, re-resolves submitted keys through the authorized related query, and then calls Eloquent `sync($ids)`. Omitted fields are not synced; an explicit empty array calls `sync([])`. Pivot attributes, ordering, creation, update, and deletion of related records are out of scope for this field.
+
+`BelongsTo` and `BelongsToMany` are form fields, not inverse relation managers. Use `Resource::relations()` with `HasOne` or `HasMany` when the parent resource should manage records on the inverse side. Those managers render outside the normal form schema, use protected nested routes, and overwrite any nested-create FK from server-resolved parent context before persistence.
 
 Relation option loading stays silent during normal use. HTTP-boundary failures may log sanitized WARN/ERROR context such as resource class, field key, failure category, and exception class; search terms, selected values, labels, model attributes, and full payloads should not be logged.
 
@@ -200,11 +213,11 @@ Relation option loading stays silent during normal use. HTTP-boundary failures m
 
 Normalized form payloads now expose an explicit `renderer` hint for every field.
 
-- typed fields set a stable renderer automatically, for example `TextInput` -> `input`, `DateInput` -> `date`, `FileUpload` -> `file_upload`, `RichText` -> `rich_text`, `BelongsTo` -> `relation_select`, `Toggle` -> `switch`
-- use purpose-built field classes for common controls: `TextInput`, `Textarea`, `NumberInput`, `DateInput`, `FileUpload`, `RichText`, `PasswordInput`, `BelongsTo`, `Select`, `Checkbox`, and `Toggle`
+- typed fields set a stable renderer automatically, for example `TextInput` -> `input`, `DateInput` -> `date`, `FileUpload` -> `file_upload`, `RichText` -> `rich_text`, `BelongsTo` -> `relation_select`, `BelongsToMany` -> `relation_multi_select`, `Toggle` -> `switch`
+- use purpose-built field classes for common controls: `TextInput`, `Textarea`, `NumberInput`, `DateInput`, `FileUpload`, `RichText`, `PasswordInput`, `BelongsTo`, `BelongsToMany`, `Select`, `Checkbox`, and `Toggle`
 - override renderer intent explicitly only for custom or transitional controls where no purpose-built field exists
 - legacy arrays can opt into the same contract with `['key' => 'notes', 'renderer' => 'textarea']`
-- the frontend maps these hints through package-owned wrappers: `FBInput`, `FBTextarea`, `FBDateInput`, `FBFileUpload`, `FBRichText`, `FBRelationSelect`, `FBSelect`, `FBCheckbox`, and `FBSwitch`
+- the frontend maps these hints through package-owned wrappers: `FBInput`, `FBTextarea`, `FBDateInput`, `FBFileUpload`, `FBRichText`, `FBRelationSelect`, `FBRelationMultiSelect`, `FBSelect`, `FBCheckbox`, and `FBSwitch`
 
 Those wrappers stay thin over Nuxt UI (`UInput`, `UTextarea`, `UInputDate`, `UCalendar`, `UFileUpload`, `UEditor`, `USelect`, `USelectMenu`, `UCheckbox`, `USwitch`) so Flashboard owns the runtime contract without creating a second UI framework. PHP cannot expose a `Switch` class because `switch` is a reserved keyword, so the switch-style field is named `Toggle`.
 
@@ -233,7 +246,7 @@ Invalid layout combinations such as `columns()` plus `direction()` on the same c
 - update rules: `updateRules($record)`
 - shared rules: `formRules()`
 
-Flashboard still infers baseline validation from the normalized field payload and then merges explicit `rules()` on top. Text fields infer strings, `NumberInput` infers numeric values, `DateInput` infers `date_format:Y-m-d`, `FileUpload` infers file rules, `RichText::json()` infers arrays, `BelongsTo` infers `exists:<related_table>,<owner_key>`, and `Checkbox` / `Toggle` infer booleans.
+Flashboard still infers baseline validation from the normalized field payload and then merges explicit `rules()` on top. Text fields infer strings, `NumberInput` infers numeric values, `DateInput` infers `date_format:Y-m-d`, `FileUpload` infers file rules, `RichText::json()` infers arrays, `BelongsTo` infers `exists:<related_table>,<owner_key>`, `BelongsToMany` infers `array` plus `exists:<related_table>,<related_key>` for each item, and `Checkbox` / `Toggle` infer booleans.
 On create screens, visible `Checkbox` and `Toggle` fields default to `false` unless `defaults()` provides a value.
 
 ## Mutation Hooks

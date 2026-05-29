@@ -1,0 +1,31 @@
+<?php
+
+declare(strict_types=1);
+
+namespace Pepperfm\Flashboard\Tests\Fixtures\Resources;
+
+use Pepperfm\Flashboard\Contracts\Forms\FormContract;
+use Pepperfm\Flashboard\Contracts\Resources\Resource;
+use Pepperfm\Flashboard\Core\Forms\Fields\BelongsToMany;
+use Pepperfm\Flashboard\Core\Forms\Fields\TextInput;
+use Pepperfm\Flashboard\Tests\Fixtures\Models\BelongsToManyProduct;
+
+final class BelongsToManyProductResource extends Resource
+{
+    public static function model(): string
+    {
+        return BelongsToManyProduct::class;
+    }
+
+    public static function form(FormContract $form): FormContract
+    {
+        return $form->schema([
+            TextInput::make('name', 'Name')->required(),
+            BelongsToMany::make('tags', 'Tags')
+                ->resource(BelongsToManyTagResource::class)
+                ->titleAttribute('name')
+                ->searchable(['name', 'slug'])
+                ->required(),
+        ]);
+    }
+}

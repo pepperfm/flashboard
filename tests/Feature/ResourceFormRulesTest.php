@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace Pepperfm\Flashboard\Tests\Feature;
 
+use Illuminate\Database\Capsule\Manager as Capsule;
 use Pepperfm\Flashboard\Contracts\Forms\FieldRenderer;
 use Pepperfm\Flashboard\Contracts\Forms\FormContract;
 use Pepperfm\Flashboard\Contracts\Resources\Resource;
 use Pepperfm\Flashboard\Core\Forms\Fields\BelongsTo;
+use Pepperfm\Flashboard\Core\Forms\Fields\BelongsToMany;
 use Pepperfm\Flashboard\Core\Forms\Fields\Checkbox;
 use Pepperfm\Flashboard\Core\Forms\Fields\DateInput;
 use Pepperfm\Flashboard\Core\Forms\Fields\FileUpload;
@@ -16,11 +18,28 @@ use Pepperfm\Flashboard\Core\Forms\Fields\PasswordInput;
 use Pepperfm\Flashboard\Core\Forms\Fields\RichText;
 use Pepperfm\Flashboard\Core\Forms\Fields\TextInput;
 use Pepperfm\Flashboard\Tests\Fixtures\Models\BelongsToCategory;
+use Pepperfm\Flashboard\Tests\Fixtures\Models\BelongsToManyProduct;
 use Pepperfm\Flashboard\Tests\Fixtures\Resources\BelongsToProductResource;
 use Pepperfm\Flashboard\Tests\TestCase;
 
 final class ResourceFormRulesTest extends TestCase
 {
+    private Capsule $database;
+
+    protected function setUp(): void
+    {
+        parent::setUp();
+
+        $this->database = new Capsule();
+        $this->database->addConnection([
+            'driver' => 'sqlite',
+            'database' => ':memory:',
+            'prefix' => '',
+        ]);
+        $this->database->setAsGlobal();
+        $this->database->bootEloquent();
+    }
+
     public function test_creation_and_update_rules_are_inferred_from_form_fields(): void
     {
         $resourceClass = new class() extends Resource
@@ -288,6 +307,59 @@ final class ResourceFormRulesTest extends TestCase
             ['required', 'integer', 'exists:belongs_to_categories,uuid'],
             $resourceClass::creationRules()['category_id'],
         );
+    }
+
+    public function test_belongs_to_many_fields_infer_array_and_exists_rules_from_relation_metadata(): void
+    {
+        $resourceClass = new class() extends Resource
+        {
+            public static function model(): string
+            {
+                return BelongsToManyProduct::class;
+            }
+
+            public static function form(FormContract $form): FormContract
+            {
+                return $form->schema([
+                    BelongsToMany::make('tags', 'Tags')
+                        ->maxItems(3)
+                        ->required(),
+                ]);
+            }
+        };
+
+        $rules = $resourceClass::creationRules();
+
+        self::assertSame(['required', 'array', 'max:3'], $rules['tags']);
+        self::assertSame(['exists:belongs_to_many_tags,id'], $rules['tags.*']);
+    }
+
+    public function test_belongs_to_many_exists_rules_merge_form_builder_rules(): void
+    {
+        $resourceClass = new class() extends Resource
+        {
+            public static function model(): string
+            {
+                return BelongsToManyProduct::class;
+            }
+
+            public static function form(FormContract $form): FormContract
+            {
+                return $form
+                    ->schema([
+                        BelongsToMany::make('tags', 'Tags'),
+                    ])
+                    ->rules([
+                        'tags' => ['min:1'],
+                        'tags.*' => ['integer'],
+                    ]);
+            }
+        };
+
+        $rules = $resourceClass::creationRules();
+
+        self::assertSame(['nullable', 'array', 'min:1'], $rules['tags']);
+        self::assertSame(['integer', 'exists:belongs_to_many_tags,id'], $rules['tags.*']);
     }
 }
 
