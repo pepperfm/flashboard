@@ -6,7 +6,7 @@ namespace Pepperfm\Flashboard\Contracts\Resources\Relations;
 
 interface RelationDefinitionContract
 {
-    public static function make(string $key): static;
+    public static function make(string $key, ?string $label = null, ?string $relationship = null): static;
 
     public function model(string $model): static;
 

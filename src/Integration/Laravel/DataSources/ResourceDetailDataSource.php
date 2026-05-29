@@ -23,6 +23,7 @@ final readonly class ResourceDetailDataSource
         private ScreenAccessResolver $screenAccessResolver,
         private PanelAuthenticator $authenticator,
         private RelationPayloadFactory $relationPayloadFactory,
+        private ResourceRelationRecordsDataSource $relationRecordsDataSource,
         private ExtensionRegistry $extensionRegistry,
     ) {
     }
@@ -32,7 +33,7 @@ final readonly class ResourceDetailDataSource
      *
      * @return array<string, mixed>
      */
-    public function resolve(string $resourceClass, ?Model $record): array
+    public function resolve(string $resourceClass, ?Model $record, string $relationPlacement = 'detail'): array
     {
         $detail = $resourceClass::detail(Detail::make());
         $schema = $this->detailPayloadAssembler->assemble($resourceClass);
@@ -56,7 +57,10 @@ final readonly class ResourceDetailDataSource
         }
 
         $relations = array_values(array_filter(
-            $this->relationPayloadFactory->make($resourceClass, $record),
+            array_merge(
+                $this->relationPayloadFactory->make($resourceClass, $record),
+                $this->relationRecordsDataSource->initialPayloads($resourceClass, $record, $user, $relationPlacement),
+            ),
             fn(array $relation): bool => $this->screenAccessResolver->canViewRelation(
                 $resourceClass,
                 (string) Arr::get($relation, 'key', ''),

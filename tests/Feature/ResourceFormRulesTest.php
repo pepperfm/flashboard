@@ -7,6 +7,7 @@ namespace Pepperfm\Flashboard\Tests\Feature;
 use Pepperfm\Flashboard\Contracts\Forms\FieldRenderer;
 use Pepperfm\Flashboard\Contracts\Forms\FormContract;
 use Pepperfm\Flashboard\Contracts\Resources\Resource;
+use Pepperfm\Flashboard\Core\Forms\Fields\BelongsTo;
 use Pepperfm\Flashboard\Core\Forms\Fields\Checkbox;
 use Pepperfm\Flashboard\Core\Forms\Fields\DateInput;
 use Pepperfm\Flashboard\Core\Forms\Fields\FileUpload;
@@ -14,6 +15,8 @@ use Pepperfm\Flashboard\Core\Forms\Fields\NumberInput;
 use Pepperfm\Flashboard\Core\Forms\Fields\PasswordInput;
 use Pepperfm\Flashboard\Core\Forms\Fields\RichText;
 use Pepperfm\Flashboard\Core\Forms\Fields\TextInput;
+use Pepperfm\Flashboard\Tests\Fixtures\Models\BelongsToCategory;
+use Pepperfm\Flashboard\Tests\Fixtures\Resources\BelongsToProductResource;
 use Pepperfm\Flashboard\Tests\TestCase;
 
 final class ResourceFormRulesTest extends TestCase
@@ -247,8 +250,55 @@ final class ResourceFormRulesTest extends TestCase
         self::assertSame(['nullable', 'array'], $rules['content_json']);
         self::assertSame(['nullable', 'string', 'min:12', 'max:72', 'confirmed'], $rules['password']);
     }
+
+    public function test_belongs_to_fields_infer_exists_rules_from_relation_metadata(): void
+    {
+        self::assertSame(
+            ['required', 'exists:belongs_to_categories,id'],
+            BelongsToProductResource::creationRules()['category_id'],
+        );
+    }
+
+    public function test_belongs_to_exists_rules_merge_form_builder_rules(): void
+    {
+        $resourceClass = new class() extends Resource
+        {
+            public static function model(): string
+            {
+                return ResourceFormRulesBelongsToProduct::class;
+            }
+
+            public static function form(FormContract $form): FormContract
+            {
+                return $form
+                    ->schema([
+                        BelongsTo::make('category_id', 'Category')
+                            ->model(BelongsToCategory::class)
+                            ->foreignKey('category_id')
+                            ->ownerKey('uuid')
+                            ->required(),
+                    ])
+                    ->rules([
+                        'category_id' => ['integer'],
+                    ]);
+            }
+        };
+
+        self::assertSame(
+            ['required', 'integer', 'exists:belongs_to_categories,uuid'],
+            $resourceClass::creationRules()['category_id'],
+        );
+    }
 }
 
 final class ResourceFormRulesGeneratedKeyModel extends \Illuminate\Database\Eloquent\Model
 {
+}
+
+final class ResourceFormRulesBelongsToProduct extends \Illuminate\Database\Eloquent\Model
+{
+    public function category(): \Illuminate\Database\Eloquent\Relations\BelongsTo
+    {
+        return $this->belongsTo(BelongsToCategory::class, 'category_id', 'uuid');
+    }
 }

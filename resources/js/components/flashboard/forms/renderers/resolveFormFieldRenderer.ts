@@ -6,6 +6,7 @@ type FormOptionValue = string | number | boolean
 
 export type FormOptionShape = {
   label?: string
+  url?: string
   value?: FormOptionValue
 }
 
@@ -29,10 +30,14 @@ export type FormFieldShape = {
   multiple?: boolean
   native?: boolean
   options?: FormOptionShape[] | Record<string, FormOptionValue>
+  options_per_page?: number
+  options_url?: string
   placeholder?: string
   preview?: boolean
+  related_routes?: Record<string, unknown>
   renderer?: string
   required?: boolean
+  selected_option?: FormOptionShape | null
   store_files?: boolean
   type?: string
 }
@@ -85,6 +90,10 @@ function fallbackRendererForType(type?: string): FormFieldRendererKey {
 
   if (type === 'rich_text') {
     return 'rich_text'
+  }
+
+  if (type === 'belongs_to') {
+    return 'relation_select'
   }
 
   if (type === 'select') {
@@ -153,6 +162,18 @@ export function resolveFormFieldRendererProps(field: FormFieldShape): Record<str
       name: field.key,
       placeholder,
       required: field.required,
+    }
+  }
+
+  if (renderer === 'relation_select') {
+    return {
+      name: field.key,
+      optionsPerPage: field.options_per_page,
+      optionsUrl: field.options_url,
+      placeholder,
+      relatedRoutes: field.related_routes,
+      required: field.required,
+      selectedOption: field.selected_option ?? null,
     }
   }
 

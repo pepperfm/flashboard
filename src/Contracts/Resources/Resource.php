@@ -17,6 +17,9 @@ use Pepperfm\Flashboard\Contracts\Resources\Relations\RelationDefinitionContract
 use Pepperfm\Flashboard\Contracts\Tables\TableActionContract;
 use Pepperfm\Flashboard\Contracts\Tables\TableContract;
 use Pepperfm\Flashboard\Core\Forms\Builders\Form;
+use Pepperfm\Flashboard\Core\Forms\Fields\BelongsTo;
+use Pepperfm\Flashboard\Core\Forms\Fields\Field;
+use Pepperfm\Flashboard\Core\Forms\Relations\BelongsToRelationMetadataResolver;
 
 abstract class Resource
 {
@@ -61,6 +64,9 @@ abstract class Resource
         return static::key();
     }
 
+    /**
+     * @return \Illuminate\Database\Eloquent\Builder<\Illuminate\Database\Eloquent\Model>
+     */
     public static function query(): \Illuminate\Database\Eloquent\Builder
     {
         $model = static::model();
@@ -250,7 +256,54 @@ abstract class Resource
             return $rules;
         }
 
-        return (array) (static::form(Form::make())->toArray()['rules'] ?? []);
+        $form = static::form(Form::make())->toArray();
+
+        return self::withBelongsToRules(
+            (array) ($form['rules'] ?? []),
+            (array) ($form['fields'] ?? []),
+        );
+    }
+
+    /**
+     * @param array<string, mixed> $rules
+     * @param list<array<string, mixed>> $fields
+     *
+     * @return array<string, mixed>
+     */
+    private static function withBelongsToRules(array $rules, array $fields): array
+    {
+        $resolver = new BelongsToRelationMetadataResolver();
+
+        foreach ($fields as $field) {
+            if (!self::isBelongsToField($field)) {
+                continue;
+            }
+
+            $key = trim((string) \Illuminate\Support\Arr::get($field, 'key', ''));
+            if ($key === '') {
+                continue;
+            }
+
+            $metadata = $resolver->resolve(static::class, $field);
+            $fieldRules = (array) ($rules[$key] ?? []);
+            $fieldRules[] = "exists:$metadata->relatedTable,$metadata->ownerKey";
+            $rules[$key] = array_values(array_unique($fieldRules));
+        }
+
+        return $rules;
+    }
+
+    /**
+     * @param array<string, mixed> $field
+     */
+    private static function isBelongsToField(array $field): bool
+    {
+        $type = (string) \Illuminate\Support\Arr::get($field, Field::ATTRIBUTE_TYPE, '');
+        $renderer = (string) \Illuminate\Support\Arr::get($field, Field::ATTRIBUTE_RENDERER, '');
+
+        return $type === Field::TYPE_BELONGS_TO
+            || $renderer === \Pepperfm\Flashboard\Contracts\Forms\FieldRenderer::RelationSelect->value
+            || \Illuminate\Support\Arr::has($field, BelongsTo::ATTRIBUTE_RELATIONSHIP);
     }
 
     /**

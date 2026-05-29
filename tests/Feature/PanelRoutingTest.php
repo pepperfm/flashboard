@@ -11,7 +11,9 @@ use Pepperfm\Flashboard\Core\Resources\ResourceSurfaceResolver;
 use Pepperfm\Flashboard\Integration\Laravel\Routing\PanelRouteRegistrar;
 use Pepperfm\Flashboard\Integration\Laravel\Auth\PolicyBridge;
 use Pepperfm\Flashboard\Tests\Fixtures\Flashboard\UsersResource;
+use Pepperfm\Flashboard\Tests\Fixtures\Resources\BelongsToProductResource;
 use Pepperfm\Flashboard\Tests\Fixtures\Resources\LazyFilterOptionsResource;
+use Pepperfm\Flashboard\Tests\Fixtures\Resources\RelationManagerOrderResource;
 use Pepperfm\Flashboard\Tests\TestCase;
 
 final class PanelRoutingTest extends TestCase
@@ -21,11 +23,11 @@ final class PanelRoutingTest extends TestCase
         $this->app->instance(PageRegistry::class, new PageRegistry());
         $this->app->instance(ResourceRegistry::class, new ResourceRegistry());
 
-        (new PanelRouteRegistrar(
+        new PanelRouteRegistrar(
             $this->app->make(PageRegistry::class),
             $this->app->make(ResourceRegistry::class),
             new ResourceSurfaceResolver(new \Pepperfm\Flashboard\Core\Authorization\Visibility\ScreenAccessResolver(new PolicyBridge())),
-        ))->register();
+        )->register();
         $this->router->getRoutes()->refreshNameLookups();
 
         self::assertNotNull($this->router->getRoutes()->getByName('flashboard.auth.login'));
@@ -39,11 +41,11 @@ final class PanelRoutingTest extends TestCase
         $this->app->instance(PageRegistry::class, $pageRegistry);
         $this->app->instance(ResourceRegistry::class, new ResourceRegistry());
 
-        (new PanelRouteRegistrar(
+        new PanelRouteRegistrar(
             $this->app->make(PageRegistry::class),
             $this->app->make(ResourceRegistry::class),
             new ResourceSurfaceResolver(new \Pepperfm\Flashboard\Core\Authorization\Visibility\ScreenAccessResolver(new PolicyBridge())),
-        ))->register();
+        )->register();
         $this->router->getRoutes()->refreshNameLookups();
 
         self::assertNotNull($this->router->getRoutes()->getByName('flashboard.home'));
@@ -58,11 +60,11 @@ final class PanelRoutingTest extends TestCase
         $this->app->instance(PageRegistry::class, $pageRegistry);
         $this->app->instance(ResourceRegistry::class, $resourceRegistry);
 
-        (new PanelRouteRegistrar(
+        new PanelRouteRegistrar(
             $this->app->make(PageRegistry::class),
             $this->app->make(ResourceRegistry::class),
             new ResourceSurfaceResolver(new \Pepperfm\Flashboard\Core\Authorization\Visibility\ScreenAccessResolver(new PolicyBridge())),
-        ))->register();
+        )->register();
         $this->router->getRoutes()->refreshNameLookups();
 
         self::assertNull($this->router->getRoutes()->getByName('flashboard.resources.users.detail'));
@@ -96,6 +98,58 @@ final class PanelRoutingTest extends TestCase
         );
 
         self::assertSame('flashboard.resources.lazy_filter_options.filters.legacy-options', $legacyRoute->getName());
+    }
+
+    public function test_relation_options_route_is_registered_before_record_routes(): void
+    {
+        $pageRegistry = new PageRegistry();
+        $resourceRegistry = new ResourceRegistry();
+        $resourceRegistry->register(BelongsToProductResource::class);
+
+        $this->app->instance(PageRegistry::class, $pageRegistry);
+        $this->app->instance(ResourceRegistry::class, $resourceRegistry);
+
+        new PanelRouteRegistrar(
+            $this->app->make(PageRegistry::class),
+            $this->app->make(ResourceRegistry::class),
+            new ResourceSurfaceResolver(new \Pepperfm\Flashboard\Core\Authorization\Visibility\ScreenAccessResolver(new PolicyBridge())),
+        )->register();
+        $this->router->getRoutes()->refreshNameLookups();
+
+        $route = $this->router->getRoutes()->match(
+            \Illuminate\Http\Request::create('/admin/resources/belongs_to_product/_relation-options/category_id'),
+        );
+
+        self::assertSame('flashboard.resources.belongs_to_product.relations.options', $route->getName());
+    }
+
+    public function test_relation_manager_routes_are_registered_before_record_routes(): void
+    {
+        $pageRegistry = new PageRegistry();
+        $resourceRegistry = new ResourceRegistry();
+        $resourceRegistry->register(RelationManagerOrderResource::class);
+
+        $this->app->instance(PageRegistry::class, $pageRegistry);
+        $this->app->instance(ResourceRegistry::class, $resourceRegistry);
+
+        (new PanelRouteRegistrar(
+            $this->app->make(PageRegistry::class),
+            $this->app->make(ResourceRegistry::class),
+            new ResourceSurfaceResolver(new \Pepperfm\Flashboard\Core\Authorization\Visibility\ScreenAccessResolver(new PolicyBridge())),
+        ))->register();
+        $this->router->getRoutes()->refreshNameLookups();
+
+        $recordsRoute = $this->router->getRoutes()->match(
+            \Illuminate\Http\Request::create('/admin/resources/relation_manager_order/1/_relations/items'),
+        );
+
+        self::assertSame('flashboard.resources.relation_manager_order.relations.records', $recordsRoute->getName());
+
+        $optionsRoute = $this->router->getRoutes()->match(
+            \Illuminate\Http\Request::create('/admin/resources/relation_manager_order/1/_relations/items/options'),
+        );
+
+        self::assertSame('flashboard.resources.relation_manager_order.relations.attach-options', $optionsRoute->getName());
     }
 
     public function test_destroy_route_is_registered_for_resource_records(): void

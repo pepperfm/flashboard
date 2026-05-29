@@ -3,6 +3,7 @@ import FBCheckbox from '../fields/FBCheckbox.vue'
 import FBDateInput from '../fields/FBDateInput.vue'
 import FBFileUpload from '../fields/FBFileUpload.vue'
 import FBInput from '../fields/FBInput.vue'
+import FBRelationSelect from '../fields/FBRelationSelect.vue'
 import FBRichText from '../fields/FBRichText.vue'
 import FBSelect from '../fields/FBSelect.vue'
 import FBSwitch from '../fields/FBSwitch.vue'
@@ -13,6 +14,7 @@ export const formFieldRendererMap = {
   date: FBDateInput,
   file_upload: FBFileUpload,
   input: FBInput,
+  relation_select: FBRelationSelect,
   rich_text: FBRichText,
   select: FBSelect,
   switch: FBSwitch,

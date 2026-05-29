@@ -10,7 +10,7 @@
 
 1. Review whether your host app should move from explicit registration to `Flashboard::configure()->discover()`
 2. Keep explicit `resource()` / `page()` registration only for overrides or non-standard directories
-3. Review whether legacy resource arrays should move to the typed resource DSL (`TextColumn`, `TextInput`, `DateInput`, `FileUpload`, `RichText`, `PasswordInput`, `TextEntry`, `Section`, `Tab`)
+3. Review whether legacy resource arrays should move to the typed resource DSL (`TextColumn`, `TextInput`, `BelongsTo`, `DateInput`, `FileUpload`, `RichText`, `PasswordInput`, `TextEntry`, `Section`, `Tab`)
 4. Re-run host-app validation from `examples/host-app/README.md`
 5. Verify custom extensions against new contracts
 6. Re-test protected panel routes and JSON payload consumers
@@ -90,7 +90,12 @@ Migration rules:
 - keyed typed schema nodes accept an optional label as the second `make()` argument; prefer `TextInput::make('name', 'Name')` over `TextInput::make('name')->label('Name')` for static labels
 - legacy arrays remain valid as compatibility input
 - runtime payloads are normalized from both styles into the same schema contract
-- prefer purpose-built form fields over renderer overrides for dates, uploads, rich text, and passwords
+- prefer purpose-built form fields over renderer overrides for relations, dates, uploads, rich text, and passwords
+- replace one-record FK selects with `BelongsTo::make('related_id', 'Related')` when the model has an Eloquent `belongsTo` relation; pass the relationship as the third `make()` argument or call `relationship()` when the FK name does not match the relation method
+- replace inverse read-only relation badges with `HasOne::make('profile', 'Profile')` or `HasMany::make('items', 'Items')` when operators should manage related records from the parent resource; enable mutation modes explicitly with `attachable()`, `detachable()`, `replaceable()`, or `syncable()`
+- keep legacy `RelationDefinition::make(...)` only for read-only compatibility payloads; new relation-manager UIs expect `type=has_one` or `type=has_many` plus protected nested route URLs
+- review nullable FK behavior before enabling `detachable()`, `replaceable()`, or `syncable()` because inverse managers clear or move related records but never delete them
+- JSON/form consumers should handle the new `relation_select` renderer and its lazy option payload keys before relying on raw `select` behavior for related records
 - if an edit form previously hydrated password or file columns as text, migrate those fields to `PasswordInput` or `FileUpload`; edit state now intentionally keeps those values empty and exposes only safe file metadata
 - `detail()` remains supported and `infolist()` is the concept-aligned alias for new resource classes
 - `php artisan flashboard:make-resource` now generates typed table/form/infolist definitions and resource-level edit/delete row actions by default

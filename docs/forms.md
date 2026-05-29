@@ -159,17 +159,51 @@ Behavior notes:
 - `RichText` supports `html()`, `markdown()`, and `json()` content formats. JSON rich text is validated as an array; HTML and Markdown are validated as strings.
 - `PasswordInput` is rendered as a password input, is never hydrated from the record on edit, and empty edit submissions are skipped so an unchanged password is not blanked. When using `confirmed()`, add a matching `*_confirmation` field; Flashboard strips confirmation values before persistence.
 
+## Relation Fields
+
+Use `BelongsTo` when a form should store one local foreign key and let the operator pick one related record.
+
+```php
+use App\Flashboard\CategoryResource;
+use Pepperfm\Flashboard\Core\Forms\Fields\BelongsTo;
+
+BelongsTo::make('category_id', 'Category')
+    ->resource(CategoryResource::class)
+    ->titleAttribute('name')
+    ->searchable(['name', 'slug'])
+    ->required();
+```
+
+`BelongsTo::make(string $key, ?string $label = null, ?string $relationship = null)` follows the same label convention as other typed fields. When the third argument is omitted, Flashboard infers the Eloquent relationship from FK-like keys: `category_id`, `category_uuid`, and `category_ulid` all resolve to `category`. Use `relationship('...')` when the relationship method differs from the FK key.
+
+Resolution rules:
+
+- the field stores and submits the scalar key named by `$key`, for example `category_id`
+- Eloquent `BelongsTo` metadata resolves the related model, local foreign key, owner key, related table, and record key
+- `resource(CategoryResource::class)` overrides related resource resolution
+- when no explicit resource is set, Flashboard can infer one from the registered resource whose `model()` matches the related model; ambiguous matches fail fast and should be fixed with `resource()`
+- `model(RelatedModel::class)` enables an explicit model fallback for option loading when no related resource exists
+- empty submitted values are normalized to `null`; v1 does not call `associate()` implicitly
+
+At runtime `BelongsTo` renders as a lazy `relation_select` field. The form payload includes relation metadata plus `options_url`, `options_per_page`, `selected_option` on edit, and `related_routes` only when the related resource is accessible and has a detail surface. The options endpoint is protected, searchable, paginated, and uses the related resource query plus query extensions when a related resource is available.
+
+Validation still starts from the normalized field payload. Required relation fields infer `required`; optional ones infer `nullable`; both receive an `exists:<related_table>,<owner_key>` rule when relation metadata resolves safely. Explicit form builder rules merge on top.
+
+`BelongsTo` is a form field, not an inverse relation manager. Use `Resource::relations()` with `HasOne` or `HasMany` when the parent resource should manage records on the inverse side. Those managers render outside the normal form schema, use protected nested routes, and overwrite any nested-create FK from server-resolved parent context before persistence.
+
+Relation option loading stays silent during normal use. HTTP-boundary failures may log sanitized WARN/ERROR context such as resource class, field key, failure category, and exception class; search terms, selected values, labels, model attributes, and full payloads should not be logged.
+
 ## Renderer Contract
 
 Normalized form payloads now expose an explicit `renderer` hint for every field.
 
-- typed fields set a stable renderer automatically, for example `TextInput` -> `input`, `DateInput` -> `date`, `FileUpload` -> `file_upload`, `RichText` -> `rich_text`, `Toggle` -> `switch`
-- use purpose-built field classes for common controls: `TextInput`, `Textarea`, `NumberInput`, `DateInput`, `FileUpload`, `RichText`, `PasswordInput`, `Select`, `Checkbox`, and `Toggle`
+- typed fields set a stable renderer automatically, for example `TextInput` -> `input`, `DateInput` -> `date`, `FileUpload` -> `file_upload`, `RichText` -> `rich_text`, `BelongsTo` -> `relation_select`, `Toggle` -> `switch`
+- use purpose-built field classes for common controls: `TextInput`, `Textarea`, `NumberInput`, `DateInput`, `FileUpload`, `RichText`, `PasswordInput`, `BelongsTo`, `Select`, `Checkbox`, and `Toggle`
 - override renderer intent explicitly only for custom or transitional controls where no purpose-built field exists
 - legacy arrays can opt into the same contract with `['key' => 'notes', 'renderer' => 'textarea']`
-- the frontend maps these hints through package-owned wrappers: `FBInput`, `FBTextarea`, `FBDateInput`, `FBFileUpload`, `FBRichText`, `FBSelect`, `FBCheckbox`, and `FBSwitch`
+- the frontend maps these hints through package-owned wrappers: `FBInput`, `FBTextarea`, `FBDateInput`, `FBFileUpload`, `FBRichText`, `FBRelationSelect`, `FBSelect`, `FBCheckbox`, and `FBSwitch`
 
-Those wrappers stay thin over Nuxt UI (`UInput`, `UTextarea`, `UInputDate`, `UCalendar`, `UFileUpload`, `UEditor`, `USelect`, `UCheckbox`, `USwitch`) so Flashboard owns the runtime contract without creating a second UI framework. PHP cannot expose a `Switch` class because `switch` is a reserved keyword, so the switch-style field is named `Toggle`.
+Those wrappers stay thin over Nuxt UI (`UInput`, `UTextarea`, `UInputDate`, `UCalendar`, `UFileUpload`, `UEditor`, `USelect`, `USelectMenu`, `UCheckbox`, `USwitch`) so Flashboard owns the runtime contract without creating a second UI framework. PHP cannot expose a `Switch` class because `switch` is a reserved keyword, so the switch-style field is named `Toggle`.
 
 ## Layout Contract
 
@@ -196,7 +230,7 @@ Invalid layout combinations such as `columns()` plus `direction()` on the same c
 - update rules: `updateRules($record)`
 - shared rules: `formRules()`
 
-Flashboard still infers baseline validation from the normalized field payload and then merges explicit `rules()` on top. Text fields infer strings, `NumberInput` infers numeric values, `DateInput` infers `date_format:Y-m-d`, `FileUpload` infers file rules, `RichText::json()` infers arrays, and `Checkbox` / `Toggle` infer booleans.
+Flashboard still infers baseline validation from the normalized field payload and then merges explicit `rules()` on top. Text fields infer strings, `NumberInput` infers numeric values, `DateInput` infers `date_format:Y-m-d`, `FileUpload` infers file rules, `RichText::json()` infers arrays, `BelongsTo` infers `exists:<related_table>,<owner_key>`, and `Checkbox` / `Toggle` infer booleans.
 On create screens, visible `Checkbox` and `Toggle` fields default to `false` unless `defaults()` provides a value.
 
 ## Mutation Hooks

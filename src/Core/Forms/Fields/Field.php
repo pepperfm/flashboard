@@ -19,6 +19,7 @@ class Field extends SchemaNode
     public const string ATTRIBUTE_REQUIRED = 'required';
     public const string ATTRIBUTE_TYPE = 'type';
 
+    public const string TYPE_BELONGS_TO = 'belongs_to';
     public const string TYPE_SELECT = 'select';
     public const string TYPE_CHECKBOX = 'checkbox';
     public const string TYPE_DATE = 'date';

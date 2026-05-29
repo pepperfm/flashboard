@@ -7,9 +7,12 @@ namespace Pepperfm\Flashboard\Integration\Laravel\Http\Controllers;
 use Illuminate\Database\Eloquent\Model;
 use Pepperfm\Flashboard\Contracts\Resources\Resource;
 use Pepperfm\Flashboard\Core\Authorization\Visibility\ScreenAccessResolver;
+use Pepperfm\Flashboard\Core\Registry\ResourceRegistry;
 use Pepperfm\Flashboard\Core\Resources\ResourceSurfaceResolver;
 use Pepperfm\Flashboard\Integration\Laravel\Auth\PanelAuthenticator;
 use Pepperfm\Flashboard\Integration\Laravel\Persistence\ResourceFormPersister;
+use Pepperfm\Flashboard\Integration\Laravel\Relations\RelationCreateContext;
+use Pepperfm\Flashboard\Integration\Laravel\Relations\RelationCreateContextResolver;
 
 final readonly class ResourceFormController
 {
@@ -18,6 +21,7 @@ final readonly class ResourceFormController
         private PanelAuthenticator $authenticator,
         private ScreenAccessResolver $screenAccessResolver,
         private ResourceSurfaceResolver $resourceSurfaceResolver,
+        private ?ResourceRegistry $resourceRegistry = null,
     ) {
     }
 
@@ -30,7 +34,24 @@ final readonly class ResourceFormController
             abort(403);
         }
 
+        $relationCreateContext = $this->relationCreateContext($request, $resourceClass);
+        if ($relationCreateContext !== null) {
+            if (!$this->screenAccessResolver->canViewRecord(
+                $relationCreateContext->parentResource,
+                $user,
+                $relationCreateContext->parentRecord,
+            )) {
+                abort(403);
+            }
+
+            $request->merge($this->relationCreateContextPayload($relationCreateContext));
+        }
+
         $data = $request->validate($resourceClass::creationRules());
+
+        if ($relationCreateContext !== null) {
+            $data = array_merge($data, $this->relationCreateContextPayload($relationCreateContext));
+        }
 
         try {
             $record = $this->persister->create($resourceClass, $data);
@@ -38,7 +59,7 @@ final readonly class ResourceFormController
             return $this->redirectBackAfterSaveFailure($exception, $resourceClass);
         }
 
-        return $this->redirectAfterSave($resourceClass, $record)
+        return $this->redirectAfterSave($resourceClass, $record, $relationCreateContext)
             ->with('success', 'Record saved successfully.');
     }
 
@@ -111,8 +132,16 @@ final readonly class ResourceFormController
     /**
      * @param class-string<Resource> $resourceClass
      */
-    private function redirectAfterSave(string $resourceClass, Model $record): \Illuminate\Http\RedirectResponse
+    private function redirectAfterSave(
+        string $resourceClass,
+        Model $record,
+        ?RelationCreateContext $relationCreateContext = null,
+    ): \Illuminate\Http\RedirectResponse
     {
+        if ($relationCreateContext !== null) {
+            return $this->redirectToParentAfterRelationCreate($relationCreateContext);
+        }
+
         if ($this->resourceSurfaceResolver->hasDetailSurfaceForResource($resourceClass)) {
             return redirect()->route(
                 config('flashboard.route_name_prefix', 'flashboard.')
@@ -122,6 +151,43 @@ final readonly class ResourceFormController
         }
 
         return $this->redirectToResourceIndex($resourceClass);
+    }
+
+    /**
+     * @param class-string<Resource> $resourceClass
+     */
+    private function relationCreateContext(\Illuminate\Http\Request $request, string $resourceClass): ?RelationCreateContext
+    {
+        if ($this->resourceRegistry === null) {
+            return null;
+        }
+
+        return new RelationCreateContextResolver($this->resourceRegistry)->resolve($request, $resourceClass);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function relationCreateContextPayload(RelationCreateContext $context): array
+    {
+        return [
+            $context->metadata->foreignKey => $context->parentRecord->getAttribute($context->metadata->localKey),
+        ];
+    }
+
+    private function redirectToParentAfterRelationCreate(RelationCreateContext $context): \Illuminate\Http\RedirectResponse
+    {
+        if ($this->resourceSurfaceResolver->hasDetailSurfaceForResource($context->parentResource)) {
+            return to_route(
+                config('flashboard.route_name_prefix', 'flashboard.') . 'resources.' . $context->parentResource::key() . '.detail',
+                ['record' => $context->parentRecord->getKey()],
+            );
+        }
+
+        return to_route(
+            config('flashboard.route_name_prefix', 'flashboard.') . 'resources.' . $context->parentResource::key() . '.edit',
+            ['record' => $context->parentRecord->getKey()],
+        );
     }
 
     private function isIntegrityConstraintViolation(\Illuminate\Database\QueryException $exception): bool
@@ -160,9 +226,8 @@ final readonly class ResourceFormController
      */
     private function redirectToResourceIndex(string $resourceClass): \Illuminate\Http\RedirectResponse
     {
-        return redirect()->route(
-            config('flashboard.route_name_prefix', 'flashboard.')
-            . 'resources.' . $resourceClass::key() . '.index',
+        return to_route(
+            config('flashboard.route_name_prefix', 'flashboard.') . 'resources.' . $resourceClass::key() . '.index',
         );
     }
 }

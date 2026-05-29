@@ -13,6 +13,7 @@ namespace App\Flashboard;
 
 use App\Models\Order;
 use Pepperfm\Flashboard\Contracts\Resources\Resource;
+use Pepperfm\Flashboard\Core\Forms\Fields\BelongsTo;
 use Pepperfm\Flashboard\Core\Forms\Fields\Checkbox;
 use Pepperfm\Flashboard\Core\Forms\Fields\DateInput;
 use Pepperfm\Flashboard\Core\Forms\Fields\FileUpload;
@@ -21,6 +22,8 @@ use Pepperfm\Flashboard\Core\Forms\Fields\Select;
 use Pepperfm\Flashboard\Core\Forms\Fields\Textarea;
 use Pepperfm\Flashboard\Core\Forms\Fields\TextInput;
 use Pepperfm\Flashboard\Core\Forms\Fields\Toggle;
+use Pepperfm\Flashboard\Core\Relations\HasMany;
+use Pepperfm\Flashboard\Core\Relations\HasOne;
 use Pepperfm\Flashboard\Core\Tables\Actions\DeleteAction;
 use Pepperfm\Flashboard\Core\Tables\Actions\EditAction;
 use Pepperfm\Flashboard\Core\Tables\Columns\BadgeColumn;
@@ -53,6 +56,11 @@ final class OrdersResource extends Resource
             ->columns(2)
             ->schema([
                 Select::make('status', 'Status'),
+                BelongsTo::make('customer_id', 'Customer')
+                    ->resource(CustomersResource::class)
+                    ->titleAttribute('name')
+                    ->searchable(['name', 'email'])
+                    ->required(),
                 TextInput::make('name', 'Name')->required(),
                 TextInput::make('email', 'Email')->email(),
                 Textarea::make('notes', 'Notes')->columnSpan(2),
@@ -71,6 +79,24 @@ final class OrdersResource extends Resource
         return [
             EditAction::make(),
             DeleteAction::make(),
+        ];
+    }
+
+    public static function relations(): array
+    {
+        return [
+            HasOne::make('profile', 'Profile')
+                ->resource(OrderProfilesResource::class)
+                ->attachable()
+                ->detachable()
+                ->replaceable(),
+            HasMany::make('items', 'Items')
+                ->resource(OrderItemsResource::class)
+                ->searchable(['name', 'sku'])
+                ->perPage(10)
+                ->attachable()
+                ->detachable()
+                ->syncable(),
         ];
     }
 }
@@ -119,18 +145,76 @@ Use:
 - `detail()` for read-only detail screens
 - `infolist()` as a concept-aligned alias for `detail()`
 - `actions()` for resource-owned actions, including table row actions
-- `relations()` for nested relation payloads
+- `relations()` for nested relation managers and legacy read-only relation payloads
 - `pages()` for resource-owned page declarations
 
 Actions and pages are still declared through their dedicated methods, but they now participate in the same package-owned resource surface model as `table()`, `form()`, and `infolist()`. That keeps custom resource pages and resource-level actions from becoming a separate ad hoc subsystem.
 
 Table row actions are configured from `Resource::actions()`, not from the table builder. Use `EditAction::make()` and `DeleteAction::make()` when the index table should expose per-record controls; delete is explicit opt-in and remains policy-aware.
 
+## Form Relation Fields
+
+`BelongsTo` belongs in `form()` when the create/edit screen should write one local foreign key:
+
+```php
+BelongsTo::make('customer_id', 'Customer')
+    ->resource(CustomersResource::class)
+    ->titleAttribute('name')
+    ->searchable(['name', 'email'])
+    ->required();
+```
+
+The field renders as a lazy searchable select, submits only the scalar FK value, and persists through the normal `forceFill()` form save path. The third `make()` argument can override the relationship name, but Flashboard infers common FK names such as `customer_id` -> `customer`. Explicit `resource()` wins over auto-discovery; otherwise a related resource can be inferred from a single registered resource whose `model()` matches the Eloquent related model.
+
+Keep this separate from `Resource::relations()`. `BelongsTo` writes the current record's scalar FK from the form; `HasOne` and `HasMany` are inverse relation managers because they mutate related records' FK values from the parent resource context.
+
+## Inverse Relation Managers
+
+Use `HasOne` and `HasMany` in `relations()` when a parent resource should display and manage related records without embedding those controls into the normal form field schema.
+
+```php
+use Pepperfm\Flashboard\Core\Relations\HasMany;
+use Pepperfm\Flashboard\Core\Relations\HasOne;
+
+public static function relations(): array
+{
+    return [
+        HasOne::make('profile', 'Profile')
+            ->resource(OrderProfilesResource::class)
+            ->attachable()
+            ->detachable()
+            ->replaceable(),
+        HasMany::make('items', 'Items')
+            ->resource(OrderItemsResource::class)
+            ->searchable(['name', 'sku'])
+            ->perPage(10)
+            ->attachable()
+            ->detachable()
+            ->syncable(),
+    ];
+}
+```
+
+`make(string $key, ?string $label = null, ?string $relationship = null)` follows the typed-node label convention. The relationship name is inferred from `$key` by default; pass the third argument or call `relationship()` when the Eloquent method differs. Flashboard resolves Eloquent `HasOne` / `HasMany` metadata through the Laravel integration layer, infers a related resource when exactly one registered resource matches the related model, and lets `resource()` override inference.
+
+Relation managers render on detail screens by default. Use `showOnEdit()` when the manager should also appear below an edit form. Legacy `RelationDefinition` output remains read-only and keeps the old badge-style payload.
+
+Mutation modes are opt-in:
+
+- `attachable()` moves one related record by setting its FK to the parent key
+- `detachable()` clears a related FK only when the FK is nullable or otherwise safe
+- `replaceable()` on `HasOne` detaches the current related record and attaches the replacement in one transaction
+- `syncable()` on `HasMany` explicitly moves selected records and detaches omitted current records; it never deletes records
+
+Relation records, attach options, and mutation actions are served through protected nested resource routes. Related resource query extensions and policy checks are applied before records or options are exposed, and selected records are re-resolved server-side for every mutation. Related create actions open the related resource create form with a server-resolved parent context; submitted FK values are overwritten by the server before persistence, so client-side FK tampering does not decide the relationship.
+
+Normal relation-manager reads and mutations do not log. HTTP-boundary failures may emit sanitized WARN/ERROR context such as resource class, relation key, action, failure category, exception class, and coarse SQL state only. Search terms, selected IDs, labels, titles, model attributes, and request payloads should not be logged.
+
 ## Form Authoring Guidance
 
 - prefer `$form->schema([...])` for simple CRUD resources
 - introduce `Section` and `Tabs` nodes inside `schema()` when the form has meaningful operator-facing grouping
-- use purpose-built fields such as `TextInput`, `Textarea`, `NumberInput`, `DateInput`, `FileUpload`, `RichText`, `PasswordInput`, `Select`, `Checkbox`, and `Toggle`; `Toggle` renders as a switch-style boolean control
+- use purpose-built fields such as `TextInput`, `Textarea`, `NumberInput`, `DateInput`, `FileUpload`, `RichText`, `PasswordInput`, `BelongsTo`, `Select`, `Checkbox`, and `Toggle`; `Toggle` renders as a switch-style boolean control
 - pass the label as the optional second argument to keyed typed nodes, for example `TextInput::make('name', 'Name')`; keep `->label()` for later overrides
 - use `columns()`, `gap()`, `columnSpan()`, and `fullWidth()` to place multiple fields on one row without extra row/container nodes
 - use `layout(FormLayoutMode::Flex)` with `direction()/justify()/align()/wrap()` only when a grouped form needs inline controls instead of a grid
@@ -143,7 +227,7 @@ If you do need grouped layout, Flashboard now renders one canonical schema tree 
 Flashboard currently supports both configuration styles:
 
 - typed schema nodes such as `TextColumn::make('status', 'Status')`
-- concept-aligned nodes such as `TextColumn::make('email', 'Email')`, `TextInput::make('name', 'Name')`, `DateInput::make('published_on', 'Published on')`, `FileUpload::make('receipt', 'Receipt')`, `RichText::make('body', 'Body')`, `Section::make('content', 'Content')->schema([...])`, and `Tabs::make('settings')->tabs([...])`
+- concept-aligned nodes such as `TextColumn::make('email', 'Email')`, `TextInput::make('name', 'Name')`, `BelongsTo::make('customer_id', 'Customer')`, `DateInput::make('published_on', 'Published on')`, `FileUpload::make('receipt', 'Receipt')`, `RichText::make('body', 'Body')`, `Section::make('content', 'Content')->schema([...])`, and `Tabs::make('settings')->tabs([...])`
 - legacy compatibility arrays such as `['key' => 'status', 'label' => 'Status']`
 
 Typed nodes are the preferred public API going forward. Arrays remain supported while the package migrates the rest of the DSL toward the concept-first object style.

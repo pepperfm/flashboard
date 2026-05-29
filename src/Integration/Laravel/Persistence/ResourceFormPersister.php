@@ -11,6 +11,7 @@ use Illuminate\Support\Arr;
 use Pepperfm\Flashboard\Contracts\Forms\FieldRenderer;
 use Pepperfm\Flashboard\Contracts\Resources\Resource;
 use Pepperfm\Flashboard\Core\Forms\Builders\Form;
+use Pepperfm\Flashboard\Core\Forms\Fields\BelongsTo;
 use Pepperfm\Flashboard\Core\Forms\Fields\Field;
 use Pepperfm\Flashboard\Core\Forms\Fields\FileUpload;
 use Pepperfm\Flashboard\Core\Hooks\RuntimeHookDispatcher;
@@ -39,6 +40,7 @@ final readonly class ResourceFormPersister
 
         $payload = $this->withoutEmptyPasswordFields($payload, $fields);
         $payload = $this->withoutPasswordConfirmationFields($payload, $fields);
+        $payload = $this->normalizeBelongsToFieldData($payload, $fields);
         $data = $form->mutateData($payload);
         $data = $resourceClass::mutateFormDataBeforeSave($data, null);
         $data = $this->normalizeFileFieldData($data, $fields, isUpdate: false);
@@ -72,6 +74,7 @@ final readonly class ResourceFormPersister
 
         $payload = $this->withoutEmptyPasswordFields($payload, $fields);
         $payload = $this->withoutPasswordConfirmationFields($payload, $fields);
+        $payload = $this->normalizeBelongsToFieldData($payload, $fields);
         $data = $form->mutateData($payload, $record);
         $data = $resourceClass::mutateFormDataBeforeSave($data, $record);
         $data = $this->normalizeFileFieldData($data, $fields, isUpdate: true);
@@ -217,6 +220,31 @@ final readonly class ResourceFormPersister
     }
 
     /**
+     * @param array<string, mixed> $payload
+     * @param list<array<string, mixed>> $fields
+     *
+     * @return array<string, mixed>
+     */
+    private function normalizeBelongsToFieldData(array $payload, array $fields): array
+    {
+        foreach ($fields as $field) {
+            if (!$this->isBelongsToField($field)) {
+                continue;
+            }
+
+            $key = trim((string) Arr::get($field, 'key', ''));
+            if ($key === '' || !array_key_exists($key, $payload)) {
+                continue;
+            }
+            if ($payload[$key] === '') {
+                $payload[$key] = null;
+            }
+        }
+
+        return $payload;
+    }
+
+    /**
      * @param array<string, mixed> $field
      */
     private function isPasswordField(array $field): bool
@@ -239,6 +267,19 @@ final readonly class ResourceFormPersister
         return $type === Field::TYPE_FILE
             || $inputType === 'file'
             || $renderer === FieldRenderer::FileUpload->value;
+    }
+
+    /**
+     * @param array<string, mixed> $field
+     */
+    private function isBelongsToField(array $field): bool
+    {
+        $type = (string) Arr::get($field, Field::ATTRIBUTE_TYPE, '');
+        $renderer = (string) Arr::get($field, Field::ATTRIBUTE_RENDERER, '');
+
+        return $type === Field::TYPE_BELONGS_TO
+            || $renderer === FieldRenderer::RelationSelect->value
+            || Arr::has($field, BelongsTo::ATTRIBUTE_RELATIONSHIP);
     }
 
     private function isEmptyFileFieldValue(mixed $value): bool

@@ -20,8 +20,8 @@ final class ResourceRegistry
      */
     public function register(string $resourceClass): void
     {
-        if (! is_a($resourceClass, Resource::class, true)) {
-            throw new \InvalidArgumentException("Resource [$resourceClass] must extend ".Resource::class.'.');
+        if (!is_a($resourceClass, Resource::class, true)) {
+            throw new \InvalidArgumentException("Resource [$resourceClass] must extend " . Resource::class . '.');
         }
 
         $this->resources[$resourceClass] = $resourceClass;
@@ -51,5 +51,40 @@ final class ResourceRegistry
     public function has(string $resourceClass): bool
     {
         return isset($this->resources[$resourceClass]);
+    }
+
+    /**
+     * @return class-string<Resource>|null
+     */
+    public function forKey(string $key): ?string
+    {
+        $key = trim($key);
+
+        return array_find($this->resources, fn($resourceClass) => $resourceClass::key() === $key);
+    }
+
+    /**
+     * @param class-string<\Illuminate\Database\Eloquent\Model> $modelClass
+     *
+     * @return class-string<Resource>|null
+     */
+    public function forModel(string $modelClass): ?string
+    {
+        $matches = $this->resourcesForModel($modelClass);
+
+        return count($matches) === 1 ? $matches[0] : null;
+    }
+
+    /**
+     * @param class-string<\Illuminate\Database\Eloquent\Model> $modelClass
+     *
+     * @return list<class-string<Resource>>
+     */
+    public function resourcesForModel(string $modelClass): array
+    {
+        return array_values(array_filter(
+            $this->resources,
+            static fn(string $resourceClass): bool => $resourceClass::model() === $modelClass,
+        ));
     }
 }

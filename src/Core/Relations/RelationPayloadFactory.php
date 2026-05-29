@@ -24,8 +24,19 @@ final class RelationPayloadFactory
                 $relation->toArray(),
                 ['records' => $this->relationRecords($relation, $record)],
             ),
-            $resourceClass::relations(),
+            array_values(array_filter(
+                $resourceClass::relations(),
+                fn (RelationDefinitionContract $relation): bool => $this->isLegacyRelation($relation),
+            )),
         ));
+    }
+
+    private function isLegacyRelation(RelationDefinitionContract $relation): bool
+    {
+        $definition = $relation->toArray();
+        $type = (string) ($definition['type'] ?? RelationDefinition::TYPE);
+
+        return !in_array($type, [HasOne::TYPE, HasMany::TYPE], true);
     }
 
     /**
@@ -38,7 +49,7 @@ final class RelationPayloadFactory
         }
 
         $definition = $relation->toArray();
-        $key = (string) ($definition['key'] ?? '');
+        $key = (string) ($definition['relationship'] ?? $definition['key'] ?? '');
         if ($key === '' || !method_exists($record, $key)) {
             return [];
         }

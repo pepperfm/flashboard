@@ -93,11 +93,12 @@ Using a modular monolith lets us preserve that layering without introducing depl
 - `Integration/Laravel` may depend on `Contracts`, `Core`, `UI`, and Laravel framework APIs.
 - `Support/Schema` may provide framework-light schema utilities shared by `Core`, but must not depend on Laravel HTTP or panel runtime adapters.
 - Host applications should plug in model classes, policies, queries, and workflow logic through contracts and configuration, not through direct edits of package internals.
+- Beta exception: `Contracts\Resources\Resource` is currently a public abstract DSL base, not a pure interface-only contract. It may reference package-owned Core builders, typed schema nodes, and schema helpers where those APIs are already part of resource authoring. Keep this exception narrow and do not use it as permission for arbitrary `Contracts -> Core` dependencies.
 
 - ✅ `Integration/Laravel -> Core -> Contracts`
 - ✅ `UI -> Contracts`
 - ✅ `Core -> Contracts`
-- ❌ `Contracts -> Core`
+- ❌ `Contracts -> Core`, except the narrow `Contracts\Resources\Resource` beta DSL-base exception described above
 - ❌ `Core -> Integration/Laravel`
 - ❌ `Core -> host-application business logic`
 - ❌ `UI -> direct Eloquent querying`
@@ -119,6 +120,7 @@ Using a modular monolith lets us preserve that layering without introducing depl
 6. Make payloads backend-driven and deterministic so the UI layer stays consistent across resources.
 7. Prefer explicit contracts and composition over magic configuration and overloaded DSLs.
 8. Keep searchable table select filters Flashboard-owned in the Vue layer: use Nuxt UI primitives (`UPopover`, `UInput`, compact `UButton` rows), but perform filtering in Flashboard with case-insensitive matching over option labels and values. Do not rely on `USelectMenu`'s built-in search for SKU-like labels whose submitted values are ids.
+9. Treat the `Resource` abstract base as a beta compatibility bridge. If the package later splits pure contracts from concrete DSL bases, move Eloquent-aware rule inference and relation metadata resolution behind Laravel integration services instead of expanding the exception.
 
 ## Code Examples
 

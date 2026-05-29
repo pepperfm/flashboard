@@ -52,18 +52,23 @@ final class FormShellRenderingTest extends TestCase
 
         self::assertStringContainsString('FBDateInput', $map);
         self::assertStringContainsString('FBFileUpload', $map);
+        self::assertStringContainsString('FBRelationSelect', $map);
         self::assertStringContainsString('FBRichText', $map);
         self::assertStringContainsString('date: FBDateInput', $map);
         self::assertStringContainsString('file_upload: FBFileUpload', $map);
+        self::assertStringContainsString('relation_select: FBRelationSelect', $map);
         self::assertStringContainsString('rich_text: FBRichText', $map);
 
         self::assertStringContainsString("return 'date'", $resolver);
         self::assertStringContainsString("return 'file_upload'", $resolver);
+        self::assertStringContainsString("return 'relation_select'", $resolver);
         self::assertStringContainsString("return 'rich_text'", $resolver);
         self::assertStringContainsString('forceFormData', $screen);
         self::assertStringContainsString("_method: 'put'", $screen);
         self::assertStringContainsString('update:remove-value', $this->fixture('resources/js/components/flashboard/forms/renderers/FormFieldRenderer.vue'));
         self::assertStringContainsString('Existing file will be removed', $this->fixture('resources/js/components/flashboard/forms/fields/FBFileUpload.vue'));
+        self::assertStringContainsString('url: option.url ?? existingOption?.url', $this->fixture('resources/js/components/flashboard/forms/fields/FBRelationSelect.vue'));
+        self::assertStringNotContainsString('console.', $this->fixture('resources/js/components/flashboard/forms/fields/FBRelationSelect.vue'));
     }
 
     private function fixture(string $path): string

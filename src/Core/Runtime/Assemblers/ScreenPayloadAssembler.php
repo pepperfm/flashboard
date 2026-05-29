@@ -66,6 +66,7 @@ final readonly class ScreenPayloadAssembler
             ]);
         }
 
+        /** @var class-string<Resource>|null $resourceClass */
         $resourceClass = $screen->resourceClass();
         $resourcePage = (string) Arr::get($context->request()->route()->defaults, 'flashboard.resource_page', 'index');
         $record = $resourcePage === 'detail' || $resourcePage === 'edit'
@@ -96,7 +97,7 @@ final readonly class ScreenPayloadAssembler
                 )
                 : $this->tablePayloadAssembler->assemble($resourceClass)->toArray(),
             'form' => in_array($resourcePage, ['create', 'edit'], true)
-                ? $this->resourceFormDataSource->resolve($resourceClass, $record)
+                ? $this->resourceFormDataSource->resolve($resourceClass, $record, $context->request())
                 : null,
             'detail' => $resourcePage === 'detail'
                 ? $this->resourceDetailDataSource->resolve($resourceClass, $record)
@@ -120,7 +121,7 @@ final readonly class ScreenPayloadAssembler
                 NavigationItem::make($resourceClass::key()),
             )->toArray(),
             'relations' => $resourceClass::relations() !== [] && $record !== null
-                ? $this->resourceDetailDataSource->resolve($resourceClass, $record)['relations']
+                ? $this->resourceDetailDataSource->resolve($resourceClass, $record, $resourcePage)['relations']
                 : [],
             'workspace' => null,
         ];

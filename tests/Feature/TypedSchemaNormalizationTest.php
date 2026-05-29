@@ -10,6 +10,7 @@ use Pepperfm\Flashboard\Contracts\Forms\FormContract;
 use Pepperfm\Flashboard\Contracts\Resources\Resource;
 use Pepperfm\Flashboard\Contracts\Tables\TableContract;
 use Pepperfm\Flashboard\Core\Detail\Entries\TextEntry;
+use Pepperfm\Flashboard\Core\Forms\Fields\BelongsTo;
 use Pepperfm\Flashboard\Core\Detail\Layout\Section as DetailSection;
 use Pepperfm\Flashboard\Core\Forms\Fields\Checkbox;
 use Pepperfm\Flashboard\Core\Forms\Fields\DateInput;
@@ -52,6 +53,7 @@ final class TypedSchemaNormalizationTest extends TestCase
             [FileUpload::make('receipt', 'Receipt'), 'Receipt'],
             [RichText::make('body', 'Body'), 'Body'],
             [PasswordInput::make('password', 'Password'), 'Password'],
+            [BelongsTo::make('category_id', 'Category', 'category'), 'Category'],
             [TextEntry::make('summary', 'Summary'), 'Summary'],
             [TextColumn::make('name', 'Name'), 'Name'],
             [BadgeColumn::make('status', 'Status badge'), 'Status badge'],

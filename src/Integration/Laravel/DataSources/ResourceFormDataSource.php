@@ -12,13 +12,18 @@ use Pepperfm\Flashboard\Contracts\Forms\FormSchemaNodeKind;
 use Pepperfm\Flashboard\Contracts\Resources\Resource;
 use Pepperfm\Flashboard\Core\Authorization\Visibility\ScreenAccessResolver;
 use Pepperfm\Flashboard\Core\Extensions\ExtensionRegistry;
+use Pepperfm\Flashboard\Core\Forms\Fields\BelongsTo;
 use Pepperfm\Flashboard\Core\Forms\Fields\Field;
-use Pepperfm\Flashboard\Core\Forms\Fields\FileUpload;
 use Pepperfm\Flashboard\Core\Forms\Fields\RichText;
+use Pepperfm\Flashboard\Core\Forms\Relations\BelongsToRelationMetadata;
+use Pepperfm\Flashboard\Core\Forms\Relations\BelongsToRelationMetadataResolver;
+use Pepperfm\Flashboard\Core\Registry\ResourceRegistry;
 use Pepperfm\Flashboard\Core\Resources\ResourceSurfaceResolver;
 use Pepperfm\Flashboard\Core\Runtime\Assemblers\FormPayloadAssembler;
 use Pepperfm\Flashboard\Core\Forms\Builders\Form;
 use Pepperfm\Flashboard\Integration\Laravel\Auth\PanelAuthenticator;
+use Pepperfm\Flashboard\Integration\Laravel\Relations\RelationCreateContext;
+use Pepperfm\Flashboard\Integration\Laravel\Relations\RelationCreateContextResolver;
 
 #[Singleton]
 final readonly class ResourceFormDataSource
@@ -29,6 +34,7 @@ final readonly class ResourceFormDataSource
         private PanelAuthenticator $authenticator,
         private ExtensionRegistry $extensionRegistry,
         private ResourceSurfaceResolver $resourceSurfaceResolver,
+        private ResourceRegistry $resourceRegistry,
     ) {
     }
 
@@ -37,8 +43,11 @@ final readonly class ResourceFormDataSource
      *
      * @return array<string, mixed>
      */
-    public function resolve(string $resourceClass, ?Model $record = null): array
-    {
+    public function resolve(
+        string $resourceClass,
+        ?Model $record = null,
+        ?\Illuminate\Http\Request $request = null
+    ): array {
         $form = $resourceClass::form(Form::make());
         $schema = $this->formPayloadAssembler->assemble($resourceClass);
         $state = $form->defaultState();
@@ -54,9 +63,19 @@ final readonly class ResourceFormDataSource
             $filteredSchema = $this->withExistingFileMetadata($filteredSchema, $record);
         }
 
+        $filteredSchema = $this->withBelongsToMetadata($filteredSchema, $resourceClass, $record, $user);
+
         $fields = $this->flattenFieldNodes($filteredSchema);
         $state = $this->applyImplicitFieldDefaults($state, $fields);
+        $relationCreateContext = $record === null && $request !== null
+            ? $this->relationCreateContext($request, $resourceClass, $user)
+            : null;
 
+        if ($relationCreateContext !== null) {
+            $state[$relationCreateContext->metadata->foreignKey] = $relationCreateContext->parentRecord->getAttribute(
+                $relationCreateContext->metadata->localKey,
+            );
+        }
         if ($record !== null) {
             foreach ($fields as $field) {
                 $key = (string) $field['key'];
@@ -72,13 +91,13 @@ final readonly class ResourceFormDataSource
                 $state[$key] = data_get($record, $key);
             }
         }
-        $cancelUrl = null;
-
         if ($record === null) {
-            $cancelUrl = route(
-                config('flashboard.route_name_prefix', 'flashboard.')
-                . 'resources.' . $resourceClass::key() . '.index',
-            );
+            $cancelUrl = $relationCreateContext === null
+                ? route(
+                    config('flashboard.route_name_prefix', 'flashboard.')
+                    . 'resources.' . $resourceClass::key() . '.index',
+                )
+                : $this->parentRecordUrl($relationCreateContext);
         } elseif ($this->resourceSurfaceResolver->hasDetailSurfaceForResource($resourceClass)) {
             $cancelUrl = route(
                 config('flashboard.route_name_prefix', 'flashboard.')
@@ -108,6 +127,11 @@ final readonly class ResourceFormDataSource
                     ? route(
                         config('flashboard.route_name_prefix', 'flashboard.')
                         . 'resources.' . $resourceClass::key() . '.store',
+                        $relationCreateContext === null ? [] : [
+                            'parent_resource' => $relationCreateContext->parentResource::key(),
+                            'parent_record' => $relationCreateContext->parentRecord->getKey(),
+                            'relation' => $relationCreateContext->relation,
+                        ],
                     )
                     : route(
                         config('flashboard.route_name_prefix', 'flashboard.')
@@ -124,6 +148,43 @@ final readonly class ResourceFormDataSource
     }
 
     /**
+     * @param class-string<Resource> $resourceClass
+     */
+    private function relationCreateContext(
+        \Illuminate\Http\Request $request,
+        string $resourceClass,
+        ?\Illuminate\Contracts\Auth\Authenticatable $user,
+    ): ?RelationCreateContext {
+        $context = new RelationCreateContextResolver($this->resourceRegistry)->resolve($request, $resourceClass);
+
+        if ($context === null) {
+            return null;
+        }
+        if (!$this->screenAccessResolver->canViewRecord($context->parentResource, $user, $context->parentRecord)) {
+            throw new \Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException();
+        }
+
+        return $context;
+    }
+
+    private function parentRecordUrl(RelationCreateContext $context): string
+    {
+        if ($this->resourceSurfaceResolver->hasDetailSurfaceForResource($context->parentResource)) {
+            return route(
+                config('flashboard.route_name_prefix', 'flashboard.')
+                . 'resources.' . $context->parentResource::key() . '.detail',
+                ['record' => $context->parentRecord->getKey()],
+            );
+        }
+
+        return route(
+            config('flashboard.route_name_prefix', 'flashboard.')
+            . 'resources.' . $context->parentResource::key() . '.edit',
+            ['record' => $context->parentRecord->getKey()],
+        );
+    }
+
+    /**
      * @param array<string, mixed> $state
      * @param list<array<string, mixed>> $fields
      *
@@ -133,7 +194,6 @@ final readonly class ResourceFormDataSource
     {
         foreach ($fields as $field) {
             $key = trim((string) Arr::get($field, 'key', ''));
-
             if ($key === '' || array_key_exists($key, $state)) {
                 continue;
             }
@@ -154,21 +214,17 @@ final readonly class ResourceFormDataSource
     {
         foreach ($fields as $field) {
             $key = trim((string) Arr::get($field, 'key', ''));
-
             if ($key === '' || !array_key_exists($key, $state)) {
                 continue;
             }
-
             if ($this->isDateField($field)) {
                 $state[$key] = $this->normalizeDateFieldValue($state[$key]);
                 continue;
             }
-
             if ($this->isJsonRichTextField($field)) {
                 $state[$key] = $this->normalizeJsonRichTextFieldValue($state[$key]);
                 continue;
             }
-
             if ($this->isStringField($field)) {
                 $state[$key] = $this->normalizeStringFieldValue($state[$key]);
             }
@@ -200,11 +256,9 @@ final readonly class ResourceFormDataSource
         if ($value === null) {
             return null;
         }
-
         if ($value instanceof \BackedEnum) {
             return (string) $value->value;
         }
-
         if (is_scalar($value) || $value instanceof \Stringable) {
             return (string) $value;
         }
@@ -217,11 +271,9 @@ final readonly class ResourceFormDataSource
         if ($value === null || $value === '') {
             return null;
         }
-
         if ($value instanceof \DateTimeInterface) {
             return $value->format('Y-m-d');
         }
-
         if (is_scalar($value) || $value instanceof \Stringable) {
             $value = trim((string) $value);
 
@@ -236,7 +288,6 @@ final readonly class ResourceFormDataSource
         if ($value === null || is_array($value)) {
             return $value;
         }
-
         if (is_string($value)) {
             $decoded = json_decode($value, true);
 
@@ -313,6 +364,226 @@ final readonly class ResourceFormDataSource
     }
 
     /**
+     * @param array<string, mixed> $field
+     */
+    private function isBelongsToField(array $field): bool
+    {
+        $type = (string) Arr::get($field, Field::ATTRIBUTE_TYPE, '');
+        $renderer = (string) Arr::get($field, Field::ATTRIBUTE_RENDERER, '');
+
+        return $type === Field::TYPE_BELONGS_TO
+            || $renderer === FieldRenderer::RelationSelect->value
+            || Arr::has($field, BelongsTo::ATTRIBUTE_RELATIONSHIP);
+    }
+
+    /**
+     * @param list<array<string, mixed>> $schema
+     * @param class-string<Resource> $resourceClass
+     *
+     * @return list<array<string, mixed>>
+     */
+    private function withBelongsToMetadata(
+        array $schema,
+        string $resourceClass,
+        ?Model $record,
+        ?\Illuminate\Contracts\Auth\Authenticatable $user,
+    ): array {
+        return array_values(array_map(
+            fn(array $node): array => $this->withBelongsToMetadataForNode($node, $resourceClass, $record, $user),
+            $schema,
+        ));
+    }
+
+    /**
+     * @param array<string, mixed> $node
+     * @param class-string<Resource> $resourceClass
+     *
+     * @return array<string, mixed>
+     */
+    private function withBelongsToMetadataForNode(
+        array $node,
+        string $resourceClass,
+        ?Model $record,
+        ?\Illuminate\Contracts\Auth\Authenticatable $user,
+    ): array {
+        $kind = FormSchemaNodeKind::from((string) Arr::get($node, 'kind', FormSchemaNodeKind::Field->value));
+        if ($kind === FormSchemaNodeKind::Field) {
+            if (!$this->isBelongsToField($node)) {
+                return $node;
+            }
+
+            return $this->withBelongsToFieldMetadata($node, $resourceClass, $record, $user);
+        }
+        if ($kind === FormSchemaNodeKind::Tabs) {
+            $node['tabs'] = $this->withBelongsToMetadata(
+                (array) Arr::get($node, 'tabs', []),
+                $resourceClass,
+                $record,
+                $user,
+            );
+
+            return $node;
+        }
+
+        $node['schema'] = $this->withBelongsToMetadata(
+            (array) Arr::get($node, 'schema', []),
+            $resourceClass,
+            $record,
+            $user,
+        );
+
+        return $node;
+    }
+
+    /**
+     * @param array<string, mixed> $field
+     * @param class-string<Resource> $resourceClass
+     *
+     * @return array<string, mixed>
+     */
+    private function withBelongsToFieldMetadata(
+        array $field,
+        string $resourceClass,
+        ?Model $record,
+        ?\Illuminate\Contracts\Auth\Authenticatable $user,
+    ): array {
+        $metadata = $this->belongsToRelationMetadataResolver()->resolve($resourceClass, $field);
+        $field = array_merge($field, $metadata->toPayload());
+        $key = trim((string) Arr::get($field, 'key', ''));
+
+        if ($key !== '') {
+            $field['options_url'] = route(
+                config('flashboard.route_name_prefix', 'flashboard.')
+                . 'resources.' . $resourceClass::key() . '.relations.options',
+                ['field' => $key],
+            );
+        }
+        if ($record !== null) {
+            $field['selected_option'] = $this->selectedBelongsToOption($metadata, $record, $user);
+        }
+        if (
+            $metadata->relatedResource !== null
+            && $this->screenAccessResolver->canAccessResource($metadata->relatedResource, $user)
+            && $this->resourceSurfaceResolver->hasDetailSurfaceForResource($metadata->relatedResource)
+        ) {
+            $field['related_routes'] = ['detail' => true];
+        }
+
+        return $field;
+    }
+
+    private function belongsToRelationMetadataResolver(): BelongsToRelationMetadataResolver
+    {
+        return new BelongsToRelationMetadataResolver($this->resourceRegistry);
+    }
+
+    /**
+     * @return array{label: string, value: string|int|bool, url?: string}|null
+     */
+    private function selectedBelongsToOption(
+        BelongsToRelationMetadata $metadata,
+        Model $record,
+        ?\Illuminate\Contracts\Auth\Authenticatable $user,
+    ): ?array {
+        $selectedValue = $this->optionValue(data_get($record, $metadata->fieldKey));
+        if ($selectedValue === null || !$this->canQueryBelongsToOptions($metadata, $user)) {
+            return null;
+        }
+
+        $relatedRecord = $this->belongsToOptionsQuery($metadata)
+            ->where($metadata->ownerKey, $selectedValue)
+            ->first();
+        if (!$relatedRecord instanceof Model) {
+            return null;
+        }
+
+        return $this->belongsToOptionFromRecord($metadata, $relatedRecord, $user);
+    }
+
+    private function canQueryBelongsToOptions(
+        BelongsToRelationMetadata $metadata,
+        ?\Illuminate\Contracts\Auth\Authenticatable $user,
+    ): bool {
+        if ($metadata->relatedResource === null) {
+            return $metadata->allowModelFallback;
+        }
+
+        return $this->screenAccessResolver->canAccessResource($metadata->relatedResource, $user);
+    }
+
+    private function belongsToOptionsQuery(BelongsToRelationMetadata $metadata): \Illuminate\Database\Eloquent\Builder
+    {
+        if ($metadata->relatedResource !== null) {
+            return $this->extensionRegistry->extendQuery(
+                $metadata->relatedResource,
+                $metadata->relatedResource::query(),
+            );
+        }
+
+        $modelClass = $metadata->relatedModel;
+
+        return $modelClass::query();
+    }
+
+    /**
+     * @return array{label: string, value: string|int|bool, url?: string}|null
+     */
+    private function belongsToOptionFromRecord(
+        BelongsToRelationMetadata $metadata,
+        Model $record,
+        ?\Illuminate\Contracts\Auth\Authenticatable $user,
+    ): ?array {
+        $value = $this->optionValue(data_get($record, $metadata->ownerKey));
+        if ($value === null) {
+            return null;
+        }
+
+        $option = [
+            'label' => (string) ($this->optionValue(data_get($record, $metadata->titleAttribute)) ?? $value),
+            'value' => $value,
+        ];
+        $url = $this->belongsToDetailUrl($metadata, $record, $user);
+
+        if ($url !== null) {
+            $option['url'] = $url;
+        }
+
+        return $option;
+    }
+
+    private function belongsToDetailUrl(
+        BelongsToRelationMetadata $metadata,
+        Model $record,
+        ?\Illuminate\Contracts\Auth\Authenticatable $user,
+    ): ?string {
+        if (
+            $metadata->relatedResource === null
+            || !$this->resourceSurfaceResolver->hasDetailSurfaceForResource($metadata->relatedResource)
+            || !$this->screenAccessResolver->canViewRecord($metadata->relatedResource, $user, $record)
+        ) {
+            return null;
+        }
+
+        return route(
+            config('flashboard.route_name_prefix', 'flashboard.')
+            . 'resources.' . $metadata->relatedResource::key() . '.detail',
+            ['record' => $record->getKey()],
+        );
+    }
+
+    private function optionValue(mixed $value): string|int|bool|null
+    {
+        if (is_string($value) || is_int($value) || is_bool($value)) {
+            return $value;
+        }
+        if ($value instanceof \Stringable) {
+            return (string) $value;
+        }
+
+        return null;
+    }
+
+    /**
      * @param list<array<string, mixed>> $schema
      *
      * @return list<array<string, mixed>>
@@ -320,7 +591,7 @@ final readonly class ResourceFormDataSource
     private function withExistingFileMetadata(array $schema, Model $record): array
     {
         return array_values(array_map(
-            fn (array $node): array => $this->withExistingFileMetadataForNode($node, $record),
+            fn(array $node): array => $this->withExistingFileMetadataForNode($node, $record),
             $schema,
         ));
     }
@@ -333,7 +604,6 @@ final readonly class ResourceFormDataSource
     private function withExistingFileMetadataForNode(array $node, Model $record): array
     {
         $kind = FormSchemaNodeKind::from((string) Arr::get($node, 'kind', FormSchemaNodeKind::Field->value));
-
         if ($kind === FormSchemaNodeKind::Field) {
             if (!$this->isFileField($node)) {
                 return $node;
@@ -366,29 +636,30 @@ final readonly class ResourceFormDataSource
         if ($value === null || $value === '') {
             return [];
         }
-
         if (is_array($value) && array_is_list($value)) {
             $files = [];
 
             foreach ($value as $item) {
-                $files = array_merge($files, $this->normalizeExistingFileMetadata($item));
+                foreach ($this->normalizeExistingFileMetadata($item) as $file) {
+                    $files[] = $file;
+                }
             }
 
             return $files;
         }
-
         if (is_array($value)) {
             return [$this->normalizeExistingFileArray($value)];
         }
-
         if (is_scalar($value) || $value instanceof \Stringable) {
             $path = (string) $value;
 
-            return [[
-                'name' => basename($path),
-                'path' => $path,
-                'url' => null,
-            ]];
+            return [
+                [
+                    'name' => basename($path),
+                    'path' => $path,
+                    'url' => null,
+                ],
+            ];
         }
 
         return [];
@@ -456,10 +727,10 @@ final readonly class ResourceFormDataSource
 
         return array_values(array_filter(
             array_map(
-                fn (array $node): ?array => $this->removeGeneratedPrimaryKeyNode($node, $generatedPrimaryKeyName),
+                fn(array $node): ?array => $this->removeGeneratedPrimaryKeyNode($node, $generatedPrimaryKeyName),
                 $schema,
             ),
-            static fn (?array $node): bool => $node !== null,
+            static fn(?array $node): bool => $node !== null,
         ));
     }
 
@@ -479,10 +750,10 @@ final readonly class ResourceFormDataSource
         if ($kind === FormSchemaNodeKind::Tabs) {
             $tabs = array_values(array_filter(
                 array_map(
-                    fn (array $tab): ?array => $this->removeGeneratedPrimaryKeyNode($tab, $generatedPrimaryKeyName),
+                    fn(array $tab): ?array => $this->removeGeneratedPrimaryKeyNode($tab, $generatedPrimaryKeyName),
                     (array) Arr::get($node, 'tabs', []),
                 ),
-                static fn (?array $tab): bool => $tab !== null,
+                static fn(?array $tab): bool => $tab !== null,
             ));
 
             if ($tabs === []) {
@@ -496,10 +767,10 @@ final readonly class ResourceFormDataSource
 
         $nestedSchema = array_values(array_filter(
             array_map(
-                fn (array $childNode): ?array => $this->removeGeneratedPrimaryKeyNode($childNode, $generatedPrimaryKeyName),
+                fn(array $childNode): ?array => $this->removeGeneratedPrimaryKeyNode($childNode, $generatedPrimaryKeyName),
                 (array) Arr::get($node, 'schema', []),
             ),
-            static fn (?array $childNode): bool => $childNode !== null,
+            static fn(?array $childNode): bool => $childNode !== null,
         ));
 
         if ($nestedSchema === []) {
@@ -525,7 +796,6 @@ final readonly class ResourceFormDataSource
 
         if ($kind === FormSchemaNodeKind::Field) {
             $key = trim((string) Arr::get($node, 'key', ''));
-
             if ($key === '') {
                 return $node;
             }
@@ -534,14 +804,12 @@ final readonly class ResourceFormDataSource
                 ? $node
                 : null;
         }
-
         if ($kind === FormSchemaNodeKind::Tabs) {
             $tabs = $this->filterSchemaNodes(
                 (array) Arr::get($node, 'tabs', []),
                 $resourceClass,
                 $user,
             );
-
             if ($tabs === []) {
                 return null;
             }
@@ -556,7 +824,6 @@ final readonly class ResourceFormDataSource
             $resourceClass,
             $user,
         );
-
         if ($schema === []) {
             return null;
         }
@@ -574,7 +841,6 @@ final readonly class ResourceFormDataSource
     private function flattenFieldNodes(array $schema): array
     {
         $fields = [];
-
         foreach ($schema as $node) {
             $kind = FormSchemaNodeKind::from((string) Arr::get($node, 'kind', FormSchemaNodeKind::Field->value));
 
@@ -582,20 +848,17 @@ final readonly class ResourceFormDataSource
                 $fields[] = $node;
                 continue;
             }
-
             if ($kind === FormSchemaNodeKind::Tabs) {
-                $fields = array_merge(
-                    $fields,
-                    $this->flattenFieldNodes((array) Arr::get($node, 'tabs', [])),
-                );
+                foreach ($this->flattenFieldNodes((array) Arr::get($node, 'tabs', [])) as $field) {
+                    $fields[] = $field;
+                }
 
                 continue;
             }
 
-            $fields = array_merge(
-                $fields,
-                $this->flattenFieldNodes((array) Arr::get($node, 'schema', [])),
-            );
+            foreach ($this->flattenFieldNodes((array) Arr::get($node, 'schema', [])) as $field) {
+                $fields[] = $field;
+            }
         }
 
         return $fields;
@@ -610,7 +873,7 @@ final readonly class ResourceFormDataSource
     {
         return array_values(array_filter(
             $schema,
-            fn (array $node): bool => Arr::get($node, 'kind') === FormSchemaNodeKind::Section->value,
+            static fn(array $node): bool => Arr::get($node, 'kind') === FormSchemaNodeKind::Section->value,
         ));
     }
 
@@ -622,7 +885,6 @@ final readonly class ResourceFormDataSource
     private function extractRootTabs(array $schema): array
     {
         $tabs = [];
-
         foreach ($schema as $node) {
             if (Arr::get($node, 'kind') !== FormSchemaNodeKind::Tabs->value) {
                 continue;

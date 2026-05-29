@@ -15,6 +15,9 @@ final class ExtensionRegistry
 {
     /**
      * @param class-string<Resource> $resourceClass
+     * @param \Illuminate\Database\Eloquent\Builder<\Illuminate\Database\Eloquent\Model> $query
+     *
+     * @return \Illuminate\Database\Eloquent\Builder<\Illuminate\Database\Eloquent\Model>
      */
     public function extendQuery(
         string $resourceClass,

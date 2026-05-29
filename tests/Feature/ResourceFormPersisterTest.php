@@ -9,6 +9,7 @@ use Illuminate\Http\UploadedFile;
 use Pepperfm\Flashboard\Contracts\Extensions\RuntimeHookContract;
 use Pepperfm\Flashboard\Contracts\Forms\FormContract;
 use Pepperfm\Flashboard\Contracts\Resources\Resource;
+use Pepperfm\Flashboard\Core\Forms\Fields\BelongsTo;
 use Pepperfm\Flashboard\Core\Forms\Fields\FileUpload;
 use Pepperfm\Flashboard\Core\Forms\Fields\PasswordInput;
 use Pepperfm\Flashboard\Core\Forms\Fields\TextInput;
@@ -37,6 +38,7 @@ final class ResourceFormPersisterTest extends TestCase
             $table->string('name')->nullable();
             $table->string('password')->nullable();
             $table->string('receipt')->nullable();
+            $table->unsignedInteger('category_id')->nullable();
         });
         ResourceFormPersisterCapturingHook::$calls = [];
     }
@@ -128,6 +130,29 @@ final class ResourceFormPersisterTest extends TestCase
         self::assertNull($updated->getAttribute('receipt'));
     }
 
+    public function test_belongs_to_values_are_persisted_as_scalar_foreign_keys_with_empty_values_normalized_to_null(): void
+    {
+        $record = ResourceFormPersisterRecord::query()->create([
+            'name' => 'Original',
+            'category_id' => 5,
+        ]);
+
+        $updated = (new ResourceFormPersister(new RuntimeHookDispatcher()))
+            ->update($this->belongsToResourceClass(), $record, [
+                'category_id' => '',
+            ]);
+
+        self::assertNull($updated->getAttribute('category_id'));
+
+        $created = (new ResourceFormPersister(new RuntimeHookDispatcher()))
+            ->create($this->belongsToResourceClass(), [
+                'name' => 'Created',
+                'category_id' => 7,
+            ]);
+
+        self::assertSame(7, $created->getAttribute('category_id'));
+    }
+
     /**
      * @return class-string<Resource>
      */
@@ -152,6 +177,28 @@ final class ResourceFormPersisterTest extends TestCase
             public static function runtimeHooks(): array
             {
                 return [new ResourceFormPersisterCapturingHook()];
+            }
+        });
+    }
+
+    /**
+     * @return class-string<Resource>
+     */
+    private function belongsToResourceClass(): string
+    {
+        return get_class(new class() extends Resource
+        {
+            public static function model(): string
+            {
+                return ResourceFormPersisterRecord::class;
+            }
+
+            public static function form(FormContract $form): FormContract
+            {
+                return $form->schema([
+                    TextInput::make('name')->label('Name'),
+                    BelongsTo::make('category_id', 'Category'),
+                ]);
             }
         });
     }

@@ -16,6 +16,10 @@ use Pepperfm\Flashboard\Integration\Laravel\Http\Controllers\Auth\ShowLoginContr
 use Pepperfm\Flashboard\Integration\Laravel\Http\Controllers\PanelScreenController;
 use Pepperfm\Flashboard\Integration\Laravel\Http\Controllers\ResourceFilterOptionsController;
 use Pepperfm\Flashboard\Integration\Laravel\Http\Controllers\ResourceFormController;
+use Pepperfm\Flashboard\Integration\Laravel\Http\Controllers\ResourceRelationActionController;
+use Pepperfm\Flashboard\Integration\Laravel\Http\Controllers\ResourceRelationAttachOptionsController;
+use Pepperfm\Flashboard\Integration\Laravel\Http\Controllers\ResourceRelationRecordsController;
+use Pepperfm\Flashboard\Integration\Laravel\Http\Controllers\ResourceRelationOptionsController;
 
 #[Singleton]
 final readonly class PanelRouteRegistrar
@@ -106,6 +110,41 @@ final readonly class PanelRouteRegistrar
                 ->middleware($resourceClass::middleware())
                 ->defaults('flashboard.resource', $resourceClass)
                 ->name('resources.' . $resourceClass::key() . '.filters.legacy-options');
+
+            Route::get("$base/_relation-options/{field}", ResourceRelationOptionsController::class)
+                ->middleware($resourceClass::middleware())
+                ->defaults('flashboard.resource', $resourceClass)
+                ->name('resources.' . $resourceClass::key() . '.relations.options');
+
+            Route::get("$base/{record}/_relations/{relation}", ResourceRelationRecordsController::class)
+                ->middleware($resourceClass::middleware())
+                ->defaults('flashboard.resource', $resourceClass)
+                ->name('resources.' . $resourceClass::key() . '.relations.records');
+
+            Route::get("$base/{record}/_relations/{relation}/options", ResourceRelationAttachOptionsController::class)
+                ->middleware($resourceClass::middleware())
+                ->defaults('flashboard.resource', $resourceClass)
+                ->name('resources.' . $resourceClass::key() . '.relations.attach-options');
+
+            Route::post("$base/{record}/_relations/{relation}/attach", [ResourceRelationActionController::class, 'attach'])
+                ->middleware($resourceClass::middleware())
+                ->defaults('flashboard.resource', $resourceClass)
+                ->name('resources.' . $resourceClass::key() . '.relations.attach');
+
+            Route::delete("$base/{record}/_relations/{relation}/detach", [ResourceRelationActionController::class, 'detach'])
+                ->middleware($resourceClass::middleware())
+                ->defaults('flashboard.resource', $resourceClass)
+                ->name('resources.' . $resourceClass::key() . '.relations.detach');
+
+            Route::patch("$base/{record}/_relations/{relation}/replace", [ResourceRelationActionController::class, 'replace'])
+                ->middleware($resourceClass::middleware())
+                ->defaults('flashboard.resource', $resourceClass)
+                ->name('resources.' . $resourceClass::key() . '.relations.replace');
+
+            Route::patch("$base/{record}/_relations/{relation}/sync", [ResourceRelationActionController::class, 'sync'])
+                ->middleware($resourceClass::middleware())
+                ->defaults('flashboard.resource', $resourceClass)
+                ->name('resources.' . $resourceClass::key() . '.relations.sync');
 
             if ($this->resourceSurfaceResolver->hasDetailSurfaceForResource($resourceClass)) {
                 Route::get("$base/{record}", PanelScreenController::class)

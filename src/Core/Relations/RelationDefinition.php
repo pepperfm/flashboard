@@ -8,9 +8,13 @@ use Pepperfm\Flashboard\Contracts\Resources\Relations\RelationDefinitionContract
 
 final class RelationDefinition implements RelationDefinitionContract
 {
+    public const string TYPE = 'relation';
+
     private ?string $model = null;
 
     private ?string $label = null;
+
+    private ?string $relationship = null;
 
     private string $titleAttribute = 'name';
 
@@ -22,9 +26,11 @@ final class RelationDefinition implements RelationDefinitionContract
         private readonly string $key,
     ) {}
 
-    public static function make(string $key): static
+    public static function make(string $key, ?string $label = null, ?string $relationship = null): static
     {
-        return new static($key);
+        return new static($key)
+            ->label($label ?? str($key)->headline()->value())
+            ->relationship($relationship ?? $key);
     }
 
     public function model(string $model): static
@@ -37,6 +43,13 @@ final class RelationDefinition implements RelationDefinitionContract
     public function label(string $label): static
     {
         $this->label = $label;
+
+        return $this;
+    }
+
+    public function relationship(string $name): static
+    {
+        $this->relationship = trim($name);
 
         return $this;
     }
@@ -65,7 +78,9 @@ final class RelationDefinition implements RelationDefinitionContract
     public function toArray(): array
     {
         return [
+            'type' => self::TYPE,
             'key' => $this->key,
+            'relationship' => $this->relationship ?? $this->key,
             'model' => $this->model,
             'label' => $this->label ?? str($this->key)->headline()->toString(),
             'title_attribute' => $this->titleAttribute,

@@ -1,231 +1,258 @@
 # Project Roadmap
 
-> Build Flashboard into an installable Laravel admin runtime with declarative resources, consistent UX, and strong escape hatches for real operator workflows.
+> Extend Flashboard relation editing beyond `BelongsTo` by introducing explicit `HasOne` and `HasMany` relation managers with safe selection, nested resource actions, and deterministic backend-driven payloads.
 
 ## Milestones
 
-- [x] **01. Product Concept & Positioning** — define the product thesis, target use cases, DX principles, and the distinction between CRUD tooling and a full admin runtime
-- [x] **02. Project Context & Architecture Baseline** — formalize project description, architectural boundaries, AI context, and the target modular package shape
-- [x] **03. Package Foundation & Boot Process** — create the Composer package skeleton, service provider, config publishing, panel bootstrap entrypoints, and installation flow for host apps
-- [x] **04. Public Contracts & Builder API** — define the stable package-facing contracts for panel, resource, table, form, detail, actions, pages, navigation, and extension hooks
-- [x] **05. Resource Registry & Runtime Kernel** — implement the internal registry, metadata lifecycle, screen resolution, payload assembly pipeline, and shared runtime orchestration
-- [x] **06. Routing, Auth Integration & Panel Access** — wire Laravel routes, middleware, auth guards, panel login flow, session handling, and protected `/admin` entry
-- [x] **07. Layout Shell, Navigation & Panel Chrome** — ship the reusable admin shell with header, sidebar, breadcrumbs, user menu, dashboard frame, and permission-aware navigation
-- [x] **08. Table Engine & List Resource Screens** — deliver the first production-ready list experience with columns, filters, scopes, search, sorting, pagination, row actions, and bulk actions
-- [x] **09. Form Engine & Create/Edit Workflows** — support sections, tabs, fields, validation, defaults, mutation hooks, save pipelines, notifications, and complete create/edit resource flows
-- [x] **10. Detail Views, Infolists & Action Framework** — add read-only detail screens, infolist-style rendering, contextual actions, confirmations, modals, and reusable action execution rules
-- [x] **11. Relations, Nested Contexts & Resource Composition** — support relation managers, nested resources, relation hubs, shared query abstractions, and cross-resource composition patterns
-- [x] **12. Custom Pages & Operator Workspaces** — introduce custom page contracts for queues, review screens, processing consoles, approval flows, and other non-CRUD operator scenarios
-- [x] **13. Backend-Driven UI Contract & Rendering Layer** — stabilize the normalized payload protocol and rendering primitives so the UI layer can remain consistent and swappable over time
-- [x] **14. Authorization Model & Visibility Rules** — provide policy integration, fine-grained action visibility, field visibility, navigation gating, and permission-aware runtime decisions
-- [x] **15. Theming, UX Consistency & Interaction Patterns** — unify notifications, overlays, confirmations, empty states, loading states, keyboard flows, and design tokens for a coherent admin UX
-- [x] **16. Extension Surface & Escape Hatches** — harden custom query hooks, custom save logic, page render overrides, action extensions, field renderers, and integration points without framework fights
-- [x] **17. Developer Tooling & Local DX** — add stubs, testing fixtures, demo resources, package commands, local playground app, and debugging helpers that make package adoption fast
-- [x] **18. Test Strategy & Quality Gates** — build coverage for unit, integration, feature, and package-host compatibility tests, plus static analysis and regression protection for public contracts
-- [x] **19. Documentation, Examples & Adoption Guides** — write installation docs, quick-start guides, advanced customization docs, architecture docs, and real examples for CRUD and operator workflows
-- [x] **20. MVP Validation In Real Host App** — integrate the package into a real Laravel application, validate the 80/20 design, close API gaps, and refine contracts from real usage
-- [x] **21. Beta Readiness & Compatibility Hardening** — finalize upgrade guarantees, package versioning rules, backward-compatibility expectations, and release hardening for external adopters
-- [x] **22. Public Beta Release** — publish the first beta release with documented capabilities, known limits, migration guidance, and a clear feedback loop for early users
-- [x] **23. Advanced Form Field Contract Expansion** — extend the form field contract for date, file, and rich-text renderers while keeping `PasswordInput` compatible with the existing input renderer where possible
-- [x] **24. DateInput & PasswordInput Runtime** — ship low-risk scalar fields first, including deterministic payload normalization, inferred validation, Vue wrappers, generated stubs, and create/edit hydration
-- [x] **25. FileUpload Runtime & Persistence Boundary** — add secure upload field support with host-owned storage configuration, multipart Inertia submission, validation, previews, replace/remove semantics, and minimal safe diagnostics
-- [x] **26. RichText Runtime & Content Safety** — add a rich text field backed by Nuxt UI Editor with explicit content format choices, sanitization guidance, validation, and predictable persistence hooks
-- [x] **27. Advanced Form Field Documentation & Examples** — update resource/form docs, examples, host-app walkthroughs, and docs MCP/raw markdown surfaces for DateInput, FileUpload, RichText, and PasswordInput
-- [x] **28. Advanced Form Field QA & Compatibility Hardening** — cover PHP normalization, Laravel validation/persistence, TypeScript payload typing, browser smoke tests, file-upload edge cases, and upgrade notes
+- [x] **01. BelongsTo Relation Field Baseline** — existing relation metadata resolution, lazy single-select rendering, scalar FK persistence, authorization checks, and docs provide the foundation for inverse relation work
+- [x] **02. Inverse Relation Product Boundary** — define `HasOne` and `HasMany` as explicit relation manager surfaces rather than silent scalar fields, including where they may appear on detail/edit screens
+- [x] **03. Public Relation Definition API** — introduce typed `HasOne` and `HasMany` resource relation definitions with `make(string $key, ?string $label = null, ?string $relationship = null)`, resource inference, and explicit overrides
+- [x] **04. Laravel Relation Metadata Resolution** — resolve Eloquent `hasOne` and `hasMany` metadata behind Laravel integration boundaries, including local key, foreign key, related model, related resource, and nullable detach capability
+- [x] **05. Relation Manager Payload Contract** — add stable payload shapes for single-record and collection relation managers, including records, pagination, action availability, attach options, empty states, and related-resource navigation
+- [x] **06. Nested Relation Data Sources And Routes** — add protected endpoints for loading related records, loading attachable options, and executing create, attach, detach, replace, and sync-like actions with authorization and scoping
+- [x] **07. HasOne Manager UX** — render a one-record manager with empty, loading, error, existing-record, create, attach, open, edit, detach, and replace states using package-owned Vue/Nuxt UI wrappers
+- [x] **08. HasMany Manager UX** — render a collection manager with related rows, search, pagination, create, attach, detach, optional bulk actions, and explicit replace/sync affordances only when enabled
+- [x] **09. Persistence And Safety Semantics** — implement transaction-safe mutations that write related records' FK values, never delete by default, and require explicit opt-in for detach, replace, or sync behavior
+- [x] **10. Authorization, Tenant Scope And Failure Policy** — ensure all relation reads and writes respect resource visibility, Laravel policies, query extensions, tenant scoping, and fail closed for invalid or inaccessible relationships
+- [x] **11. Documentation, Examples And MCP Surface** — update package docs, generated examples, upgrade notes, docs mirror, raw markdown routes, and MCP artifacts with clear `BelongsTo` versus `HasOne`/`HasMany` guidance
+- [x] **12. QA And Compatibility Gates** — cover PHP payloads, Laravel metadata resolution, mutation safety, Vue type safety, frontend build, existing `BelongsTo` compatibility, and host-app browser smoke when a runnable validation host is available
 
-## Advanced Form Field Implementation Map
+## HasOne And HasMany Implementation Map
 
-This roadmap expands the existing form system without replacing the current `Field` -> `FormSchemaNormalizer` -> `FieldRenderer` -> package-owned Vue wrapper flow. The canonical authoring API remains `$form->schema([...])`; `fields()`, `sections()`, and `tabs()` stay compatibility helpers.
+This roadmap treats `HasOne` and `HasMany` as relation manager surfaces. They may look like fields in the admin UI, but they do not behave like normal form fields because saving them mutates related records, not only the current resource record.
 
-### Shared Contract Work
+### Product Boundary
 
-- Add typed PHP field classes under `src/Core/Forms/Fields/` and keep each class small, fluent, and explicit:
-  - `DateInput`
-  - `FileUpload`
-  - `RichText`
-  - `PasswordInput`
-- Extend `src/Core/Forms/Fields/Field.php` with new type constants only where the runtime needs distinct behavior:
-  - `TYPE_DATE = 'date'`
-  - `TYPE_FILE = 'file'`
-  - `TYPE_RICH_TEXT = 'rich_text'`
-  - `TYPE_PASSWORD = 'password'` only if password needs type-based policy beyond `input_type=password`
-- Extend `src/Contracts/Forms/FieldRenderer.php` conservatively:
-  - `Date = 'date'`
-  - `FileUpload = 'file_upload'`
-  - `RichText = 'rich_text'`
-  - keep `PasswordInput` on `Input` with `input_type=password` unless a dedicated reveal/toggle renderer becomes part of the stable UX contract
-- Update `src/Core/Forms/Normalization/FormSchemaNormalizer.php` so every new typed field normalizes into a deterministic payload, inferred Laravel rules, and stable layout metadata.
-- Update `src/Integration/Laravel/DataSources/ResourceFormDataSource.php` so edit-state hydration is value-safe:
-  - scalar fields normalize to strings or null
-  - date values expose ISO strings
-  - password fields do not hydrate existing values by default
-  - file fields expose metadata only, never raw file contents
-  - rich text exposes the configured persisted format
-- Update `resources/js/components/flashboard/forms/renderers/resolveFormFieldRenderer.ts` and `FormFieldRendererMap.ts` so renderer selection remains explicit and development-mode unknown renderer errors continue to fail fast.
-- Add package-owned wrappers under `resources/js/components/flashboard/forms/fields/` instead of wiring Nuxt UI components directly from generic renderer code.
+- `BelongsTo` remains the normal form field for one local FK on the current model.
+- `HasOne` manages zero or one related record whose FK usually lives on the related model.
+- `HasMany` manages a related collection whose FK values usually live on many related records.
+- Default behavior should be safe and explicit:
+  - view related records
+  - open related records
+  - create a related record in nested context
+  - attach existing records only when enabled
+  - detach or replace only when enabled and confirmed
+- Do not implement hidden automatic inverse syncing from a normal form submit.
+- Do not treat many-to-many as `HasMany`; reserve `BelongsToMany` or a dedicated relation manager for pivot semantics.
 
-### DateInput
+### Target Authoring API
 
-Goal: first-class date-only CRUD fields with ISO date payloads and the same interaction quality as existing table date filters.
+```php
+use Pepperfm\Flashboard\Core\Relations\HasMany;
+use Pepperfm\Flashboard\Core\Relations\HasOne;
 
-Where:
-- `src/Core/Forms/Fields/DateInput.php`
-- `src/Core/Forms/Normalization/FormSchemaNormalizer.php`
-- `src/Integration/Laravel/DataSources/ResourceFormDataSource.php`
-- `resources/js/components/flashboard/forms/fields/FBDateInput.vue`
-- `resources/js/components/flashboard/forms/renderers/resolveFormFieldRenderer.ts`
-- `tests/Feature/FormRendererPayloadTest.php`
-- `tests/Feature/TypedSchemaNormalizationTest.php`
-- `tests/Feature/ResourceFormRulesTest.php`
+public static function relations(): array
+{
+    return [
+        HasOne::make('profile', 'Profile')
+            ->resource(ProfileResource::class)
+            ->attachable()
+            ->detachable(),
 
-How:
-- Store and submit date-only values as `YYYY-MM-DD`; leave timezone and datetime semantics to a future `DateTimeInput`.
-- Reuse the pattern from `resources/js/components/flashboard/table/DatePickerFilter.vue`: `UInputDate` for segmented input, `UPopover` + `UCalendar` for picking, `@internationalized/date` for parsing and serialization.
-- Add fluent PHP options such as `minDate()`, `maxDate()`, and `native(bool $condition = true)` only when backed by payload contract keys.
-- Infer Laravel rules as `nullable|date_format:Y-m-d` or `required|date_format:Y-m-d`, and map min/max to `after_or_equal` / `before_or_equal` when provided.
-- Keep payloads scalar; do not leak `CalendarDate` objects past the Vue wrapper.
+        HasMany::make('orders', 'Orders')
+            ->resource(OrderResource::class)
+            ->searchable(['number', 'status'])
+            ->perPage(10)
+            ->attachable(),
 
-### PasswordInput
+        HasMany::make('recent_orders', 'Recent orders', 'orders')
+            ->resource(OrderResource::class)
+            ->readOnly(),
+    ];
+}
+```
 
-Goal: a dedicated public API for password fields without logging, hydrating, or accidentally exposing secret values.
+Rules:
+- The first argument is the relation surface key used in payloads and routes.
+- The second argument is the label, matching the typed schema `make($key, $label)` convention.
+- The third argument is the Eloquent relationship name. If omitted, infer it from the key.
+- `relationship(string $name)` remains available as a fluent override.
+- `resource(string $resourceClass)` remains available as a fluent override, while the default should be inferred from the related model and registered resources.
+- `HasOne` should default to a single-card manager.
+- `HasMany` should default to a compact related-record table/list manager.
+- Selection and synchronization behavior must be opt-in through explicit methods such as `attachable()`, `detachable()`, `replaceable()`, or `syncable()`.
 
-Where:
-- `src/Core/Forms/Fields/PasswordInput.php`
-- `src/Integration/Laravel/DataSources/ResourceFormDataSource.php`
-- `src/Core/Forms/Normalization/FormSchemaNormalizer.php`
-- `resources/js/components/flashboard/forms/fields/FBInput.vue` initially, or `FBPasswordInput.vue` if reveal/toggle UX becomes stable
-- `tests/Feature/ResourceFormDataSourceTest.php`
-- `tests/Feature/ResourceFormRulesTest.php`
+### Public Contract Work
 
-How:
-- Implement `PasswordInput` as a purpose-built class that sets `input_type=password` and defaults to a blank edit-state value.
-- Preserve `TextInput::password()` for compatibility, but prefer `PasswordInput::make('password')` in docs and stubs.
-- Add explicit helpers only for common validation intent, such as `minLength(int $length)`, `maxLength(int $length)`, and `confirmed(bool $condition = true)`, if they merge cleanly with explicit `rules()`.
-- Never include current password hashes in form state; resources should use `mutateDataUsing()` or `mutateFormDataBeforeSave()` to hash and skip empty password submissions.
-- Avoid a default reveal button until the UX contract is intentional. If added later, implement it in `FBPasswordInput.vue` with an accessible icon button and no value logging.
+- Add typed relation definition classes under `src/Core/Relations/`:
+  - `HasOne`
+  - `HasMany`
+- Keep them aligned with `RelationDefinitionContract` and current `Resource::relations()` usage.
+- Add stable relation type values:
+  - `has_one`
+  - `has_many`
+- Add explicit payload keys:
+  - `type`
+  - `key`
+  - `label`
+  - `relationship`
+  - `related_model`
+  - `related_resource`
+  - `local_key`
+  - `foreign_key`
+  - `record_key_name`
+  - `title_attribute`
+  - `search_columns`
+  - `records_url`
+  - `options_url`
+  - `actions`
+  - `records`
+  - `selected_record`
+  - `selected_records`
+  - `pagination`
+  - `empty_state`
+  - `read_only`
+- Preserve existing array-based relation definitions as compatibility input where practical.
 
-### FileUpload
+### Laravel Resolution And Data Sources
 
-Goal: secure file input support that works in reusable package contexts while leaving storage policy and business meaning to the host app.
+- Resolve Eloquent-specific `HasOne` and `HasMany` metadata behind `Integration/Laravel` services rather than widening the current `Contracts\Resources\Resource` beta exception.
+- Infer metadata from real Eloquent relations where possible:
+  - relationship method exists on the current model
+  - relation instance is `Illuminate\Database\Eloquent\Relations\HasOne` or `HasMany`
+  - local key comes from the relation
+  - foreign key comes from the relation
+  - related model comes from the relation query/model
+  - related resource is inferred from the registered resource model map
+- Add a relation records data source for nested related-record loading.
+- Add an attach options data source for selectable existing records when `attachable()` is enabled.
+- Use related resource queries when available so query extensions and future tenant scopes apply consistently.
+- Support selected-record hydration for `HasOne` and paginated related-record hydration for `HasMany`.
+- Reject invalid relation keys, unsupported relation classes, ambiguous resource inference, inaccessible resources, and disallowed mutation modes with 404/403 as appropriate.
 
-Where:
-- `src/Core/Forms/Fields/FileUpload.php`
-- `src/Contracts/Forms/FieldRenderer.php`
-- `src/Core/Forms/Normalization/FormSchemaNormalizer.php`
-- `src/Integration/Laravel/Http/Controllers/ResourceFormController.php`
-- `src/Integration/Laravel/Persistence/ResourceFormPersister.php`
-- `src/Integration/Laravel/DataSources/ResourceFormDataSource.php`
-- `resources/js/components/flashboard/forms/fields/FBFileUpload.vue`
-- `resources/js/components/flashboard/FlashboardScreenContent.vue`
-- `tests/Feature/ResourceFormRulesTest.php`
-- `tests/Feature/ResourceFormDataSourceTest.php`
+### Routes And Mutation Actions
 
-How:
-- Use Nuxt UI `UFileUpload` through `FBFileUpload.vue`; support `accept`, `multiple`, `maxSize`, `maxFiles`, `preview`, and `disk`/`directory` metadata as explicit payload keys.
-- Ensure Inertia submission switches to multipart when any file field has a `File` or `File[]` value; preserve current non-file form behavior for all other forms.
-- Keep file persistence host-safe:
-  - default to passing `UploadedFile` instances through validation and mutation hooks
-  - provide opt-in package storage only when a field declares disk/directory behavior
-  - persist file paths or structured metadata, not raw file objects
-  - support replace, keep existing, and remove semantics on edit screens
-- Infer validation rules from field configuration:
-  - `file` or `array` + per-file rules for multiple uploads
-  - `mimes` / `mimetypes` / `max` from fluent field options
-  - explicit resource `rules()` remain able to override or extend inferred rules
-- Do not log filenames, paths, temporary file names, file contents, or user-submitted metadata.
+- Add protected nested relation routes under the current resource route group.
+- Read routes:
+  - load one `HasOne` record
+  - load paginated `HasMany` records
+  - load attachable options with search and selected hydration
+- Mutation routes:
+  - create related record in nested context
+  - attach existing related record
+  - detach related record when nullable and enabled
+  - replace existing `HasOne` record when enabled
+  - detach selected `HasMany` records when enabled
+  - replace/sync selected `HasMany` records only when explicitly enabled
+- Wrap write operations in transactions and return deterministic payload fragments or redirects compatible with the existing Inertia flow.
+- Keep destructive or moving operations behind explicit confirmations in the UI.
 
-### RichText
+### Frontend Rendering
 
-Goal: rich text authoring that is powerful enough for admin content fields but explicit about format, sanitization, and persistence.
+- Add package-owned relation manager wrappers:
+  - `resources/js/components/flashboard/relations/FBHasOneRelationManager.vue`
+  - `resources/js/components/flashboard/relations/FBHasManyRelationManager.vue`
+- Keep relation manager rendering separate from normal form-field rendering unless a shared container can be reused without blurring persistence semantics.
+- Use Nuxt UI primitives for buttons, menus, tables/lists, popovers, modals, empty states, and loading states.
+- `HasOne` required states:
+  - empty relation
+  - selected/existing record summary
+  - loading
+  - failed load
+  - create related record
+  - attach existing record
+  - open/edit related record
+  - detach/replace disabled or confirmed
+- `HasMany` required states:
+  - empty collection
+  - paginated related records
+  - search loading
+  - failed load
+  - create related record
+  - attach existing records
+  - detach selected records
+  - explicit replace/sync flow when enabled
+- Preserve compact, work-focused admin layout; relation managers should feel like operational controls, not marketing cards.
 
-Where:
-- `src/Core/Forms/Fields/RichText.php`
-- `src/Contracts/Forms/FieldRenderer.php`
-- `src/Core/Forms/Normalization/FormSchemaNormalizer.php`
-- `src/Integration/Laravel/DataSources/ResourceFormDataSource.php`
-- `resources/js/components/flashboard/forms/fields/FBRichText.vue`
-- `resources/js/components/flashboard/forms/renderers/resolveFormFieldRenderer.ts`
-- `tests/Feature/FormRendererPayloadTest.php`
-- `tests/Feature/ResourceFormRulesTest.php`
+### Persistence And Safety
 
-How:
-- Use Nuxt UI `UEditor` through `FBRichText.vue`; expose a small stable field API instead of forwarding arbitrary TipTap internals.
-- Support explicit content formats:
-  - `html` for current Laravel-friendly string persistence
-  - `markdown` when a host app wants markdown storage
-  - `json` only when the resource intentionally persists structured editor JSON
-- Default to `html` or `markdown` for simpler CRUD storage; require an explicit opt-in for JSON payloads.
-- Infer `nullable|string` / `required|string` for string formats and a dedicated array/json validation path for JSON format.
-- Document that display-time sanitization remains the host application's responsibility unless Flashboard later introduces a sanitizer contract.
-- Keep editor toolbar behavior conservative: headings, bold, italic, links, lists, and blockquote first; images/uploads require a separate media integration milestone.
+- `HasOne` attach should set the related record's FK to the current record key.
+- `HasOne` replace should detach the previous related record only when detach is allowed, then attach the new record in one transaction.
+- `HasOne` detach should be disabled when the related FK is non-nullable or policy access is missing.
+- `HasMany` attach should set selected related records' FK to the current record key.
+- `HasMany` detach should only clear FK values when nullable and enabled.
+- `HasMany` replace/sync should be disabled by default because it can move records away from another parent or detach records unexpectedly.
+- Never delete related records by default; deletion belongs to explicit related resource actions.
+- Prefer related resource form and action hooks for custom business rules instead of embedding host-specific workflow logic in relation managers.
+
+### Authorization, Scope And Failure Policy
+
+- Check current resource access before loading or mutating a relation.
+- Check related resource view/create/update permissions before exposing corresponding actions.
+- Check per-record permissions for open, edit, detach, attach, and replace.
+- Apply related resource query extensions to relation records and attach options.
+- Prevent attach options from offering records the user cannot view or attach.
+- Fail closed when metadata cannot be resolved or the relationship is not a supported Eloquent relation.
+- Avoid leaking record existence through different error messages where authorization denies access.
 
 ### Minimal Logging Policy
 
-- Use Laravel's host-configured logging only for exceptional server-side conditions that need operator visibility, such as rejected upload storage, malformed rich-text JSON, or database constraint failures.
-- Do not add client-side logging for normal field input, validation errors, focus/blur, editor transactions, or upload progress.
-- Never log password values, rich-text body content, uploaded file contents, filenames, temporary paths, or full request payloads.
-- When logging is necessary, include only coarse operational context: resource class, field key, renderer, failure category, sanitized rule name, and exception class.
-- Keep existing successful save/delete flows quiet; user-facing feedback should remain toast/session based rather than log based.
+- Keep normal relation loading, empty states, validation failures, and denied UI actions silent.
+- Use Laravel's host-configured logger only for exceptional server-side conditions:
+  - malformed relation manager route key
+  - resolver failure caused by an invalid relationship declaration
+  - mutation rejected because the configured mode is unsafe or unsupported
+  - unexpected exception during relation loading or mutation
+- Log only sanitized operational context:
+  - resource class
+  - relation key
+  - relationship name
+  - relation type
+  - related resource class when known
+  - action name
+  - failure category
+  - exception class
+- Never log search terms, selected labels, record titles, model attributes, full request payloads, or user-submitted form values.
 
-### Documentation And Compatibility
+### Documentation And MCP Surface
 
-- Update `docs/forms.md` and `docs/resources.md` with field examples and payload expectations.
-- Update `docs/upgrading.md` only if renderer enum additions or payload keys affect beta consumers.
-- Review `flashboard-docs/server/mcp/` and `flashboard-docs/server/routes/raw/` whenever docs headings, examples, or field lists change.
-- Update `src/Integration/Laravel/Console/MakeResourceCommand.php` so generated resources can choose `PasswordInput`, `DateInput`, and text-oriented fields without importing `FieldRenderer` directly.
-- Keep legacy array definitions working via `type` and `renderer` fallback, but prefer typed fields in all new documentation.
+- Update `docs/resources.md` with relation manager authoring examples.
+- Update `docs/forms.md` to reinforce that `BelongsTo` is a scalar form field while `HasOne` and `HasMany` are inverse relation managers.
+- Update `docs/contracts.md` with relation payload stability notes.
+- Update `docs/upgrading.md` if existing `relations()` arrays receive a typed-node migration path.
+- Mirror public docs changes in `flashboard-docs/content/`.
+- Review `flashboard-docs/server/mcp/` and `flashboard-docs/server/routes/raw/` for drift when headings, examples, or searchable snippets change.
 
 ### QA Gates
 
 - PHP tests:
-  - typed field `toArray()` payloads
-  - renderer normalization and unknown renderer errors
-  - inferred validation rules
-  - default create/edit state
-  - password non-hydration
-  - file multiple/single rule inference
+  - `HasOne::make()` and `HasMany::make()` accept key, label, and relationship
+  - relationship inference from relation keys
+  - explicit `relationship()` and `resource()` overrides
+  - Eloquent `HasOne` and `HasMany` metadata resolution
+  - ambiguous related-resource inference requires explicit `resource()`
+  - payloads include deterministic records/options/action URLs
+  - attach, detach, replace, and sync modes fail closed unless enabled
+  - authorization blocks inaccessible relation reads and writes
 - Frontend checks:
-  - `npm run check:types`
-  - `npm run build`
-  - browser smoke coverage for create and edit screens with date, file, rich text, and password fields
+  - relation manager payload types cover `has_one` and `has_many`
+  - renderer selection resolves relation managers without touching normal field renderers
+  - empty, loading, failed, existing, attach, detach, and pagination states render correctly
+  - destructive actions require explicit confirmation
 - Package checks:
-  - `composer test`
-  - `composer analyse`
-  - host-app validation for multipart Inertia submission and Laravel `UploadedFile` validation
+  - focused PHPUnit feature tests for relation payloads, data sources, routing, and mutations
+  - PHPStan
+  - frontend typecheck/build
+  - existing `BelongsTo` tests remain unchanged
+  - host-app browser smoke test for a resource with `BelongsTo` on one side and `HasOne`/`HasMany` managers on the inverse side remains pending until a runnable validation host is available
 - Contract checks:
-  - normalized payload keys remain deterministic
-  - existing `TextInput`, `Textarea`, `NumberInput`, `Select`, `Checkbox`, and `Toggle` fixtures remain unchanged
-  - docs MCP/raw markdown output stays aligned when public docs change
+  - existing form field payloads stay unchanged
+  - existing detail relation payloads remain backward compatible or receive documented beta upgrade notes
+  - docs MCP/raw markdown output stays aligned after documentation updates
 
 ## Completed
 
 | Milestone | Date |
 |-----------|------|
-| 01. Product Concept & Positioning | 2026-03-20 |
-| 02. Project Context & Architecture Baseline | 2026-03-20 |
-| 03. Package Foundation & Boot Process | 2026-03-20 |
-| 04. Public Contracts & Builder API | 2026-03-20 |
-| 05. Resource Registry & Runtime Kernel | 2026-03-20 |
-| 06. Routing, Auth Integration & Panel Access | 2026-03-20 |
-| 07. Layout Shell, Navigation & Panel Chrome | 2026-03-20 |
-| 08. Table Engine & List Resource Screens | 2026-03-20 |
-| 09. Form Engine & Create/Edit Workflows | 2026-03-20 |
-| 10. Detail Views, Infolists & Action Framework | 2026-03-20 |
-| 11. Relations, Nested Contexts & Resource Composition | 2026-03-20 |
-| 12. Custom Pages & Operator Workspaces | 2026-03-20 |
-| 13. Backend-Driven UI Contract & Rendering Layer | 2026-03-20 |
-| 14. Authorization Model & Visibility Rules | 2026-03-20 |
-| 15. Theming, UX Consistency & Interaction Patterns | 2026-03-20 |
-| 16. Extension Surface & Escape Hatches | 2026-03-20 |
-| 17. Developer Tooling & Local DX | 2026-03-20 |
-| 18. Test Strategy & Quality Gates | 2026-03-20 |
-| 19. Documentation, Examples & Adoption Guides | 2026-03-20 |
-| 20. MVP Validation In Real Host App | 2026-03-20 |
-| 21. Beta Readiness & Compatibility Hardening | 2026-03-20 |
-| 22. Public Beta Release | 2026-03-20 |
-| 23. Advanced Form Field Contract Expansion | 2026-05-28 |
-| 24. DateInput & PasswordInput Runtime | 2026-05-28 |
-| 25. FileUpload Runtime & Persistence Boundary | 2026-05-28 |
-| 26. RichText Runtime & Content Safety | 2026-05-28 |
-| 27. Advanced Form Field Documentation & Examples | 2026-05-28 |
-| 28. Advanced Form Field QA & Compatibility Hardening | 2026-05-28 |
+| 01. BelongsTo Relation Field Baseline | 2026-05-28 |
+| 02. Inverse Relation Product Boundary | 2026-05-29 |
+| 03. Public Relation Definition API | 2026-05-29 |
+| 04. Laravel Relation Metadata Resolution | 2026-05-29 |
+| 05. Relation Manager Payload Contract | 2026-05-29 |
+| 06. Nested Relation Data Sources And Routes | 2026-05-29 |
+| 07. HasOne Manager UX | 2026-05-29 |
+| 08. HasMany Manager UX | 2026-05-29 |
+| 09. Persistence And Safety Semantics | 2026-05-29 |
+| 10. Authorization, Tenant Scope And Failure Policy | 2026-05-29 |
+| 11. Documentation, Examples And MCP Surface | 2026-05-29 |
+| 12. QA And Compatibility Gates | 2026-05-29 |

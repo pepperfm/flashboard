@@ -8,10 +8,12 @@ use Illuminate\Contracts\Auth\Access\Gate;
 use Illuminate\Contracts\Auth\Factory;
 use Illuminate\Contracts\Auth\Guard;
 use Illuminate\Contracts\Auth\StatefulGuard;
+use Illuminate\Database\Capsule\Manager as Capsule;
 use Pepperfm\Flashboard\Contracts\Forms\FormContract;
 use Pepperfm\Flashboard\Contracts\Resources\Resource;
 use Pepperfm\Flashboard\Core\Authorization\Visibility\ScreenAccessResolver;
 use Pepperfm\Flashboard\Core\Extensions\ExtensionRegistry;
+use Pepperfm\Flashboard\Core\Forms\Fields\BelongsTo;
 use Pepperfm\Flashboard\Core\Forms\Fields\Checkbox;
 use Pepperfm\Flashboard\Core\Forms\Fields\DateInput;
 use Pepperfm\Flashboard\Core\Forms\Fields\FileUpload;
@@ -22,11 +24,16 @@ use Pepperfm\Flashboard\Core\Forms\Fields\Toggle;
 use Pepperfm\Flashboard\Core\Forms\Layout\Section;
 use Pepperfm\Flashboard\Core\Forms\Layout\Tab;
 use Pepperfm\Flashboard\Core\Forms\Layout\Tabs;
+use Pepperfm\Flashboard\Core\Registry\ResourceRegistry;
 use Pepperfm\Flashboard\Core\Resources\ResourceSurfaceResolver;
 use Pepperfm\Flashboard\Core\Runtime\Assemblers\FormPayloadAssembler;
 use Pepperfm\Flashboard\Integration\Laravel\Auth\PanelAuthenticator;
 use Pepperfm\Flashboard\Integration\Laravel\Auth\PolicyBridge;
 use Pepperfm\Flashboard\Integration\Laravel\DataSources\ResourceFormDataSource;
+use Pepperfm\Flashboard\Tests\Fixtures\Models\BelongsToCategory;
+use Pepperfm\Flashboard\Tests\Fixtures\Models\BelongsToProduct;
+use Pepperfm\Flashboard\Tests\Fixtures\Resources\BelongsToCategoryResource;
+use Pepperfm\Flashboard\Tests\Fixtures\Resources\BelongsToProductResource;
 use Pepperfm\Flashboard\Tests\TestCase;
 
 final class ResourceFormDataSourceTest extends TestCase
@@ -170,6 +177,77 @@ final class ResourceFormDataSourceTest extends TestCase
         );
     }
 
+    public function test_belongs_to_fields_are_enriched_with_relation_metadata_and_selected_option(): void
+    {
+        $this->fakeUrlGenerator();
+        $this->fakeGateForFieldVisibility();
+        $this->createBelongsToTables();
+
+        $category = BelongsToCategory::query()->create([
+            'name' => 'Hardware',
+            'slug' => 'hardware',
+        ]);
+        $record = BelongsToProduct::query()->create([
+            'name' => 'Keyboard',
+            'category_id' => $category->getKey(),
+        ]);
+        $payload = $this->makeDataSource($this->belongsToRegistry())
+            ->resolve(BelongsToProductResource::class, $record);
+        $fields = array_column($payload['fields'], null, 'key');
+        $field = $fields['category_id'];
+
+        self::assertSame($category->getKey(), $payload['state']['category_id']);
+        self::assertSame('belongs_to', $field['type']);
+        self::assertSame('relation_select', $field['renderer']);
+        self::assertSame('category', $field['relationship']);
+        self::assertSame(BelongsToCategory::class, $field['related_model']);
+        self::assertSame(BelongsToCategoryResource::class, $field['related_resource']);
+        self::assertSame('belongs_to_categories', $field['related_table']);
+        self::assertSame('/flashboard.resources.belongs_to_product.relations.options', $field['options_url']);
+        self::assertSame(['detail' => true], $field['related_routes']);
+        self::assertSame([
+            'label' => 'Hardware',
+            'value' => $category->getKey(),
+            'url' => '/flashboard.resources.belongs_to_category.detail',
+        ], $field['selected_option']);
+    }
+
+    public function test_belongs_to_metadata_is_enriched_recursively_in_sections_and_tabs(): void
+    {
+        $this->fakeUrlGenerator();
+        $this->fakeGateForFieldVisibility();
+
+        $payload = $this->makeDataSource($this->belongsToRegistry())
+            ->resolve($this->nestedBelongsToResourceClass());
+
+        self::assertSame('relation_select', $payload['schema'][0]['schema'][0]['renderer']);
+        self::assertSame('belongs_to_categories', $payload['schema'][0]['schema'][0]['related_table']);
+        self::assertSame('relation_select', $payload['schema'][1]['tabs'][0]['schema'][0]['renderer']);
+        self::assertSame('belongs_to_categories', $payload['schema'][1]['tabs'][0]['schema'][0]['related_table']);
+    }
+
+    public function test_belongs_to_related_routes_and_selected_option_are_hidden_when_related_resource_is_inaccessible(): void
+    {
+        $this->fakeUrlGenerator();
+        $this->fakeGateForFieldVisibility();
+        $this->createBelongsToTables();
+
+        $category = BelongsToCategory::query()->create([
+            'name' => 'Hidden',
+            'slug' => 'hidden',
+        ]);
+        $record = BelongsToProduct::query()->create([
+            'name' => 'Desk',
+            'category_id' => $category->getKey(),
+        ]);
+        $payload = $this->makeDataSource($this->belongsToRegistry())
+            ->resolve($this->inaccessibleRelatedResourceClass(), $record);
+        $fields = array_column($payload['fields'], null, 'key');
+
+        self::assertArrayNotHasKey('related_routes', $fields['category_id']);
+        self::assertNull($fields['category_id']['selected_option']);
+    }
+
     private function fakeUrlGenerator(): void
     {
         $this->app->instance('url', new class()
@@ -279,7 +357,7 @@ final class ResourceFormDataSourceTest extends TestCase
         });
     }
 
-    private function makeDataSource(): ResourceFormDataSource
+    private function makeDataSource(?ResourceRegistry $resourceRegistry = null): ResourceFormDataSource
     {
         return new ResourceFormDataSource(
             new FormPayloadAssembler(),
@@ -366,7 +444,39 @@ final class ResourceFormDataSourceTest extends TestCase
             }),
             new ExtensionRegistry(),
             new ResourceSurfaceResolver(new ScreenAccessResolver(new PolicyBridge())),
+            $resourceRegistry ?? new ResourceRegistry(),
         );
+    }
+
+    private function createBelongsToTables(): void
+    {
+        $database = new Capsule();
+        $database->addConnection([
+            'driver' => 'sqlite',
+            'database' => ':memory:',
+            'prefix' => '',
+        ]);
+        $database->setAsGlobal();
+        $database->bootEloquent();
+        $database->schema()->create('belongs_to_categories', static function (\Illuminate\Database\Schema\Blueprint $table): void {
+            $table->increments('id');
+            $table->string('name');
+            $table->string('slug')->nullable();
+        });
+        $database->schema()->create('belongs_to_products', static function (\Illuminate\Database\Schema\Blueprint $table): void {
+            $table->increments('id');
+            $table->string('name');
+            $table->unsignedInteger('category_id')->nullable();
+        });
+    }
+
+    private function belongsToRegistry(): ResourceRegistry
+    {
+        $registry = new ResourceRegistry();
+        $registry->register(BelongsToCategoryResource::class);
+        $registry->register(BelongsToProductResource::class);
+
+        return $registry;
     }
 
     /**
@@ -487,9 +597,81 @@ final class ResourceFormDataSourceTest extends TestCase
             }
         });
     }
+
+    /**
+     * @return class-string<Resource>
+     */
+    private function nestedBelongsToResourceClass(): string
+    {
+        return get_class(new class() extends Resource
+        {
+            public static function model(): string
+            {
+                return BelongsToProduct::class;
+            }
+
+            public static function form(FormContract $form): FormContract
+            {
+                return $form->schema([
+                    Section::make('relationships')->label('Relationships')->schema([
+                        BelongsTo::make('category_id', 'Category')->resource(BelongsToCategoryResource::class),
+                    ]),
+                    Tabs::make('more')->tabs([
+                        Tab::make('secondary')->label('Secondary')->schema([
+                            BelongsTo::make('backup_category_id', 'Backup category', 'category')
+                                ->resource(BelongsToCategoryResource::class),
+                        ]),
+                    ]),
+                ]);
+            }
+        });
+    }
+
+    /**
+     * @return class-string<Resource>
+     */
+    private function inaccessibleRelatedResourceClass(): string
+    {
+        return get_class(new class() extends Resource
+        {
+            public static function model(): string
+            {
+                return BelongsToProduct::class;
+            }
+
+            public static function form(FormContract $form): FormContract
+            {
+                return $form->schema([
+                    BelongsTo::make('category_id', 'Category')
+                        ->resource(InaccessibleBelongsToCategoryResource::class)
+                        ->titleAttribute('name'),
+                ]);
+            }
+        });
+    }
 }
 
 final class ResourceFormDataSourceGeneratedKeyModel extends \Illuminate\Database\Eloquent\Model
 {
     protected $guarded = [];
+}
+
+final class InaccessibleBelongsToCategoryResource extends Resource
+{
+    public static function model(): string
+    {
+        return BelongsToCategory::class;
+    }
+
+    public static function canAccess(?\Illuminate\Contracts\Auth\Authenticatable $user = null): bool
+    {
+        return false;
+    }
+
+    public static function detail(\Pepperfm\Flashboard\Contracts\Detail\DetailContract $detail): \Pepperfm\Flashboard\Contracts\Detail\DetailContract
+    {
+        return $detail->entries([
+            \Pepperfm\Flashboard\Core\Detail\Entries\TextEntry::make('name', 'Name'),
+        ]);
+    }
 }

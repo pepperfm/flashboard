@@ -590,6 +590,7 @@ final class FormSchemaNormalizer
         }
 
         return match ((string) Arr::get($field, Field::ATTRIBUTE_TYPE, '')) {
+            Field::TYPE_BELONGS_TO => FieldRenderer::RelationSelect,
             Field::TYPE_CHECKBOX => FieldRenderer::Checkbox,
             Field::TYPE_DATE => FieldRenderer::Date,
             Field::TYPE_FILE => FieldRenderer::FileUpload,

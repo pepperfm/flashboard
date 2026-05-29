@@ -1,11 +1,15 @@
 <script setup lang="ts">
 import { router, useForm } from '@inertiajs/vue3'
 import { useToast } from '@nuxt/ui/composables'
+import FBHasManyRelationManager from '@/components/flashboard/relations/FBHasManyRelationManager.vue'
+import FBHasOneRelationManager from '@/components/flashboard/relations/FBHasOneRelationManager.vue'
 import SimpleFormShell from '@/components/flashboard/forms/layout/SimpleFormShell.vue'
 import DatePickerFilter from '@/components/flashboard/table/DatePickerFilter.vue'
 import LazySelectFilter from '@/components/flashboard/table/LazySelectFilter.vue'
 import type { FormContainerLayoutShape } from '@/components/flashboard/forms/layout/resolveFormLayout'
 import type { FormFieldShape, FormNodeShape } from '@/components/flashboard/forms/renderers/resolveFormFieldRenderer'
+import type { RelationPayloadShape } from '@/components/flashboard/relations/types'
+import { isRelationManagerPayload } from '@/components/flashboard/relations/types'
 import { computed, h, onBeforeUnmount, reactive, ref, resolveComponent, watch } from 'vue'
 
 type ActionShape = {
@@ -135,12 +139,13 @@ type PayloadShape = {
   detail?: {
     entries?: DetailEntryShape[]
     sections?: DetailGroupShape[]
-    relations?: Array<{ key?: string; label?: string; records?: Array<{ key: string | number; title: string }> }>
+    relations?: RelationPayloadShape[]
     routes?: {
       edit?: string | null
       index?: string | null
     }
   } | null
+  relations?: RelationPayloadShape[]
 }
 
 type TableSortDirection = 'asc' | 'desc'
@@ -177,6 +182,16 @@ const detailKeysInSections = computed(() => new Set(
 ))
 const standaloneDetailEntries = computed(() =>
   detailEntries.value.filter((entry) => !detailKeysInSections.value.has(entry.key)),
+)
+const detailRelations = computed(() => props.payload.detail?.relations ?? [])
+const legacyDetailRelations = computed(() =>
+  detailRelations.value.filter((relation) => !isRelationManagerPayload(relation)),
+)
+const detailRelationManagers = computed(() =>
+  detailRelations.value.filter(isRelationManagerPayload),
+)
+const screenRelationManagers = computed(() =>
+  (props.payload.relations ?? []).filter(isRelationManagerPayload),
 )
 const visibleDetailSections = computed(() =>
   (props.payload.detail?.sections ?? [])
@@ -1337,7 +1352,10 @@ function formatValue(value: unknown): string {
     </UCard>
   </template>
 
-  <template v-else-if="payload.resource?.page === 'create' || payload.resource?.page === 'edit'">
+  <div
+    v-else-if="payload.resource?.page === 'create' || payload.resource?.page === 'edit'"
+    class="resource-form-screen"
+  >
     <SimpleFormShell
       :cancel-url="payload.form?.cancel?.url"
       :errors="form.errors as Record<string, string>"
@@ -1351,9 +1369,30 @@ function formatValue(value: unknown): string {
       @update:field="updateFieldValue"
       @visit="visit"
     />
-  </template>
+    <div
+      v-if="screenRelationManagers.length"
+      class="relation-manager-stack"
+    >
+      <template
+        v-for="relation in screenRelationManagers"
+        :key="relation.key"
+      >
+        <FBHasOneRelationManager
+          v-if="relation.type === 'has_one'"
+          :relation="relation"
+        />
+        <FBHasManyRelationManager
+          v-else-if="relation.type === 'has_many'"
+          :relation="relation"
+        />
+      </template>
+    </div>
+  </div>
 
-  <template v-else-if="payload.resource?.page === 'detail'">
+  <div
+    v-else-if="payload.resource?.page === 'detail'"
+    class="resource-detail-screen"
+  >
     <UCard variant="outline">
       <template #header>
         <div class="section-header">
@@ -1418,9 +1457,9 @@ function formatValue(value: unknown): string {
         </div>
       </div>
 
-      <div v-if="payload.detail?.relations?.length" class="relations-stack">
+      <div v-if="legacyDetailRelations.length" class="relations-stack">
         <UCard
-          v-for="relation in payload.detail.relations"
+          v-for="relation in legacyDetailRelations"
           :key="relation.key"
           variant="soft"
         >
@@ -1470,7 +1509,25 @@ function formatValue(value: unknown): string {
         </div>
       </template>
     </UCard>
-  </template>
+    <div
+      v-if="detailRelationManagers.length"
+      class="relation-manager-stack"
+    >
+      <template
+        v-for="relation in detailRelationManagers"
+        :key="relation.key"
+      >
+        <FBHasOneRelationManager
+          v-if="relation.type === 'has_one'"
+          :relation="relation"
+        />
+        <FBHasManyRelationManager
+          v-else-if="relation.type === 'has_many'"
+          :relation="relation"
+        />
+      </template>
+    </div>
+  </div>
 </template>
 
 <style scoped>
@@ -1494,6 +1551,17 @@ function formatValue(value: unknown): string {
 .form-card {
   width: 100%;
   padding: 1.5rem;
+}
+
+.resource-form-screen,
+.resource-detail-screen,
+.relation-manager-stack {
+  display: grid;
+  gap: 1rem;
+}
+
+.relation-manager-stack {
+  margin-top: 1rem;
 }
 
 .row-actions {

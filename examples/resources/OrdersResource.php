@@ -18,7 +18,7 @@ use Pepperfm\Flashboard\Core\Forms\Fields\Select;
 use Pepperfm\Flashboard\Core\Forms\Layout\Section;
 use Pepperfm\Flashboard\Core\Forms\Layout\Tab;
 use Pepperfm\Flashboard\Core\Forms\Layout\Tabs;
-use Pepperfm\Flashboard\Core\Relations\RelationDefinition;
+use Pepperfm\Flashboard\Core\Relations\HasMany;
 use Pepperfm\Flashboard\Core\Tables\Actions\DeleteAction;
 use Pepperfm\Flashboard\Core\Tables\Actions\EditAction;
 use Pepperfm\Flashboard\Core\Tables\Actions\TableAction;
@@ -95,8 +95,7 @@ final class OrdersResource extends Resource
     public static function relations(): array
     {
         return [
-            RelationDefinition::make('items')
-                ->label('Items')
+            HasMany::make('items', 'Items')
                 ->titleAttribute('name'),
         ];
     }

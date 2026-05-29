@@ -11,6 +11,7 @@ use Pepperfm\Flashboard\Contracts\Forms\FormLayoutJustify;
 use Pepperfm\Flashboard\Contracts\Forms\FormLayoutMode;
 use Pepperfm\Flashboard\Contracts\Forms\FormSchemaNodeKind;
 use Pepperfm\Flashboard\Core\Forms\Builders\Form;
+use Pepperfm\Flashboard\Core\Forms\Fields\BelongsTo;
 use Pepperfm\Flashboard\Core\Forms\Fields\Checkbox;
 use Pepperfm\Flashboard\Core\Forms\Fields\DateInput;
 use Pepperfm\Flashboard\Core\Forms\Fields\FileUpload;
@@ -25,6 +26,7 @@ use Pepperfm\Flashboard\Core\Forms\Layout\Section;
 use Pepperfm\Flashboard\Core\Forms\Layout\Tab;
 use Pepperfm\Flashboard\Core\Forms\Layout\Tabs;
 use Pepperfm\Flashboard\Core\Runtime\Payloads\FormPayload;
+use Pepperfm\Flashboard\Tests\Fixtures\Resources\BelongsToCategoryResource;
 use Pepperfm\Flashboard\Tests\TestCase;
 
 final class FormRendererPayloadTest extends TestCase
@@ -147,6 +149,42 @@ final class FormRendererPayloadTest extends TestCase
         self::assertSame(12, $fields['password']['min_length']);
         self::assertSame(72, $fields['password']['max_length']);
         self::assertTrue($fields['password']['confirmed']);
+    }
+
+    public function test_belongs_to_field_exposes_relation_select_payload_contract(): void
+    {
+        $payload = new FormPayload(
+            Form::make()
+                ->schema([
+                    BelongsTo::make('category_id', 'Category', 'category')
+                        ->resource(BelongsToCategoryResource::class)
+                        ->model(\Illuminate\Database\Eloquent\Model::class)
+                        ->foreignKey('category_id')
+                        ->ownerKey('id')
+                        ->recordKeyName('id')
+                        ->titleAttribute('name')
+                        ->searchable(['name', 'slug'])
+                        ->optionsPerPage(25)
+                        ->required(),
+                    BelongsTo::make('author_uuid', 'Author'),
+                ])
+                ->toArray(),
+        );
+
+        $fields = array_column($payload->fields(), null, 'key');
+
+        self::assertSame(FieldRenderer::RelationSelect->value, $fields['category_id']['renderer']);
+        self::assertSame('belongs_to', $fields['category_id']['type']);
+        self::assertSame('category', $fields['category_id']['relationship']);
+        self::assertSame(\Illuminate\Database\Eloquent\Model::class, $fields['category_id']['related_model']);
+        self::assertSame(BelongsToCategoryResource::class, $fields['category_id']['related_resource']);
+        self::assertSame('category_id', $fields['category_id']['foreign_key']);
+        self::assertSame('id', $fields['category_id']['owner_key']);
+        self::assertSame('id', $fields['category_id']['record_key_name']);
+        self::assertSame('name', $fields['category_id']['title_attribute']);
+        self::assertSame(['name', 'slug'], $fields['category_id']['search_columns']);
+        self::assertSame(25, $fields['category_id']['options_per_page']);
+        self::assertSame('author', $fields['author_uuid']['relationship']);
     }
 
     public function test_grouped_form_payload_keeps_renderer_hints_inside_sections_and_tabs(): void
