@@ -157,6 +157,15 @@ final class AiRelationshipGeneratorTest extends TestCase
         (new ResourceChangeManager($manager))->previewRelation('Orders', ['name' => 'customer', 'type' => 'belongs_to']);
     }
 
+    public function test_unsafe_model_method_is_not_invoked_as_an_eloquent_relation(): void
+    {
+        $spec = $this->spec();
+        $spec['relations'] = [['name' => 'save', 'type' => 'has_many']];
+
+        $this->expectException(\InvalidArgumentException::class);
+        $this->manager()->preview($spec);
+    }
+
     public function test_unknown_eloquent_relation_or_unregistered_related_resource_is_rejected(): void
     {
         $spec = $this->spec();

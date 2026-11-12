@@ -19,8 +19,8 @@ use Pepperfm\Flashboard\Ai\Mcp\Tools\PreviewResourceTool;
 use Pepperfm\Flashboard\Ai\Mcp\Tools\UpdateResourceTool;
 
 #[Name('Flashboard AI Harness')]
-#[Version('0.1.0')]
-#[Instructions('Trusted local MCP server for Flashboard. Inspect Eloquent models, preview source changes, and create or update only with exact preview hashes. Never overwrite a manually edited resource. This server does not expose database record mutations.')]
+#[Version('0.2.0')]
+#[Instructions('Trusted local MCP generator: inspect models/resources, preview changes before writes, and create or update with exact preview hashes. Supports existing typed Eloquent relationships, get_resource_spec and incremental add_field/add_relation (apply=false by default). Never change manual edits, create database relations, or mutate business records via MCP.')]
 final class FlashboardMcpServer extends Server
 {
     protected array $tools = [

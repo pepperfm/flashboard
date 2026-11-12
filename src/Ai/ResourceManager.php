@@ -68,7 +68,14 @@ final class ResourceManager
             fclose($handle);
         }
 
-        return ['path' => $path, 'resource' => 'App\\Flashboard\\Ai\\' . $class];
+        // The stdio server is long-lived; register fresh Resources immediately so
+        // subsequent MCP calls can reference them as related Resources.
+        $resourceClass = 'App\\Flashboard\\Ai\\' . $class;
+        if (class_exists($resourceClass)) {
+            app(ResourceRegistry::class)->register($resourceClass);
+        }
+
+        return ['path' => $path, 'resource' => $resourceClass];
     }
 
     /**
