@@ -159,6 +159,7 @@ Optional environment variables:
 - `FLASHBOARD_PATH`
 - `FLASHBOARD_GUARD`
 - `FLASHBOARD_REPORT_BOOT`
+- `FLASHBOARD_AI_MCP` — enable the local AI Harness MCP server (default: `false`). The `laravel/mcp` dependency is already required by Flashboard; see [AI Harness](ai-harness.md) for client setup and safe usage.
 
 ## Fallback Config File
 
