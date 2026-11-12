@@ -19,6 +19,9 @@ return [
         'password' => 'password',
         'remember_key' => 'remember',
     ],
+    'ai' => [
+        'mcp_enabled' => env('FLASHBOARD_AI_MCP', false),
+    ],
     'install' => [
         'publish_views' => true,
     ],
