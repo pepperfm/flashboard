@@ -58,5 +58,8 @@
             ]
         }
     },
-    "prefer-stable": true
+    "prefer-stable": true,
+    "suggest": {
+        "laravel/mcp": "^1.2.0: Install in the host Laravel app to activate optional local AI Harness MCP tools."
+    }
 }
