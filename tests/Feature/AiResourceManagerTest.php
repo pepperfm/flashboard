@@ -10,6 +10,8 @@ use Illuminate\Filesystem\Filesystem;
 use InvalidArgumentException;
 use Pepperfm\Flashboard\Ai\ModelCatalog;
 use Pepperfm\Flashboard\Ai\ResourceManager;
+use Pepperfm\Flashboard\Core\Registry\ResourceRegistry;
+use Pepperfm\Flashboard\Tests\Fixtures\Resources\LazyFilterOptionsResource;
 use Pepperfm\Flashboard\Tests\Fixtures\Models\LazyFilterOptionRecord;
 use Pepperfm\Flashboard\Tests\TestCase;
 use RuntimeException;
@@ -155,6 +157,19 @@ final class AiResourceManagerTest extends TestCase
 
         $this->expectException(InvalidArgumentException::class);
         $manager->preview($spec);
+    }
+
+    public function test_generator_refuses_duplicate_resource_route_keys(): void
+    {
+        $registry = new ResourceRegistry();
+        $registry->register(LazyFilterOptionsResource::class);
+        $this->app->instance(ResourceRegistry::class, $registry);
+
+        $spec = $this->spec();
+        $spec['resource'] = 'LazyFilterOptions';
+
+        $this->expectException(InvalidArgumentException::class);
+        $this->manager()->preview($spec);
     }
 
     public function test_generator_refuses_unmanaged_existing_files(): void

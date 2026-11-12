@@ -6,6 +6,7 @@ namespace Pepperfm\Flashboard\Ai;
 
 use Illuminate\Filesystem\Filesystem;
 use Illuminate\Support\Str;
+use Pepperfm\Flashboard\Core\Registry\ResourceRegistry;
 use InvalidArgumentException;
 use RuntimeException;
 
@@ -148,6 +149,13 @@ final class ResourceManager
         $class = Str::studly($resource);
         if (!str_ends_with($class, 'Resource')) {
             $class .= 'Resource';
+        }
+
+        // A second resource with the same route key would create ambiguous URLs.
+        $key = Str::snake(substr($class, 0, -strlen('Resource')));
+        $registered = app(ResourceRegistry::class)->forKey($key);
+        if ($registered !== null && $registered !== 'App\\Flashboard\\Ai\\' . $class) {
+            throw new InvalidArgumentException("Another Flashboard resource already uses key [$key].");
         }
 
         $model = $this->catalog->model($modelClass);
