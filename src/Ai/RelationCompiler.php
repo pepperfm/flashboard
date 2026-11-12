@@ -51,7 +51,7 @@ final class RelationCompiler
             $seen[$name] = true;
 
             if (!method_exists($model, $name)) {
-                throw new \InvalidArgumentException("Eloquent relation [$name] does not exist on [' . $model::class . '].");
+                throw new \InvalidArgumentException('Eloquent relation [' . $name . '] does not exist on [' . $model::class . '].');
             }
 
             $method = new \ReflectionMethod($model, $name);
@@ -59,7 +59,15 @@ final class RelationCompiler
                 throw new \InvalidArgumentException("Relation [$name] must be a public zero-argument instance method.");
             }
 
-            // Only invoke Eloquent relationship methods in a trusted local application.
+            // Avoid invoking arbitrary host methods such as save() when an agent guesses a relation.
+            $returnType = $method->getReturnType();
+            if (!$returnType instanceof \ReflectionNamedType
+                || $returnType->isBuiltin()
+                || !is_a($returnType->getName(), Relation::class, true)) {
+                throw new \InvalidArgumentException("Relation [$name] must declare an Eloquent Relation return type.");
+            }
+
+            // Only invoke explicitly typed Eloquent relationship methods in a trusted local app.
             $relation = $model->{$name}();
             $expected = match ($type) {
                 'belongs_to' => EloquentBelongsTo::class,
