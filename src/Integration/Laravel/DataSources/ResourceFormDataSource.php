@@ -180,7 +180,10 @@ final readonly class ResourceFormDataSource
         if ($context === null) {
             return null;
         }
-        if (!$this->screenAccessResolver->canViewRecord($context->parentResource, $user, $context->parentRecord)) {
+        if (
+            !$this->screenAccessResolver->canEditRecord($context->parentResource, $user, $context->parentRecord)
+            || !$this->screenAccessResolver->canViewRelation($context->parentResource, $context->relation, $user)
+        ) {
             throw new \Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException();
         }
 

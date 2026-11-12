@@ -95,6 +95,27 @@ final class ResourceRelationCreateContextTest extends TestCase
         );
     }
 
+    public function test_inaccessible_parent_rejects_nested_create_submission(): void
+    {
+        $order = RelationManagerOrder::query()->create(['name' => 'Order 1']);
+        $request = $this->storeRequest([
+            'name' => 'Unauthorized child',
+            'sku' => 'DENIED-1',
+            'parent_resource' => InaccessibleParentRelationManagerOrderResource::key(),
+            'parent_record' => $order->getKey(),
+            'relation' => 'items',
+        ]);
+
+        try {
+            $this->controller($this->inaccessibleParentRegistry())->store($request);
+            self::fail('Expected nested create to reject an inaccessible parent.');
+        } catch (\Symfony\Component\HttpKernel\Exception\HttpException $exception) {
+            self::assertSame(403, $exception->getStatusCode());
+        }
+
+        self::assertSame(0, RelationManagerOrderItem::query()->count());
+    }
+
     public function test_missing_parent_record_fails_closed(): void
     {
         $request = \Illuminate\Http\Request::create('/admin/resources/relation-manager-order-item/create', 'GET', [
@@ -166,7 +187,7 @@ final class ResourceRelationCreateContextTest extends TestCase
         );
     }
 
-    private function controller(): ResourceFormController
+    private function controller(?ResourceRegistry $registry = null): ResourceFormController
     {
         $screenAccessResolver = new ScreenAccessResolver(new PolicyBridge());
 
@@ -175,7 +196,7 @@ final class ResourceRelationCreateContextTest extends TestCase
             $this->authenticator(),
             $screenAccessResolver,
             new ResourceSurfaceResolver($screenAccessResolver),
-            $this->registry(),
+            $registry ?? $this->registry(),
         );
     }
 
