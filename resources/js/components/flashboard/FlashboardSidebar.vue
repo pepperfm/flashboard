@@ -1,5 +1,6 @@
 <script setup lang="ts">
 import type { DropdownMenuItem, NavigationMenuItem } from '@nuxt/ui'
+import { useAppConfig } from '@nuxt/ui/runtime/vue/composables/useAppConfig'
 import FlashboardThemePanel from '@/components/flashboard/FlashboardThemePanel.vue'
 import { NEUTRAL_OPTIONS, PRIMARY_OPTIONS, RADIUS_OPTIONS } from '@/components/flashboard/themeOptions'
 import { computed, ref, watch } from 'vue'
@@ -55,7 +56,7 @@ const navigationItems = computed<NavigationMenuItem[][]>(() => [
       event.preventDefault()
       emit('navigate', item.href)
     },
-    tooltip: item.label,
+    tooltip: { text: item.label },
     value: `navigation-${index}`,
   })),
 ])

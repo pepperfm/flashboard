@@ -173,7 +173,8 @@ const props = defineProps<{
 
 const TABLE_INPUT_FILTER_AUTOSUBMIT_DELAY_MS = 1000
 const OPERATION_TOAST_DURATION_MS = 2000
-const form = useForm<Record<string, unknown>>({})
+// The form schema is supplied by the backend at runtime; field values are heterogeneous.
+const form = useForm<Record<string, any>>({})
 const toast = useToast()
 const tableInputFilterTimers = new Map<string, ReturnType<typeof setTimeout>>()
 const tableInputFilterValues = reactive<Record<string, string>>({})
@@ -413,7 +414,7 @@ function normalizeRowActions(
 }
 
 function fallbackRowActions(links?: { detail?: string; edit?: string }): ActionShape[] {
-  return [
+  const actions: Array<ActionShape | null> = [
     links?.detail
       ? {
           icon: 'i-lucide-eye',
@@ -432,7 +433,9 @@ function fallbackRowActions(links?: { detail?: string; edit?: string }): ActionS
           url: links.edit,
         }
       : null,
-  ].filter((action): action is ActionShape => action !== null)
+  ]
+
+  return actions.filter((action): action is ActionShape => action !== null)
 }
 
 function renderTableValue(column: TableColumnShape, value: unknown) {

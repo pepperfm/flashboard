@@ -95,7 +95,7 @@ function submitSync() {
   runMutation(syncAction.value, { related: syncValues.value })
 }
 
-function runMutation(action: RelationActionShape, data: Record<string, unknown>) {
+function runMutation(action: RelationActionShape, data: Record<string, RelationScalarValue | RelationScalarValue[]>) {
   if (!action.url) {
     return
   }

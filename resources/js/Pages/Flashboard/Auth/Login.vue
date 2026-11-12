@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { Head, useForm } from '@inertiajs/vue3'
 import type { FormSubmitEvent } from '@nuxt/ui'
+import { useToast } from '@nuxt/ui/composables'
 import { computed, watch } from 'vue'
 
 const props = defineProps<{
