@@ -9,7 +9,6 @@
 /node_modules/
 
 # Build outputs
-/public/build/
 /resources/dist/
 
 # IDE/editor

@@ -266,7 +266,7 @@ Typed nodes are the preferred public API going forward. Arrays remain supported 
 - `formRules()`
 - `mutateFormDataBeforeSave()`
 - `afterSave()`
-- `policy()`
+- `policy()` — names a policy **registered on the resource model** via Laravel `Gate::policy()`; Flashboard rejects missing or mismatching registrations. `Resource::query()` must independently scope index rows for per-user/tenant visibility.
 
 ## Navigation Icons
 

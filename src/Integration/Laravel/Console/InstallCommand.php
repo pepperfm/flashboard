@@ -38,7 +38,6 @@ final class InstallCommand extends \Illuminate\Console\Command
     public function handle(Filesystem $files, AutoDiscoveryScanner $autoDiscoveryScanner): int
     {
         $panelPath = $this->requestedPanelPath();
-        $packageManager = $this->requestedPackageManager($files);
         $discoveryDirectory = app_path('Flashboard');
         $packageBuildPath = $this->packageBasePath() . '/public/build';
         $providerPath = $this->ensurePanelProvider($files, $panelPath);
@@ -53,12 +52,21 @@ final class InstallCommand extends \Illuminate\Console\Command
         }
 
         $this->call('vendor:publish', $publishOptions + ['--tag' => 'flashboard-views']);
-        $assetsReady = $this->runFrontendSetup($packageManager, $files);
+
+        // Tagged Composer archives ship a precompiled Vite manifest and assets.
+        // Only a source checkout without compiled assets needs a local JS toolchain.
+        $assetsReady = $files->exists($packageBuildPath . '/manifest.json');
+        if ($assetsReady) {
+            note('Using precompiled Flashboard assets.');
+        } else {
+            $assetsReady = $this->runFrontendSetup($this->requestedPackageManager($files), $files);
+        }
 
         if ($assetsReady && $files->isDirectory($packageBuildPath)) {
             $this->call('vendor:publish', $publishOptions + ['--tag' => 'flashboard-assets']);
         } else {
-            warning('Skipped publishing flashboard-assets because no package build artifacts were generated.');
+            warning('Flashboard assets are missing. Rebuild them and rerun the installer.');
+            return self::FAILURE;
         }
 
         info('Flashboard install bootstrap completed.');

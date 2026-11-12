@@ -331,7 +331,7 @@ final class ResourceRelationAuthorizationTest extends TestCase
 
             public function getPolicyFor($class): mixed
             {
-                return null;
+                return new \stdClass();
             }
 
             public function forUser($user): static
