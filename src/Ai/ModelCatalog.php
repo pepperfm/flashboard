@@ -55,6 +55,7 @@ final class ModelCatalog
                 continue;
             }
 
+            /** @var Model $model */
             $model = $reflection->newInstance();
             $models[] = ['class' => $class, 'table' => $model->getTable()];
         }

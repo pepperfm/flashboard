@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Pepperfm\Flashboard\Integration\Laravel;
 
-use Laravel\Mcp\Facades\Mcp;
 use Pepperfm\Flashboard\Ai\Mcp\FlashboardMcpServer;
 use Pepperfm\Flashboard\Contracts\Authorization\ResourcePolicyGateContract;
 use Pepperfm\Flashboard\Contracts\Panel\PanelDefinitionContract;
@@ -66,8 +65,9 @@ final class FlashboardServiceProvider extends \Illuminate\Support\ServiceProvide
         // Opt-in local stdio only: do not expose MCP over HTTP.
         if ($this->app->runningInConsole()
             && config('flashboard.ai.mcp_enabled', false)
-            && class_exists(Mcp::class)) {
-            Mcp::local('flashboard', FlashboardMcpServer::class);
+            && class_exists('Laravel\\Mcp\\Facades\\Mcp')) {
+            // The MCP package is optional; avoid requiring it in normal installations.
+            call_user_func(['Laravel\\Mcp\\Facades\\Mcp', 'local'], 'flashboard', FlashboardMcpServer::class);
         }
 
         $this->loadRoutesFrom($this->routesPath());

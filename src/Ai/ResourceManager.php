@@ -338,6 +338,9 @@ final class ResourceManager
 
     private function diff(?string $old, string $new): string
     {
+        // Fingerprints are machine-owned metadata, not a meaningful code change.
+        $old = $old === null ? null : preg_replace('/^\/\/ @flashboard-ai-fingerprint: [a-f0-9]{64}\n/m', '', $old);
+        $new = (string) preg_replace('/^\/\/ @flashboard-ai-fingerprint: [a-f0-9]{64}\n/m', '', $new);
         $before = $old === null ? [] : explode("\n", rtrim($old, "\n"));
         $after = explode("\n", rtrim($new, "\n"));
         $prefix = 0;
