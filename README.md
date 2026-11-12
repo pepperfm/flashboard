@@ -15,6 +15,8 @@ Legacy array definitions remain supported as a compatibility bridge while host a
 
 ## Documentation
 
+- [AI Harness: local MCP (alpha)](docs/ai-harness.md) — inspect models and safely preview/create/update generated Resources from Codex or Claude.
+
 - [Read the documentation](https://flashboard.pepperfm.com)
 
 ## Current Scope

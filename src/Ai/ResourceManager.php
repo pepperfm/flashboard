@@ -314,7 +314,7 @@ final class ResourceManager
             . "use Pepperfm\\Flashboard\\Core\\Forms\\Fields\\Toggle;\n"
             . "use Pepperfm\\Flashboard\\Core\\Detail\\Entries\\TextEntry;\n\n"
             . "final class $class extends Resource\n{\n"
-            . "    public static function model(): string\n    {\n        return \\" . class_basename($modelClass) . "::class;\n    }\n\n"
+            . "    public static function model(): string\n    {\n        return " . class_basename($modelClass) . "::class;\n    }\n\n"
             . "    public static function table(TableContract \$table): TableContract\n    {\n"
             . "        return \$table->columns([\n" . implode("\n", $table) . "\n        ])"
             . ($filters === [] ? '' : "->filters([\n" . implode("\n", $filters) . "\n        ])")
