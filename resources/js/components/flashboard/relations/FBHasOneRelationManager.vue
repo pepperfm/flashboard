@@ -64,7 +64,7 @@ function submitSelection() {
   isMutating.value = true
   router.visit(action.url, {
     data: { related: selectedValue.value },
-    method: (action.method ?? 'post').toLowerCase(),
+    method: (action.method ?? 'post').toLowerCase() as 'post' | 'patch' | 'put' | 'delete',
     preserveScroll: true,
     onFinish: () => {
       isMutating.value = false

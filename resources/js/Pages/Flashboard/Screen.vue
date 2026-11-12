@@ -27,46 +27,14 @@ type LayoutState = {
 
 type LayoutShape = {
   header_actions: LayoutAction[]
-  navigation: Array<{ href?: string; label?: string }>
+  navigation: Array<{ href?: string; label: string }>
   notifications: Array<{ id?: string; level: string; message: string }>
   state: LayoutState
   theme: { name?: string; tokens?: Record<string, string> }
   title: string
 }
 
-type PayloadShape = {
-  metadata: {
-    screen_key: string
-    screen_kind: string
-  }
-  schema_version?: string
-  page?: { key?: string; title: string; type?: string }
-  workspace?: { title?: string; description?: string }
-  resource?: { name?: string; page?: string }
-  table?: {
-    dataset?: {
-      columns?: Array<{ key: string; label: string }>
-      rows?: Array<{ id: string | number; attributes: Record<string, unknown> }>
-      routes?: {
-        create?: string | null
-      }
-    }
-  }
-  form?: {
-    mode?: string
-    fields?: Array<{ key?: string; label?: string }>
-    cancel?: {
-      url?: string | null
-    }
-  } | null
-  detail?: {
-    entries?: Array<{ label?: string; value?: unknown }>
-    relations?: Array<{ key?: string; label?: string; records?: Array<{ key: string | number; title: string }> }>
-    routes?: {
-      index?: string | null
-    }
-  } | null
-}
+type PayloadShape = InstanceType<typeof FlashboardScreenContent>['$props']['payload']
 
 const props = defineProps<{
   layout: LayoutShape

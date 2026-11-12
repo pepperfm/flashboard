@@ -103,7 +103,7 @@ function runMutation(action: RelationActionShape, data: Record<string, RelationS
   isMutating.value = true
   router.visit(action.url, {
     data,
-    method: (action.method ?? 'post').toLowerCase(),
+    method: (action.method ?? 'post').toLowerCase() as 'post' | 'patch' | 'put' | 'delete',
     preserveScroll: true,
     onFinish: () => {
       isMutating.value = false

@@ -71,6 +71,15 @@ export type FormTabsShape = {
 
 export type FormNodeShape = FormFieldShape | FormSectionShape | FormTabShape | FormTabsShape
 
+export function formNodeFieldLayout(node: FormNodeShape): FormFieldLayoutShape | undefined {
+  // Group containers have their own layout; only fields carry column spans.
+  if (node.kind === 'section' || node.kind === 'tab' || node.kind === 'tabs') {
+    return undefined
+  }
+
+  return node.layout
+}
+
 const DEFAULT_FORM_FIELD_RENDERER: FormFieldRendererKey = 'input'
 
 function isSystemIdField(field: FormFieldShape): boolean {
