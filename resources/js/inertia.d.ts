@@ -5,3 +5,10 @@ declare module '*.vue' {
 
   export default component
 }
+
+interface Window {
+  Flashboard?: {
+    registerPageComponent?: (name: string, component: import('vue').Component) => void
+    resolvePageComponent?: (name: string) => import('vue').Component | undefined
+  }
+}

@@ -24,7 +24,7 @@ final class {{ class }} extends CustomPage
         return '{{ uri }}';
     }
 
-    public static function workspaceDescription(): ?string
+{{ component_methods }}    public static function workspaceDescription(): ?string
     {
         return {{ description }};
     }

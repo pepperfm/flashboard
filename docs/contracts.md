@@ -37,6 +37,8 @@ Flashboard currently exposes a beta contract surface.
 - relation manager action payloads are explicit objects with `key`, `method`, `url`, `label`, `icon`, `visible`, and `requires_confirmation`; renderers should not infer mutation URLs from relation keys
 - relation manager records/options/mutations must be resolved server-side through protected resource routes, related resource query extensions, and per-manager query modifiers; selected IDs from clients are inputs to re-resolution, not trusted relationship metadata
 - runtime hook payloads and record context redact password values and replace file values with minimal metadata before dispatch
+- custom page payloads may expose `component.name`, `component.props`, and `component.assets` when a page returns `component()`; renderers must resolve the component through the browser registry and must not infer host asset URLs
+- page component context is sanitized before `componentProps()` runs and includes metadata, query values, route parameters, page class, page key, and user id only
 - Blade consumers should treat layout state, overlays, and notifications as public payloads
 - layout notifications expose `id`, `level`, and `message`; renderers may display them as transient toasts or equivalent feedback
 

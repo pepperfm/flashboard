@@ -15,6 +15,18 @@
 5. Verify custom extensions against new contracts
 6. Re-test protected panel routes and JSON payload consumers
 
+## Custom page components
+
+Custom pages now expose an additive `component` payload key.
+Workspace-only pages continue to send `component: null` and render through the existing fallback card.
+
+If you build JSON or frontend consumers outside the bundled Inertia renderer:
+
+- ignore unknown page payload keys until you opt into component rendering
+- resolve `component.name` through a trusted browser registry
+- load `component.assets.styles` and `component.assets.scripts` before rendering
+- treat `component.props` as server-provided input, not as a source for secrets or raw request data
+
 ## Discovery Coexistence
 
 Older setups may still use `config/flashboard.php` discovery arrays:
