@@ -51,7 +51,7 @@ final class RelationCompiler
             $seen[$name] = true;
 
             if (!method_exists($model, $name)) {
-                throw new \InvalidArgumentException("Eloquent relation [$name] does not exist on [{$model::class}].");
+                throw new \InvalidArgumentException("Eloquent relation [$name] does not exist on [' . $model::class . '].");
             }
 
             $method = new \ReflectionMethod($model, $name);

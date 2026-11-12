@@ -149,7 +149,7 @@ final class ResourceManager
 
         $spec = json_decode($decoded, true, 512, JSON_THROW_ON_ERROR);
         if (!is_array($spec) || !is_string($spec['resource'] ?? null)
-            || str($spec['resource'])->studly()->value() !== str($resource)->replaceLast('Resource', '')->studly()->value()) {
+            || str($spec['resource'])->studly()->replaceEnd('Resource', '')->value() !== str($resource)->studly()->replaceEnd('Resource', '')->value()) {
             throw new \RuntimeException('AI Resource manifest does not match the requested resource.');
         }
 
