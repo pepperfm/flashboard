@@ -4,10 +4,9 @@ declare(strict_types=1);
 
 namespace Pepperfm\Flashboard\Ai\Mcp\Tools;
 
-use Illuminate\Contracts\JsonSchema\JsonSchema;
-use Laravel\Mcp\Response;
 use Laravel\Mcp\Server\Tool;
-use Throwable;
+use Laravel\Mcp\Response;
+use Illuminate\Contracts\JsonSchema\JsonSchema;
 
 abstract class HarnessTool extends Tool
 {
@@ -39,8 +38,8 @@ abstract class HarnessTool extends Tool
     protected function respond(callable $callback): Response
     {
         try {
-            return Response::json($callback());
-        } catch (Throwable $exception) {
+            return Response::json(value($callback));
+        } catch (\Throwable $exception) {
             return Response::error($exception->getMessage());
         }
     }

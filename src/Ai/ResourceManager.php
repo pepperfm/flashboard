@@ -5,10 +5,7 @@ declare(strict_types=1);
 namespace Pepperfm\Flashboard\Ai;
 
 use Illuminate\Filesystem\Filesystem;
-use Illuminate\Support\Str;
 use Pepperfm\Flashboard\Core\Registry\ResourceRegistry;
-use InvalidArgumentException;
-use RuntimeException;
 
 final class ResourceManager
 {
@@ -52,20 +49,20 @@ final class ResourceManager
         $this->assertLocalPath($path);
 
         if ($this->files->exists($path)) {
-            throw new RuntimeException('Resource already exists; preview an update instead.');
+            throw new \RuntimeException('Resource already exists; preview an update instead.');
         }
 
         $this->files->ensureDirectoryExists(dirname($path));
         // Exclusive creation prevents silently overwriting a file created after preview.
         $handle = @fopen($path, 'x');
         if ($handle === false) {
-            throw new RuntimeException('Unable to create resource exclusively.');
+            throw new \RuntimeException('Unable to create resource exclusively.');
         }
 
         try {
             $length = strlen($source);
             if (fwrite($handle, $source) !== $length) {
-                throw new RuntimeException('Unable to write complete resource source.');
+                throw new \RuntimeException('Unable to write complete resource source.');
             }
         } finally {
             fclose($handle);
@@ -85,13 +82,13 @@ final class ResourceManager
         $this->assertLocalPath($path);
 
         if (!$this->files->isFile($path) || is_link($path)) {
-            throw new RuntimeException('Resource does not exist as a regular file.');
+            throw new \RuntimeException('Resource does not exist as a regular file.');
         }
 
         // Protect both the agent's preview and any manual edits to a generated class.
         $current = $this->files->get($path);
         if (!hash_equals(hash('sha256', $current), $expectedSha) || !$this->isUnmodifiedGeneratedFile($current)) {
-            throw new RuntimeException('Resource changed since preview or contains manual edits. Refusing to overwrite it.');
+            throw new \RuntimeException('Resource changed since preview or contains manual edits. Refusing to overwrite it.');
         }
 
         if ($current !== $source) {
@@ -105,7 +102,7 @@ final class ResourceManager
     {
         if (!preg_match('/^[a-f0-9]{64}$/D', $proposalHash)
             || !hash_equals(hash('sha256', $source), $proposalHash)) {
-            throw new InvalidArgumentException('Proposal hash does not match. Call preview_resource with this exact specification first.');
+            throw new \InvalidArgumentException('Proposal hash does not match. Call preview_resource with this exact specification first.');
         }
     }
 
@@ -113,7 +110,7 @@ final class ResourceManager
     {
         $root = $this->outputDirectory ?? app_path('Flashboard/Ai');
         if (is_link($root) || is_link($path) || is_link(dirname($root))) {
-            throw new RuntimeException('Symlinked resource directories and files are not supported.');
+            throw new \RuntimeException('Symlinked resource directories and files are not supported.');
         }
     }
 
@@ -140,22 +137,28 @@ final class ResourceManager
         $modelClass = $spec['model'] ?? null;
         $fields = $spec['fields'] ?? null;
 
-        if (!is_string($resource) || !preg_match('/^[A-Za-z][A-Za-z0-9_]{0,63}$/D', $resource)
-            || !is_string($modelClass) || !is_array($fields)
-            || !array_is_list($fields) || count($fields) < 1 || count($fields) > 30) {
-            throw new InvalidArgumentException('Specify a simple resource name, an Eloquent model, and 1-30 field definitions.');
+        if (
+            !is_string($resource)
+            || !preg_match('/^[A-Za-z][A-Za-z0-9_]{0,63}$/D', $resource)
+            || !is_string($modelClass)
+            || !is_array($fields)
+            || !array_is_list($fields)
+            || count($fields) < 1
+            || count($fields) > 30
+        ) {
+            throw new \InvalidArgumentException('Specify a simple resource name, an Eloquent model, and 1-30 field definitions.');
         }
 
-        $class = Str::studly($resource);
+        $class = str($resource)->studly()->value();
         if (!str_ends_with($class, 'Resource')) {
             $class .= 'Resource';
         }
 
         // A second resource with the same route key would create ambiguous URLs.
-        $key = Str::snake(substr($class, 0, -strlen('Resource')));
+        $key = str($class)->replaceLast('Resource', '')->snake()->value();
         $registered = app(ResourceRegistry::class)->forKey($key);
         if ($registered !== null && $registered !== 'App\\Flashboard\\Ai\\' . $class) {
-            throw new InvalidArgumentException("Another Flashboard resource already uses key [$key].");
+            throw new \InvalidArgumentException("Another Flashboard resource already uses key [$key].");
         }
 
         $model = $this->catalog->model($modelClass);
@@ -173,7 +176,7 @@ final class ResourceManager
 
         foreach ($fields as $item) {
             if (!is_array($item)) {
-                throw new InvalidArgumentException('Each field must be an object.');
+                throw new \InvalidArgumentException('Each field must be an object.');
             }
 
             $name = $item['name'] ?? null;
@@ -181,18 +184,18 @@ final class ResourceManager
             if (!is_string($name) || !preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/D', $name)
                 || !isset($available[$name]) || isset($seen[$name])
                 || !is_string($type) || !in_array($type, ['text', 'textarea', 'number', 'date', 'select', 'checkbox', 'toggle'], true)) {
-                throw new InvalidArgumentException('Field names must be unique, valid database columns with supported types.');
+                throw new \InvalidArgumentException('Field names must be unique, valid database columns with supported types.');
             }
 
             $seen[$name] = true;
             if (in_array($name, $hidden, true)
                 || preg_match('/(?:password|secret|token|api_key|private_key|remember_token)/i', $name)) {
-                throw new InvalidArgumentException("Sensitive field [$name] cannot be generated automatically.");
+                throw new \InvalidArgumentException("Sensitive field [$name] cannot be generated automatically.");
             }
 
-            $label = $item['label'] ?? Str::headline($name);
+            $label = $item['label'] ?? str($name)->headline()->value();
             if (!is_string($label) || strlen($label) > 100) {
-                throw new InvalidArgumentException('Field labels must be strings up to 100 bytes.');
+                throw new \InvalidArgumentException('Field labels must be strings up to 100 bytes.');
             }
 
             $labelPhp = var_export($label, true);
@@ -207,23 +210,23 @@ final class ResourceManager
 
             foreach (compact('showTable', 'showForm', 'showDetail', 'required', 'searchable', 'sortable', 'filter') as $flag) {
                 if (!is_bool($flag)) {
-                    throw new InvalidArgumentException('Field visibility and behavior flags must be booleans.');
+                    throw new \InvalidArgumentException('Field visibility and behavior flags must be booleans.');
                 }
             }
 
             if ($showForm && ($name === $primary || !$model->isFillable($name))) {
-                throw new InvalidArgumentException("Field [$name] is not fillable or is the primary key.");
+                throw new \InvalidArgumentException("Field [$name] is not fillable or is the primary key.");
             }
 
             $options = [];
             if ($type === 'select') {
                 $options = $item['options'] ?? null;
                 if (!is_array($options) || array_is_list($options) || count($options) === 0 || count($options) > 50) {
-                    throw new InvalidArgumentException("Select field [$name] needs an options map of up to 50 entries.");
+                    throw new \InvalidArgumentException("Select field [$name] needs an options map of up to 50 entries.");
                 }
                 foreach ($options as $value => $optionLabel) {
                     if ((!is_string($value) && !is_int($value)) || !is_string($optionLabel) || strlen($optionLabel) > 100) {
-                        throw new InvalidArgumentException('Select options require scalar keys and string labels.');
+                        throw new \InvalidArgumentException('Select options require scalar keys and string labels.');
                     }
                 }
             }
@@ -286,12 +289,12 @@ final class ResourceManager
         }
 
         if ($table === [] || $form === []) {
-            throw new InvalidArgumentException('At least one table column and one editable form field are required.');
+            throw new \InvalidArgumentException('At least one table column and one editable form field are required.');
         }
 
         $delete = $spec['allow_delete'] ?? false;
         if (!is_bool($delete)) {
-            throw new InvalidArgumentException('allow_delete must be a boolean.');
+            throw new \InvalidArgumentException('allow_delete must be a boolean.');
         }
 
         $detailMethod = $detail === [] ? '' : "\n    public static function infolist(DetailContract \$detail): DetailContract\n    {\n        return \$detail->entries([\n"

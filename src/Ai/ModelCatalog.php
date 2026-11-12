@@ -5,14 +5,6 @@ declare(strict_types=1);
 namespace Pepperfm\Flashboard\Ai;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\Relation;
-use InvalidArgumentException;
-use ReflectionClass;
-use ReflectionMethod;
-use ReflectionNamedType;
-use RecursiveDirectoryIterator;
-use RecursiveIteratorIterator;
-use FilesystemIterator;
 
 final class ModelCatalog
 {
@@ -33,8 +25,8 @@ final class ModelCatalog
         }
 
         $models = [];
-        $iterator = new RecursiveIteratorIterator(
-            new RecursiveDirectoryIterator($directory, FilesystemIterator::SKIP_DOTS),
+        $iterator = new \RecursiveIteratorIterator(
+            new \RecursiveDirectoryIterator($directory, \FilesystemIterator::SKIP_DOTS),
         );
 
         foreach ($iterator as $file) {
@@ -50,7 +42,7 @@ final class ModelCatalog
                 continue;
             }
 
-            $reflection = new ReflectionClass($class);
+            $reflection = new \ReflectionClass($class);
             if ($reflection->isAbstract()) {
                 continue;
             }
@@ -67,12 +59,14 @@ final class ModelCatalog
 
     public function model(string $class): Model
     {
-        if (!str_starts_with($class, $this->modelNamespace)
+        if (
+            !str_starts_with($class, $this->modelNamespace)
             || !preg_match('/^[A-Za-z_][A-Za-z0-9_]*(\\\\[A-Za-z_][A-Za-z0-9_]*)*$/D', $class)
             || !class_exists($class)
             || !is_subclass_of($class, Model::class)
-            || !(new ReflectionClass($class))->isInstantiable()) {
-            throw new InvalidArgumentException('Model must be a concrete Eloquent class inside the configured models namespace.');
+            || !(new \ReflectionClass($class))->isInstantiable()
+        ) {
+            throw new \InvalidArgumentException('Model must be a concrete Eloquent class inside the configured models namespace.');
         }
 
         return new $class();
@@ -101,19 +95,22 @@ final class ModelCatalog
 
         $relations = [];
 
-        foreach ((new ReflectionClass($model))->getMethods(ReflectionMethod::IS_PUBLIC) as $method) {
+        foreach ((new \ReflectionClass($model))->getMethods(\ReflectionMethod::IS_PUBLIC) as $method) {
             if ($method->isStatic() || $method->getNumberOfRequiredParameters() > 0) {
                 continue;
             }
 
             $type = $method->getReturnType();
-            if (!$type instanceof ReflectionNamedType || $type->isBuiltin()) {
+            if (!$type instanceof \ReflectionNamedType || $type->isBuiltin()) {
                 continue;
             }
 
             $typeName = $type->getName();
-            if (is_subclass_of($typeName, Relation::class)) {
-                $relations[] = ['name' => $method->getName(), 'type' => class_basename($typeName)];
+            if (is_subclass_of($typeName, \Illuminate\Database\Eloquent\Relations\Relation::class)) {
+                $relations[] = [
+                    'name' => $method->getName(),
+                    'type' => class_basename($typeName),
+                ];
             }
         }
 

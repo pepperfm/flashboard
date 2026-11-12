@@ -15,6 +15,8 @@ final class ListModelsTool extends HarnessTool
 {
     public function handle(\Laravel\Mcp\Request $request): \Laravel\Mcp\Response
     {
-        return $this->respond(static fn (): array => ['models' => app(\Pepperfm\Flashboard\Ai\ModelCatalog::class)->all()]);
+        return $this->respond(
+            static fn (): array => ['models' => app(\Pepperfm\Flashboard\Ai\ModelCatalog::class)->all()]
+        );
     }
 }

@@ -20,6 +20,8 @@ final class PreviewResourceTool extends HarnessTool
 
     public function handle(\Laravel\Mcp\Request $request): \Laravel\Mcp\Response
     {
-        return $this->respond(static fn (): array => app(\Pepperfm\Flashboard\Ai\ResourceManager::class)->preview($request->all()));
+        return $this->respond(
+            static fn (): array => app(\Pepperfm\Flashboard\Ai\ResourceManager::class)->preview($request->all())
+        );
     }
 }

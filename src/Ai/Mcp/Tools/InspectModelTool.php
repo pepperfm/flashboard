@@ -20,6 +20,9 @@ final class InspectModelTool extends HarnessTool
 
     public function handle(\Laravel\Mcp\Request $request): \Laravel\Mcp\Response
     {
-        return $this->respond(static fn (): array => app(\Pepperfm\Flashboard\Ai\ModelCatalog::class)->inspect((string) $request->get('model', '')));
+        return $this->respond(
+            static fn (): array => app(\Pepperfm\Flashboard\Ai\ModelCatalog::class)
+                ->inspect((string) $request->get('model', ''))
+            );
     }
 }
