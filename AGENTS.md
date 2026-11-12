@@ -3,15 +3,16 @@
 > Project map for AI agents. Keep this file up-to-date as the project evolves.
 
 ## Project Overview
-Flashboard is a concept-first PHP package for Laravel applications that aims to provide a backend-driven admin runtime for internal `/admin` panels.
-It is currently in early implementation: the product direction is documented, package bootstrap wiring is in place, and the runtime features are being built from that foundation.
+Flashboard is a backend-driven admin runtime package for Laravel applications. Its typed Resource DSL, Eloquent tables, forms, detail screens, relations, actions and Inertia/Vue UI already exist, together with a guarded local AI Harness.
+The project remains a **demo/alpha-MVP**. Work from the current implementation rather than assuming undocumented production-ready behavior.
 
 ## Tech Stack
-- **Language:** PHP 8.4
-- **Framework:** Laravel package (Laravel 13 host support target)
+- **Language:** PHP 8.5+
+- **Framework:** Laravel 13 host application; Composer library
 - **Database:** Host application database
 - **ORM:** Eloquent in the consuming application
-- **Frontend:** Inertia + Vue + Nuxt UI + Vite
+- **Frontend:** Inertia 3 + Vue 3 + Nuxt UI 4 + Vite; Bun for frontend development
+- **AI Harness:** Laravel MCP 1.2+; local stdio server is disabled by default (`FLASHBOARD_AI_MCP=true` enables it)
 
 ## Project Structure
 ```text
@@ -19,13 +20,6 @@ It is currently in early implementation: the product direction is documented, pa
 ├── .ai-factory/                 # AI Factory project context artifacts
 │   ├── ARCHITECTURE.md          # Architecture rules and intended module boundaries
 │   └── DESCRIPTION.md           # Project specification derived from the concept
-├── .ai-factory.json             # AI Factory skill and MCP metadata for local agents
-├── .claude/skills/              # AI Factory skills mirrored for Claude-based agents
-├── .codex/skills/               # AI Factory skills mirrored for Codex-based agents
-├── .github/                     # Issue and PR templates for beta workflow
-├── .idea/                       # Local IDE settings
-├── .mcp.json                    # Project-level MCP configuration
-├── ADMIN_PANEL_LIBRARY_CONCEPT.md # Product concept and source of truth for the package direction
 ├── CHANGELOG.md                 # Release notes and beta change history
 ├── README.md                    # Package entry documentation and local bootstrap notes
 ├── config/                      # Publishable package configuration
@@ -38,7 +32,8 @@ It is currently in early implementation: the product direction is documented, pa
 ├── playground/                  # Manual validation notes for local package development
 ├── resources/                   # Package views and frontend source assets, including package-owned table/form wrappers and layout shells
 ├── routes/                      # Package route definitions loaded by the service provider
-├── src/                         # Package source code grouped by contracts, schema foundations, core runtime, UI, and Laravel integration
+├── src/Ai/                      # Eloquent schema inspector, Resource compiler, local MCP server/tools
+├── src/                         # Package contracts, runtime, UI and Laravel integration
 ├── stubs/                       # Generator stubs for demo and future package scaffolds
 ├── tests/                       # Package tests using Orchestra Testbench
 ├── tsconfig.json                # TypeScript baseline for package UI assets
@@ -49,10 +44,13 @@ It is currently in early implementation: the product direction is documented, pa
 ## Key Entry Points
 | File | Purpose |
 |------|---------|
-| `ADMIN_PANEL_LIBRARY_CONCEPT.md` | Product concept, DX goals, and package mental model |
 | `composer.json` | Package name, type, PHP version, and namespace mapping |
 | `package.json` | Frontend build entrypoint for the Inertia + Vue panel shell |
-| `config/flashboard.php` | Default panel bootstrap configuration |
+| `config/flashboard.php` | Panel bootstrap configuration and `ai.mcp_enabled` flag |
+| `src/Ai/ModelCatalog.php` | Discovers Eloquent models and inspects DB columns / typed relations |
+| `src/Ai/ResourceManager.php` | Validates resource specs, previews diffs, creates/updates managed PHP files |
+| `src/Ai/Mcp/FlashboardMcpServer.php` | Registers six trusted local MCP tools |
+| `docs/ai-harness.md` | User-facing MCP installation, prompts, write safety and troubleshooting |
 | `src/Integration/Laravel/FlashboardServiceProvider.php` | Laravel package entrypoint and publish registration |
 | `src/Core/Registry/PanelRegistry.php` | Runtime registry for discovered panel providers |
 | `src/Integration/Laravel/Discovery/PanelDiscovery.php` | Discovery layer that loads configured panel providers, resources, and pages |
@@ -83,7 +81,6 @@ It is currently in early implementation: the product direction is documented, pa
 | `docs/contracts.md` | Contract stability and compatibility policy |
 | `examples/host-app/README.md` | Host-app validation walkthrough for package adoption |
 | `tests/Feature/PanelRoutingTest.php` | Basic package routing smoke test using a lightweight container/router harness |
-| `.mcp.json` | MCP servers available for repository work |
 | `.ai-factory/DESCRIPTION.md` | AIF project description and scope |
 | `.ai-factory/ARCHITECTURE.md` | AIF architecture guidelines and target module layout |
 
@@ -91,8 +88,8 @@ It is currently in early implementation: the product direction is documented, pa
 | Document | Path | Description |
 |----------|------|-------------|
 | README | `README.md` | Package landing page with live docs links |
-| Admin Panel Library Concept | `ADMIN_PANEL_LIBRARY_CONCEPT.md` | Core product concept and intended package behavior |
 | Installation Guide | `docs/installation.md` | Package install and bootstrap flow |
+| AI Harness Guide | `docs/ai-harness.md` | Agent tool workflow, spec format, example prompts and safety limits |
 | Resources Guide | `docs/resources.md` | Resource DSL, discovery, and authoring patterns |
 | Forms Guide | `docs/forms.md` | Schema-tree form authoring and layout rules |
 | Tables Guide | `docs/tables.md` | List screen, column, filter, and pagination behavior |
@@ -103,9 +100,9 @@ It is currently in early implementation: the product direction is documented, pa
 | Releases Guide | `docs/releases.md` | Release flow and diagnostics |
 | Beta Checklist | `docs/beta-checklist.md` | Beta readiness checklist for maintainers |
 
-Documentation companion project:
-- `flashboard-docs/` — bundled Nuxt UI docs site and MCP surface for `flashboard.pepperfm.com`
-- Whenever docs pages, headings, navigation structure, or example formats change, review `flashboard-docs/server/mcp/` and `flashboard-docs/server/routes/raw/` for MCP/output drift
+Documentation companion:
+- `flashboard.pepperfm.com` is the public docs site; its source is **not present in this checkout**.
+- If a separate `flashboard-docs` checkout is available and in scope, review its `server/mcp/` and raw Markdown routes for drift. Do not claim they were updated without actually inspecting that repository.
 
 ## AI Context Files
 | File | Purpose |
@@ -113,11 +110,39 @@ Documentation companion project:
 | `AGENTS.md` | This file - project structure map |
 | `.ai-factory/DESCRIPTION.md` | Project specification and tech stack |
 | `.ai-factory/ARCHITECTURE.md` | Architecture decisions and guidelines |
-| `.mcp.json` | Project-level MCP server configuration |
 
 ## Agent Rules
 - Never combine shell commands with `&&`, `||`, or `;` - execute each command as a separate tool call even if another document shows them combined.
-- Treat `ADMIN_PANEL_LIBRARY_CONCEPT.md` as the primary product-direction artifact until implementation files exist.
+- Treat the current typed Resource implementation and `docs/` as the source of truth; do not prioritize stale concepts over working behavior.
 - Keep package code framework-aligned for Laravel, but do not leak host application business rules into the reusable library.
 - Prefer contract-first changes: public interfaces and payload shapes should be explicit before UI or adapter details.
-- Treat the docs MCP surface as part of the documentation contract: when docs change, verify whether `flashboard-docs/server/mcp/` tools or raw markdown routes must change too.
+- For docs changes, review a separately available `flashboard-docs` project when in scope; otherwise explicitly note that the external docs MCP surface was not checked.
+
+## AI Harness Agent Instructions
+
+Read [docs/ai-harness.md](docs/ai-harness.md) before operating Flashboard MCP tools in a host Laravel application.
+
+### Supported MCP contract
+
+- This is a **local stdio** MCP server enabled by `FLASHBOARD_AI_MCP=true` in the **host app**. The current Flashboard `composer.json` already requires `laravel/mcp:^1.2`; do not tell users to install it again by default.
+- There are six tools: `list_models`, `inspect_model`, `list_resources`, `preview_resource`, `create_resource` and `update_resource`. The first four are read-only; the last two **write PHP files**. None reads or mutates model records through MCP.
+- Model discovery is currently limited to concrete autoloadable `App\Models` Eloquent classes. Model inspection reads table metadata and declared typed relation methods, not business rows.
+- The generator creates Resources only under the host app's `app/Flashboard/Ai`; normal provider discovery must be configured. It accepts existing database columns and simple scalar fields: `text`, `textarea`, `number`, `date`, `select`, `checkbox`, `toggle`. Select options are static.
+- Flashboard's **PHP Resource DSL** supports more than this generator. Relationships can be inspected but not generated via MCP; do not claim support for REST APIs, charts, uploads, complex layouts or arbitrary PHP generation through MCP.
+
+### Safe agent workflow
+
+1. **Inspect first.** Call `list_models`, `inspect_model` and `list_resources` as relevant. Validate real column names, field types, hidden/fillable flags, existing Resource keys and whether the app needs a policy or scoped query. Do not invent schema, statuses or relation names.
+2. **Preview before writing.** Call `preview_resource` with a complete specification and show the proposed file, relevant diff, limitations and any `writable=false` reason. When the user requested research or a proposal only, **stop here**.
+3. **Require actual write intent.** Call `create_resource` or `update_resource` only when the user has authorized creation/update. Possessing a hash is **not** user approval.
+4. **Preserve exact preview state.** Reuse `proposal_hash` with the same specification; updates also require `expected_sha`. A changed spec, stale hash, route-key conflict, fingerprint mismatch or unwritable target requires re-inspection and a new preview. Never forge or remove fingerprint markers to overwrite handwritten code.
+5. **Prefer no unnecessary changes.** Default `allow_delete=false`; use only fields the user needs. For features outside generator capabilities, explain the limitation and propose normal PHP Resource editing **as a separate coding task**.
+6. **Verify outcomes.** After a write, check generated file/class, autoload/discovery, access Gate, applicable policies and focused runtime behavior. Never report tests, UI smoke tests or docs-site updates as performed when they were not.
+
+### Security boundaries
+
+- `accessFlashboard` Gate, registered model policies, model fillability and tenant-scoped `Resource::query()` belong to the host app. Generated Resources do not create authorization or multitenant isolation by themselves.
+- Do not run migrations, `migrate:fresh`, seeders, destructive CRUD, or inspect user data just to scaffold a Resource. Request explicit authorization for any such work.
+- Never copy credentials/secrets into prompts, tool outputs or generated PHP.
+- The MCP process runs with the host application's environment privileges even though no HTTP MCP endpoint is exposed. Recommend a trusted local agent and development database for experiments.
+- This is still an alpha/MVP: keep changes small, avoid speculative architecture, and distinguish confirmed functionality from assumptions.
