@@ -6,7 +6,8 @@
   "scripts": {
     "build": "vite build",
     "dev": "vite",
-    "check:types": "vue-tsc --noEmit"
+    "check:types": "vue-tsc --noEmit",
+    "test": "bun test tests/frontend"
   },
   "devDependencies": {
     "@types/node": "^22.20.5",

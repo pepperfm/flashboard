@@ -28,5 +28,6 @@ jobs:
         with:
           bun-version: latest
       - run: bun install
+      - run: bun run test
       - run: bun run check:types
       - run: bun run build
