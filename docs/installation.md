@@ -1,5 +1,18 @@
 # Installation
 
+## Preparing a source release (maintainers)
+
+This demo-alpha package keeps compiled assets in Git and has no release CI. Before committing a release, run the frontend checks and rebuild the package distribution locally:
+
+```sh
+bun install --frozen-lockfile
+bun run dist:prepare
+git add -A public/build
+```
+
+The Vite build replaces `public/build` contents, and `git add -A` also stages deletion of obsolete hashed files. Review `git diff --cached -- public/build` and confirm the committed manifest references the current build before tagging. Host applications continue to use bundled assets without requiring Bun.
+
+
 ## Requirements
 
 - PHP 8.5+

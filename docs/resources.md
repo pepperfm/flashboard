@@ -123,6 +123,19 @@ Use `->resource(OrdersResource::class)` only when you want explicit registration
 
 In table definitions, column-level `searchable()` adds the column to the global resource table search, and column-level `sortable()` renders a clickable server-side sort header. This is separate from `SelectFilter::searchable()`, which only changes the option picker for that filter.
 
+### Related table columns and N+1 queries
+
+Table cells read attributes from loaded Eloquent models. If a column accesses a relationship (for example, `customer.name`), preload it in the resource's existing query method:
+
+```php
+public static function query(): \Illuminate\Database\Eloquent\Builder
+{
+    return \App\Models\Order::query()->with('customer');
+}
+```
+
+Use `withCount()` for relation counts when appropriate. Flashboard does not automatically guess which relationships to eager-load; avoid N+1 by configuring the resource query and checking SQL query counts for the real table.
+
 ## Discovery Variants
 
 ```php
