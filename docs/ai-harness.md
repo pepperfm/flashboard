@@ -1,49 +1,195 @@
 # AI Harness (alpha)
 
-Flashboard supports an **opt-in local MCP server** for coding agents. It works with an existing Laravel application and its Eloquent models; it does not include an LLM, run queries against user records, or serve a public MCP endpoint.
+Flashboard's AI Harness lets a coding agent inspect a **host Laravel application's Eloquent schema** and generate basic Flashboard Resources using six **local MCP tools**. It generates ordinary PHP for the existing Flashboard UI; it is **not** a built-in AI chatbot, a REST service connector, or a way to query or mutate application records via MCP.
 
-## Enable in the host Laravel app
+The current project is a demo/alpha-MVP. Test generated Resources in a host application before treating them as ready for use.
 
-Install the optional Laravel MCP package in the **host application**, not in the Flashboard package checkout:
+## 1. Setup in a host Laravel application
 
-    composer require laravel/mcp:^1.2
+Prerequisites: **PHP 8.5+**, **Laravel 13**, an available database/schema, and Flashboard installed following [installation](installation.md). A panel provider must enable discovery with `$this->panelConfig()->discover()` (or discover the `app/Flashboard` resource directory). Opening the UI also requires the host's `accessFlashboard` Gate.
 
-Set in the host application's .env:
+**Do not install `laravel/mcp` a second time.** On current `master`, `flashboard/composer.json` already includes `laravel/mcp:^1.2` in `require`. The dependency is installed with Flashboard; **running the server remains opt-in**.
 
-    FLASHBOARD_AI_MCP=true
+In the **host app's** `.env`:
 
-After configuration reload, register the local stdio server in Codex or another MCP client. For Codex CLI:
+```dotenv
+FLASHBOARD_AI_MCP=true
+```
 
-    codex mcp add flashboard -- php /absolute/path/to/your-laravel-app/artisan mcp:start flashboard
+If configuration is cached:
 
-Run the command in the host Laravel application's project environment, with access to its .env and database. Alternatively, configure your editor's MCP server using command php and args ["/absolute/path/to/artisan", "mcp:start", "flashboard"]. No GitHub Actions or server-side AI provider is needed.
+```sh
+php artisan config:clear
+```
 
-The MCP server is registered by the Flashboard service provider **only** for console requests, and only when laravel/mcp is installed and FLASHBOARD_AI_MCP is enabled. There is no HTTP MCP route. Treat the local MCP process as a trusted developer: it has access to your application's environment.
+The MCP client starts the server in the **host Laravel app** using:
 
-## MCP tools
+```sh
+php artisan mcp:start flashboard
+```
 
-| Tool | Action |
+This is a long-running stdio process, not a command expected to print a success message and exit. Example Codex CLI registration (replace the absolute path with your actual **host app**, not the Flashboard package checkout):
+
+```sh
+codex mcp add flashboard -- php /absolute/path/to/host-app/artisan mcp:start flashboard
+```
+
+A generic MCP-client entry is:
+
+```json
+{
+  "command": "php",
+  "args": ["/absolute/path/to/host-app/artisan", "mcp:start", "flashboard"]
+}
+```
+
+Use a PHP 8.5+ executable with the host application's database access. For a Sail/Docker host, launch `artisan` **inside the app's container environment**. Restart/reconnect the agent after configuring the server.
+
+**Security:** Flashboard registers no MCP HTTP endpoint. However, the local process has the host application's environment permissions: use it with trusted agents and preferably a development database.
+
+## 2. Available MCP tools
+
+| Tool | Purpose | Changes files? |
+| --- | --- | --- |
+| `list_models` | Discover concrete Eloquent model classes under `App\Models` | No |
+| `inspect_model` | Inspect table columns, types, primary key, `fillable` / `hidden` flags, and explicitly typed relation methods | No |
+| `list_resources` | List registered Resource classes, route keys and backing models | No |
+| `preview_resource` | Validate spec; return PHP source diff, `operation`, `writable`, `reason`, `proposal_hash` and `expected_sha` | No |
+| `create_resource` | Create an AI-generated Resource with the exact `proposal_hash` | **Yes** |
+| `update_resource` | Update an untouched, AI-generated Resource with matching `expected_sha` and `proposal_hash` | **Yes** |
+
+These are **developer tools**. They do not read model rows, run custom SQL, migrate schemas or perform business-record CRUD through MCP.
+
+## 3. First run: explore → preview → approve → generate → verify
+
+Start with a read-only prompt:
+
+> Inspect the Eloquent models in this Laravel app, list existing Flashboard Resources and suggest the smallest useful admin interface. Check real database columns and fillable/hidden status. Do not write files or query application records.
+
+The agent should call `list_models`, `inspect_model` and `list_resources`, then explain what exists and what it proposes. Next ask for a specific preview:
+
+> Preview an Orders Resource. Show ID, total and status in the table; make status a Select with a filter. Only use actual columns. Show the diff. Do not create anything yet.
+
+The agent calls `preview_resource`, shows the proposed class/diff and identifies unsupported features. **A preview is not permission to write.** After you approve, say:
+
+> I approve this Orders Resource. Create it exactly as previewed, leave deletion disabled and check that it appears in the discovered Resources.
+
+Only now should the agent call `create_resource` using **the same full specification** and the returned `proposal_hash`. Later updates require **a fresh preview** and both `expected_sha` and `proposal_hash`. Check the generated PHP, discovery, authorization and actual UI behavior in the host application.
+
+## 4. Example resource specification
+
+This is an illustrative argument object for `preview_resource`. The model and columns **must first be confirmed with `inspect_model`**.
+
+```json
+{
+  "resource": "Orders",
+  "model": "App\\Models\\Order",
+  "fields": [
+    {
+      "name": "id",
+      "type": "number",
+      "table": true,
+      "form": false,
+      "sortable": true
+    },
+    {
+      "name": "status",
+      "type": "select",
+      "label": "Статус",
+      "options": {
+        "draft": "Черновик",
+        "paid": "Оплачен",
+        "cancelled": "Отменён"
+      },
+      "table": true,
+      "form": true,
+      "filter": true,
+      "required": true
+    },
+    {
+      "name": "total",
+      "type": "number",
+      "label": "Сумма",
+      "table": true,
+      "form": true,
+      "sortable": true
+    }
+  ],
+  "allow_delete": false
+}
+```
+
+The same spec is sent to `create_resource` or `update_resource`, plus the hashes returned from preview. The generator creates `app/Flashboard/Ai/OrdersResource.php` in the **host** application.
+
+| Field option | Behavior |
 | --- | --- |
-| list_models | Discover concrete App\Models Eloquent classes |
-| inspect_model | Read table columns, fillable/hidden flags and typed relationship names (schema only; no user records) |
-| list_resources | List registered Flashboard resources |
-| preview_resource | Validate a proposed resource, return a source diff, proposal_hash and expected_sha without writing |
-| create_resource | Create a new AI-managed class using the preview's proposal_hash |
-| update_resource | Update only an untouched AI-managed class using both preview hashes |
+| `name` | Required existing database column; duplicates are refused |
+| `type` | `text` (default), `textarea`, `number`, `date`, `select`, `checkbox`, `toggle` |
+| `label` | Optional human-readable label |
+| `table` / `detail` | Show in list/detail, both default to `true` |
+| `form` | Default: editable/fillable non-PK and non-timestamp fields; explicit `true` requires fillability |
+| `searchable` / `sortable` | Optional column behavior, default `false` |
+| `filter` | Simple SelectFilter for select, InputFilter otherwise; default `false` |
+| `required` | Form requirement; default `false` |
+| `options` | Required static value-to-label map for select fields |
+| `allow_delete` | Top-level setting; **false by default** |
 
-The resource specification contains resource, model and a fields array. Every field has a required name and optional type (text, textarea, number, date, select, checkbox, toggle), label, table, form, detail, searchable, sortable, required, filter, options (for select fields). A top-level allow_delete flag is opt-in.
+Constraints: **1–30 fields**, at least one table column and one editable form field, and **1–50 static Select options** for a Select. Hidden fields, suspicious secret-like names and non-fillable form fields are rejected.
 
-For example, ask your coding agent to list models, inspect App\Models\Order, and preview an Orders resource with id, status (Select options draft/published), and total. Review the returned diff before asking it to create the resource using the exact proposal_hash.
+The AI generator handles only basic scalar fields and static Select options. It can **inspect** typed Eloquent relationships but cannot **generate** BelongsTo, HasMany, remote selects, files, custom PHP, nested layouts, charts or custom pages through MCP. The regular Flashboard PHP DSL is broader; those features require a separate coding task.
 
-## Guardrails and alpha limitations
+## 5. Safe write/update contract
 
-- Generated classes live in app/Flashboard/Ai and are picked up by normal discovery when the panel provider calls discover().
-- Existing handwritten Resources are never overwritten. The generator embeds a content fingerprint. Changing a generated class manually disables automatic updates.
-- Updating also requires the expected_sha from preview. The agent must re-preview after any changes.
-- Only Eloquent models under App\Models, existing database columns and a narrow set of field types are accepted. Hidden and secret-like fields are rejected.
-- Automatic create/update supports scalar fields and static Select options. Relationship names can be inspected but relation field generation, remote REST APIs, custom PHP, and complex nested forms are intentionally out of scope.
-- Generated delete actions default to **off**. The host application's accessFlashboard Gate and resource policies still govern the resulting UI.
-- No record CRUD/SQL through MCP: the tools only inspect metadata and write generated PHP resource definitions.
-- If your app's model policy or mass-assignment rules are stricter than the proposed form, adapt the spec accordingly.
+Every preview returns:
 
-For a single one-off resource, using Codex directly on your existing PHP Resource files is still a valid, simpler alternative.
+- `operation`: `create` or `update`
+- `writable` and optional `reason`: whether the target may be written
+- `diff`: proposed PHP source changes
+- `proposal_hash`: SHA-256 binding a write to the generated proposal
+- `expected_sha`: SHA-256 of the existing file, **required for updates** and `null` for creates
+
+`create_resource` refuses to overwrite an existing path. `update_resource` accepts only unmodified, AI-managed files whose embedded fingerprint is intact and whose current SHA matches the preview. Manual edits intentionally disable AI-managed updates. If `writable=false`, hashes are stale, the schema changed, or a route key conflicts: **stop and re-inspect/re-preview**. Do not strip the fingerprint or force an overwrite.
+
+**Hashes are consistency checks, not user approval.** An agent should show the proposal and only call write tools after explicit user write intent.
+
+Do not enable delete actions without a request. These tools do not configure authorization: the host must still define the `accessFlashboard` Gate, register applicable model policies and scope `Resource::query()` for multitenant data access. Model fillability alone is **not** sufficient authorization.
+
+## 6. Prompts to give your coding agent
+
+**Only inspect**
+
+> What Eloquent models can Flashboard manage? Inspect their fields and existing Resources. Identify fields that are hidden or not fillable. Report findings without writing files.
+
+**Plan an admin panel**
+
+> Propose minimal CRUD Resources for Orders and Products using Flashboard MCP. Keep table columns useful, avoid unnecessary filters and leave delete disabled. Preview each Resource and show diffs. Do not write yet.
+
+**Create after approval**
+
+> I approve the previewed Orders Resource. Create it using the exact preview hash. Report the generated path and class, then check discovery.
+
+**Modify AI-generated Resource**
+
+> Preview changing OrdersResource: hide created_at from its table, keep it on detail. If the file has manual edits, stop without overwriting it.
+
+**Ask for a feature outside MCP**
+
+> I need a BelongsTo customer field. Inspect the Flashboard typed Resource DSL and propose a minimal manual PHP change. Do not claim the MCP generator supports relation generation.
+
+## 7. Troubleshooting
+
+| Symptom | What to check |
+| --- | --- |
+| Agent cannot see the Flashboard tools | Host app is using PHP 8.5+, correct `artisan` path, `FLASHBOARD_AI_MCP=true`, cleared cached config, MCP client reconnected |
+| `list_models` empty | Models should be under `App\Models` and autoloadable. The current scanner does not discover arbitrary custom namespaces |
+| `inspect_model` error | Concrete model class, existing table, valid host DB connection; no record query should be needed |
+| Preview rejects a field | Check name, real schema, fillable/hidden flags, selected type, Select options and reserved sensitive fields |
+| `writable=false` | The file is handwritten or changed since AI generation. It cannot be updated through MCP |
+| Hash mismatch | Re-run `preview_resource` for the **exact** intended spec and use the fresh hashes |
+| File exists but doesn't appear in panel | Provider calls `discover()` or equivalent, class is autoloadable, policies/gate permit access and route key is unique |
+
+Validate the generated file with PHP tooling and by opening the host panel. In the Flashboard package checkout, `composer test` and `composer analyse` are available. Never claim a test passed unless it was actually run.
+
+## 8. When MCP isn't needed
+
+If the task needs one custom PHP Resource or unsupported UI functionality, direct Codex/Claude source editing may be simpler and more powerful. MCP is useful for a repeatable **inspect → preview → generate** workflow, not for replacing the developer or replicating MoonShine V's REST/hosted capabilities.
