@@ -1,6 +1,6 @@
 # AI Harness (alpha)
 
-Flashboard's AI Harness lets a coding agent inspect a **host Laravel application's Eloquent schema** and generate basic Flashboard Resources using six **local MCP tools**. It generates ordinary PHP for the existing Flashboard UI; it is **not** a built-in AI chatbot, a REST service connector, or a way to query or mutate application records via MCP.
+Flashboard's AI Harness lets a coding agent inspect a **host Laravel application's Eloquent schema** and generate basic Flashboard Resources using nine **local MCP tools**. It generates ordinary PHP for the existing Flashboard UI; it is **not** a built-in AI chatbot, a REST service connector, or a way to query or mutate application records via MCP.
 
 The current project is a demo/alpha-MVP. Test generated Resources in a host application before treating them as ready for use.
 
@@ -57,6 +57,9 @@ Use a PHP 8.5+ executable with the host application's database access. For a Sai
 | `preview_resource` | Validate spec; return PHP source diff, `operation`, `writable`, `reason`, `proposal_hash` and `expected_sha` | No |
 | `create_resource` | Create an AI-generated Resource with the exact `proposal_hash` | **Yes** |
 | `update_resource` | Update an untouched, AI-generated Resource with matching `expected_sha` and `proposal_hash` | **Yes** |
+| `get_resource_spec` | Read the embedded specification of an unchanged AI Resource | No |
+| `add_field` | Preview or append a new scalar field with hashes and `apply=true` | Only when applied |
+| `add_relation` | Preview or append a new Eloquent relation with hashes and `apply=true` | Only when applied |
 
 These are **developer tools**. They do not read model rows, run custom SQL, migrate schemas or perform business-record CRUD through MCP.
 
@@ -136,7 +139,7 @@ The same spec is sent to `create_resource` or `update_resource`, plus the hashes
 
 Constraints: **1–30 fields**, at least one table column and one editable form field, and **1–50 static Select options** for a Select. Hidden fields, suspicious secret-like names and non-fillable form fields are rejected.
 
-The AI generator handles only basic scalar fields and static Select options. It can **inspect** typed Eloquent relationships but cannot **generate** BelongsTo, HasMany, remote selects, files, custom PHP, nested layouts, charts or custom pages through MCP. The regular Flashboard PHP DSL is broader; those features require a separate coding task.
+The generator now supports basic scalar fields, static Select options, and four existing typed Eloquent relation types: `belongs_to`, `belongs_to_many`, `has_one`, `has_many`. It does not create Eloquent methods, tables, FKs or pivot migrations. Custom fields, uploads, arbitrary PHP, remote APIs, charts and nested layouts remain outside the MCP generator.
 
 ## 5. Safe write/update contract
 
@@ -193,3 +196,43 @@ Validate the generated file with PHP tooling and by opening the host panel. In t
 ## 8. When MCP isn't needed
 
 If the task needs one custom PHP Resource or unsupported UI functionality, direct Codex/Claude source editing may be simpler and more powerful. MCP is useful for a repeatable **inspect → preview → generate** workflow, not for replacing the developer or replicating MoonShine V's REST/hosted capabilities.
+
+## Relationship generation and incremental MCP tools
+
+Use `relations` in the same specification as `fields` when calling `preview_resource`, `create_resource` or `update_resource`. These examples **must match real Eloquent model methods** (the generator doesn't create missing methods):
+
+```json
+{
+  "relations": [
+    {"name": "customer", "type": "belongs_to", "title_attribute": "name"},
+    {"name": "tags", "type": "belongs_to_many", "title_attribute": "name"},
+    {"name": "items", "type": "has_many", "show_on_edit": true, "read_only": true},
+    {"name": "featuredItem", "type": "has_one"}
+  ]
+}
+```
+
+- `belongs_to` creates a Flashboard lazy form selector for the real Eloquent foreign key, such as `customer_id`. That column must be fillable; duplicate scalar FK inputs are suppressed.
+- `belongs_to_many` creates a multi-select for an existing Eloquent pivot relationship.
+- `has_one` and `has_many` create native Flashboard relation managers. These are **read-only by default**; use `read_only=false` only by explicit request and after checking authorization.
+- Methods must be public, zero-argument and declare an Eloquent relation return type. The related model must have exactly one registered Flashboard Resource, or specify its exact registered class in the optional `resource` field. The generator does not silently fall back to querying unscoped Eloquent models.
+- Optional `title_attribute` and `search_columns` must name existing, visible columns on the related table.
+
+For changing an **existing AI-generated** Resource, the new tools avoid resubmitting the whole configuration:
+
+1. `get_resource_spec(resource: "Orders")` reads the current embedded, fingerprint-verified definition.
+2. `add_relation` with `{"resource":"Orders","relation":{"name":"customer","type":"belongs_to"}}` is **preview-only** by default. It returns a diff, `proposal_hash` and `expected_sha` without writing.
+3. Once the user approves, call `add_relation` again with the **same arguments**, `apply=true` and both exact preview hashes.
+4. `add_field` does the same for a scalar column via a `field` object, such as `{"name":"priority","type":"number","table":true,"form":true}`.
+
+Incremental tools **append only**; renames/removals still require a full-spec `preview_resource` and `update_resource`. Legacy AI-generated Resources created before the embedded `@flashboard-ai-spec` manifest cannot use incremental tools until regenerated using full-spec preview/update. A handwritten Resource or manually edited generated file is never an eligible target. Do not modify fingerprint markers to bypass the restriction.
+
+### Prompt examples
+
+> Check Order and Customer models and current Resources. Preview adding a BelongsTo customer selector to OrdersResource; do not apply yet.
+
+> Approved: apply the previewed customer relation with the exact hashes and verify discovery.
+
+> Preview adding a numeric priority field to OrdersResource without changing its other fields. Do not apply yet.
+
+**Scope:** this generates **Flashboard PHP definitions**, not database relations, migrations or authorization policies. Host policies, resource query scoping, permissions and the underlying schema remain the host application's responsibility.

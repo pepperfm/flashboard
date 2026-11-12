@@ -52,7 +52,7 @@ For security, define a Laravel Gate ability named `accessFlashboard` in the host
 
 ## AI Harness (alpha)
 
-Flashboard includes a local stdio MCP server for Codex, Claude and other coding agents. It inspects Eloquent model metadata and previews, creates or updates basic PHP Resources in the **host Laravel app**. The MCP tools do **not** read or change business records.
+Flashboard includes a local stdio MCP server for Codex, Claude and other coding agents. It inspects Eloquent model metadata and previews, creates or updates basic PHP Resources in the **host Laravel app**. The nine MCP tools can also generate basic Eloquent relationship fields/managers and incrementally add fields or relations to managed Resources using preview-first writes. They do **not** read or change business records.
 
 The current package already depends on `laravel/mcp`; enable the **server** in the host app when needed:
 

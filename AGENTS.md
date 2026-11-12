@@ -125,16 +125,16 @@ Read [docs/ai-harness.md](docs/ai-harness.md) before operating Flashboard MCP to
 ### Supported MCP contract
 
 - This is a **local stdio** MCP server enabled by `FLASHBOARD_AI_MCP=true` in the **host app**. The current Flashboard `composer.json` already requires `laravel/mcp:^1.2`; do not tell users to install it again by default.
-- There are six tools: `list_models`, `inspect_model`, `list_resources`, `preview_resource`, `create_resource` and `update_resource`. The first four are read-only; the last two **write PHP files**. None reads or mutates model records through MCP.
+- There are nine tools: `list_models`, `inspect_model`, `list_resources`, `preview_resource`, `create_resource`, `update_resource`, `get_resource_spec`, `add_field` and `add_relation`. `list_models`, `inspect_model`, `list_resources`, `preview_resource`, and `get_resource_spec` are read-only. `create_resource` / `update_resource` write PHP; `add_field` / `add_relation` only write with `apply=true` and both hashes. None reads or mutates model records through MCP.
 - Model discovery is currently limited to concrete autoloadable `App\Models` Eloquent classes. Model inspection reads table metadata and declared typed relation methods, not business rows.
-- The generator creates Resources only under the host app's `app/Flashboard/Ai`; normal provider discovery must be configured. It accepts existing database columns and simple scalar fields: `text`, `textarea`, `number`, `date`, `select`, `checkbox`, `toggle`. Select options are static.
-- Flashboard's **PHP Resource DSL** supports more than this generator. Relationships can be inspected but not generated via MCP; do not claim support for REST APIs, charts, uploads, complex layouts or arbitrary PHP generation through MCP.
+- The generator creates Resources only under the host app's `app/Flashboard/Ai`; normal provider discovery must be configured. It accepts existing database columns, scalar fields (`text`, `textarea`, `number`, `date`, `select`, `checkbox`, `toggle`) and existing typed Eloquent relations (`belongs_to`, `belongs_to_many`, `has_one`, `has_many`) with registered related Resources. Select options are static.
+- Flashboard's **PHP Resource DSL** supports more than this generator. Relations can now be generated from existing Eloquent methods; MCP does not create database relationships, migrations or new Eloquent methods. Do not claim support for REST APIs, charts, uploads, complex layouts or arbitrary PHP generation through MCP.
 
 ### Safe agent workflow
 
 1. **Inspect first.** Call `list_models`, `inspect_model` and `list_resources` as relevant. Validate real column names, field types, hidden/fillable flags, existing Resource keys and whether the app needs a policy or scoped query. Do not invent schema, statuses or relation names.
 2. **Preview before writing.** Call `preview_resource` with a complete specification and show the proposed file, relevant diff, limitations and any `writable=false` reason. When the user requested research or a proposal only, **stop here**.
-3. **Require actual write intent.** Call `create_resource` or `update_resource` only when the user has authorized creation/update. Possessing a hash is **not** user approval.
+3. **Require actual write intent.** Call `create_resource`, `update_resource`, or `add_field` / `add_relation` with `apply=true` only when the user has authorized creation/update. Possessing a hash is **not** user approval.
 4. **Preserve exact preview state.** Reuse `proposal_hash` with the same specification; updates also require `expected_sha`. A changed spec, stale hash, route-key conflict, fingerprint mismatch or unwritable target requires re-inspection and a new preview. Never forge or remove fingerprint markers to overwrite handwritten code.
 5. **Prefer no unnecessary changes.** Default `allow_delete=false`; use only fields the user needs. For features outside generator capabilities, explain the limitation and propose normal PHP Resource editing **as a separate coding task**.
 6. **Verify outcomes.** After a write, check generated file/class, autoload/discovery, access Gate, applicable policies and focused runtime behavior. Never report tests, UI smoke tests or docs-site updates as performed when they were not.
@@ -146,3 +146,11 @@ Read [docs/ai-harness.md](docs/ai-harness.md) before operating Flashboard MCP to
 - Never copy credentials/secrets into prompts, tool outputs or generated PHP.
 - The MCP process runs with the host application's environment privileges even though no HTTP MCP endpoint is exposed. Recommend a trusted local agent and development database for experiments.
 - This is still an alpha/MVP: keep changes small, avoid speculative architecture, and distinguish confirmed functionality from assumptions.
+
+### Incremental AI Harness operations
+
+- For existing AI-managed files, use `get_resource_spec` to inspect the fingerprint-verified manifest.
+- Preview `add_relation` or `add_field` without `apply`, review the diff, and only apply with `apply=true` plus matching `expected_sha` / `proposal_hash` after user approval.
+- The related model must have a registered Resource and the method must declare an Eloquent relation return type. `belongs_to` / `belongs_to_many` generate form fields; `has_one` / `has_many` generate inverse managers with read-only default.
+- Old AI files without `@flashboard-ai-spec` cannot be incrementally changed; use complete-spec preview/update to upgrade unchanged files, never rewrite fingerprints.
+- Relation generation never creates tables, pivots, foreign keys, migrations, model methods, policies or access scopes.
