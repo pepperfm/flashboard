@@ -25,6 +25,8 @@ use Pepperfm\Flashboard\Core\Tables\Columns\TextColumn;
 use Pepperfm\Flashboard\Integration\Laravel\Auth\PanelAuthenticator;
 use Pepperfm\Flashboard\Integration\Laravel\Auth\PolicyBridge;
 use Pepperfm\Flashboard\Integration\Laravel\DataSources\ResourceListDataSource;
+use Pepperfm\Flashboard\Tests\Fixtures\Models\BelongsToCategory;
+use Pepperfm\Flashboard\Tests\Fixtures\Models\BelongsToProduct;
 use Pepperfm\Flashboard\Tests\Fixtures\Models\LazyFilterOptionRecord;
 use Pepperfm\Flashboard\Tests\Fixtures\Resources\LazyFilterOptionsResource;
 use Pepperfm\Flashboard\Tests\Fixtures\Resources\VisibilityRestrictedListResource;
@@ -580,6 +582,72 @@ final class ResourceListDataSourceTest extends TestCase
             $payload['filters'][0]['options_url'],
         );
         self::assertArrayNotHasKey('options', $payload['filters'][0]);
+    }
+
+
+    public function test_related_table_columns_can_be_eager_loaded_without_n_plus_one_queries(): void
+    {
+        $this->database->schema()->create('belongs_to_categories', static function (\Illuminate\Database\Schema\Blueprint $table): void {
+            $table->increments('id');
+            $table->string('name');
+        });
+        $this->database->schema()->create('belongs_to_products', static function (\Illuminate\Database\Schema\Blueprint $table): void {
+            $table->increments('id');
+            $table->unsignedInteger('category_id');
+            $table->string('name');
+        });
+
+        $category = BelongsToCategory::query()->create(['name' => 'Catalog']);
+
+        foreach (range(1, 25) as $number) {
+            BelongsToProduct::query()->create([
+                'category_id' => $category->getKey(),
+                'name' => "Product $number",
+            ]);
+        }
+
+        $resource = get_class(new class extends Resource
+        {
+            public static function model(): string
+            {
+                return BelongsToProduct::class;
+            }
+
+            public static function key(): string
+            {
+                return 'eager_loaded_products';
+            }
+
+            public static function query(): \Illuminate\Database\Eloquent\Builder
+            {
+                return BelongsToProduct::query()->with('category');
+            }
+
+            public static function table(TableContract $table): TableContract
+            {
+                return $table->columns([
+                    TextColumn::make('id'),
+                    TextColumn::make('category.name'),
+                ]);
+            }
+        });
+
+        $connection = $this->database->getConnection();
+        $connection->enableQueryLog();
+        $connection->flushQueryLog();
+
+        $payload = $this->dataSource()->resolve($resource, \Illuminate\Http\Request::create('/'));
+
+        $categoryQueries = array_filter(
+            $connection->getQueryLog(),
+            static fn (array $query): bool => str_contains(strtolower((string) $query['query']), 'select')
+                && str_contains((string) $query['query'], 'belongs_to_categories'),
+        );
+
+        self::assertCount(25, $payload['rows']);
+        self::assertSame('Catalog', $payload['rows'][0]['attributes']['category.name']);
+        self::assertSame('Catalog', $payload['rows'][24]['attributes']['category.name']);
+        self::assertCount(1, $categoryQueries, 'A related table column must not query once per row.');
     }
 
     private function dataSource(): ResourceListDataSource

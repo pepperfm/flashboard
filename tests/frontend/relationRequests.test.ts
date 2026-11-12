@@ -1,5 +1,5 @@
 import { afterEach, expect, test } from 'bun:test'
-import { fetchRelationOptions } from '../../resources/js/components/flashboard/relations/relationRequests'
+import { fetchRelationOptions, fetchRelationPayload } from '../../resources/js/components/flashboard/relations/relationRequests'
 
 const environment = globalThis as typeof globalThis & { window?: Window }
 const originalWindow = environment.window
@@ -12,10 +12,10 @@ afterEach(() => {
   }
 })
 
-function installFetchMock(handler: (url: URL) => Promise<Response>) {
+function installFetchMock(handler: (url: URL, init?: RequestInit) => Promise<Response>) {
   environment.window = {
     location: { origin: 'https://flashboard.test' },
-    fetch: async (input: RequestInfo | URL) => handler(new URL(String(input))),
+    fetch: async (input: RequestInfo | URL, init?: RequestInit) => handler(new URL(String(input), 'https://flashboard.test'), init),
   } as unknown as Window
 }
 
@@ -61,4 +61,46 @@ test('relation options omit blank search and reject HTTP failures', async () => 
 
   expect(requestedUrl?.searchParams.has('search')).toBe(false)
   expect(requestedUrl?.searchParams.has('selected[]')).toBe(false)
+})
+
+test('relation records request JSON with session credentials', async () => {
+  let requestedUrl: URL | null = null
+  let requestedInit: RequestInit | undefined
+
+  installFetchMock(async (url, init) => {
+    requestedUrl = url
+    requestedInit = init
+    return new Response(JSON.stringify({ key: 'items', records: [] }), { status: 200 })
+  })
+
+  const payload = await fetchRelationPayload('/admin/relations/items')
+
+  expect(requestedUrl?.pathname).toBe('/admin/relations/items')
+  expect(requestedInit?.credentials).toBe('include')
+  expect(new Headers(requestedInit?.headers).get('Accept')).toBe('application/json')
+  expect(new Headers(requestedInit?.headers).get('X-Requested-With')).toBe('XMLHttpRequest')
+  expect(payload.records).toEqual([])
+})
+
+test('relation records reject denied requests', async () => {
+  installFetchMock(async () => new Response('Forbidden', { status: 403 }))
+
+  await expect(fetchRelationPayload('/admin/relations/items')).rejects.toThrow('Relation records request failed.')
+})
+
+test('relation options retain valid falsy selected values', async () => {
+  let requestedUrl: URL | null = null
+
+  installFetchMock(async (url) => {
+    requestedUrl = url
+    return new Response(JSON.stringify({ items: [] }), { status: 200 })
+  })
+
+  await fetchRelationOptions('/admin/options', {
+    page: 1,
+    perPage: 10,
+    selected: [0, false],
+  })
+
+  expect(requestedUrl?.searchParams.getAll('selected[]')).toEqual(['0', 'false'])
 })
