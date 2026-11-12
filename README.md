@@ -15,9 +15,8 @@ Legacy array definitions remain supported as a compatibility bridge while host a
 
 ## Documentation
 
-- [AI Harness: local MCP (alpha)](docs/ai-harness.md) — inspect models and safely preview/create/update generated Resources from Codex or Claude.
-
 - [Read the documentation](https://flashboard.pepperfm.com)
+- [AI Harness: local MCP (alpha)](docs/ai-harness.md) — setup, model inspection, preview/create/update workflow, sample prompts and safety limits.
 
 ## Current Scope
 
@@ -50,6 +49,18 @@ Generated resources now use the typed DSL by default and keep legacy arrays only
 Tagged releases include prebuilt frontend assets, which the installer publishes to `public/vendor/flashboard/build` without a Node/Bun requirement in the host app. Source checkouts missing the Vite manifest can still build in-place. Use `php artisan flashboard:build-assets` for development or explicit rebuilds.
 
 For security, define a Laravel Gate ability named `accessFlashboard` in the host app. No authenticated user is allowed into the panel until that Gate is defined and grants access. See [installation and access](docs/installation.md#access).
+
+## AI Harness (alpha)
+
+Flashboard includes a local stdio MCP server for Codex, Claude and other coding agents. It inspects Eloquent model metadata and previews, creates or updates basic PHP Resources in the **host Laravel app**. The MCP tools do **not** read or change business records.
+
+The current package already depends on `laravel/mcp`; enable the **server** in the host app when needed:
+
+```dotenv
+FLASHBOARD_AI_MCP=true
+```
+
+Connect your coding agent to `php /absolute/path/to/host-app/artisan mcp:start flashboard`. A safe first prompt: **"Inspect my models and preview an admin Resource; don't write files yet."** See the [AI Harness guide](docs/ai-harness.md) for the full workflow, specification example and limitations.
 
 ## Local Development
 
