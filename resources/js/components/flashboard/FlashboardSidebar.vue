@@ -1,8 +1,9 @@
 <script setup lang="ts">
 import type { DropdownMenuItem, NavigationMenuItem } from '@nuxt/ui'
+import generatedAppConfig from '#build/app.config'
 import FlashboardThemePanel from '@/components/flashboard/FlashboardThemePanel.vue'
 import { NEUTRAL_OPTIONS, PRIMARY_OPTIONS, RADIUS_OPTIONS } from '@/components/flashboard/themeOptions'
-import { computed, ref, watch } from 'vue'
+import { computed, reactive, ref, watch } from 'vue'
 
 const THEME_STORAGE_KEY = 'flashboard-theme'
 const THEME_PRIMARY_STORAGE_KEY = 'flashboard-theme-primary'
@@ -29,7 +30,8 @@ const emit = defineEmits<{
   logout: []
 }>()
 
-const appConfig = useAppConfig()
+// Vue's reactive() caches proxies, so this shares Nuxt UI's app-config instance.
+const appConfig = reactive(generatedAppConfig)
 const collapsed = ref(false)
 const themePanelOpen = ref(false)
 const userMenuOpen = ref(false)
@@ -55,7 +57,7 @@ const navigationItems = computed<NavigationMenuItem[][]>(() => [
       event.preventDefault()
       emit('navigate', item.href)
     },
-    tooltip: item.label,
+    tooltip: { text: item.label },
     value: `navigation-${index}`,
   })),
 ])

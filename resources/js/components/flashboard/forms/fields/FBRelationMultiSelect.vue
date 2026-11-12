@@ -66,7 +66,7 @@ let requestToken = 0
 let activeRequestToken = 0
 let lastRequestStartedAt = 0
 let queuedRequest: LazyOptionsRequest | null = null
-let queuedRequestTimer: ReturnType<typeof setTimeout> | null = null
+let queuedRequestTimer: number | null = null
 
 onMounted(() => {
   scheduleLoadPage(1, true)

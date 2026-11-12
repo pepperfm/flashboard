@@ -2,7 +2,7 @@
 
 ## Requirements
 
-- PHP 8.4+
+- PHP 8.5+
 - Laravel 13 host application
 - Session-based authentication in the host app
 
@@ -37,7 +37,9 @@ The installer will ask for a panel path such as `panel` or `admin` and generate 
 - `admin` → `AdminPanelProvider`
 - `partner-balance` → `PartnerBalancePanelProvider`
 
-It will also ask which frontend package manager should be used for asset setup:
+Tagged releases include compiled frontend assets. The installer uses these directly and **does not require Node.js, Bun, or a package manager** in a host application.
+
+When installing from a source checkout without `public/build/manifest.json`, the installer asks which frontend package manager to use:
 
 - `bun`
 - `npm`
@@ -45,7 +47,7 @@ It will also ask which frontend package manager should be used for asset setup:
 - `yarn`
 - `skip frontend install/build`
 
-Unless you choose `skip`, the installer will run the selected package manager's install command inside the installed Flashboard package directory, build the package frontend there, and then publish the compiled assets into the host application.
+When assets are absent, the installer builds the frontend in the package directory and publishes the resulting files. Choosing `skip` without precompiled assets fails the installation instead of silently leaving a broken panel.
 
 If you want to rebuild package assets later without re-running the full installer, use:
 
@@ -53,7 +55,7 @@ If you want to rebuild package assets later without re-running the full installe
 php artisan flashboard:build-assets
 ```
 
-This command also runs inside the installed Flashboard package directory, refreshes the compiled assets after a successful build, and only overwrites published views when you pass `--force`.
+This command runs inside the installed Flashboard package directory, refreshes the compiled assets after a successful build, and only overwrites published views when you pass `--force`. It is intended for package development or custom source builds, not routine installation.
 
 You can bypass the interactive package-manager prompt with an explicit flag:
 
@@ -152,6 +154,24 @@ For new host apps, the primary user-facing API is the panel provider.
 If provider config, inline `Flashboard::configure()`, and fallback config all coexist, provider config wins.
 
 ## Access
+
+**Authorization is deny-by-default.** Flashboard requires an authenticated user *and* the `accessFlashboard` Laravel Gate ability before any panel page, API endpoint, or mutation is accessible.
+
+Define the ability in a host application's service provider:
+
+```php
+use App\Models\User;
+use Illuminate\Support\Facades\Gate;
+
+public function boot(): void
+{
+    Gate::define('accessFlashboard', static fn (User $user): bool => (bool) $user->is_admin);
+}
+```
+
+Adjust the condition to your own user model. The ability name can be changed via `config('flashboard.auth.access_ability')`. Removing or leaving it undefined does **not** grant access. Login requests are rate limited to six attempts per minute; use application-level throttling and monitoring for stricter requirements.
+
+Resource `policy()` declarations are **not auto-registered**. If provided, register the policy in your host application with `Gate::policy(Model::class, Policy::class)`. A missing or mismatching registration is rejected. For multi-tenant resources, scope `Resource::query()` to visible records: row-level policies alone do not filter index results.
 
 - login: `/panel/login` when `path('panel')` is configured
 - panel root: `/panel`

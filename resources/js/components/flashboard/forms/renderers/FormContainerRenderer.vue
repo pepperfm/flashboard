@@ -13,6 +13,7 @@ import type {
   FormTabsShape,
 } from '@/components/flashboard/forms/renderers/resolveFormFieldRenderer'
 import FormNodeRenderer from '@/components/flashboard/forms/renderers/FormNodeRenderer.vue'
+import { formNodeFieldLayout } from '@/components/flashboard/forms/renderers/resolveFormFieldRenderer'
 
 const props = defineProps<{
   errors?: Record<string, string>
@@ -134,8 +135,8 @@ function nodeError(node: FormNodeShape): string | undefined {
       <div
         v-for="child in childNodes"
         :key="child.key"
-        :class="resolveFormItemLayout(resolvedLayout, child.kind === 'field' ? child.layout : undefined).className"
-        :style="resolveFormItemLayout(resolvedLayout, child.kind === 'field' ? child.layout : undefined).style"
+        :class="resolveFormItemLayout(resolvedLayout, formNodeFieldLayout(child)).className"
+        :style="resolveFormItemLayout(resolvedLayout, formNodeFieldLayout(child)).style"
       >
         <FormNodeRenderer
           :node="child"
@@ -157,8 +158,8 @@ function nodeError(node: FormNodeShape): string | undefined {
     <div
       v-for="child in childNodes"
       :key="child.key"
-      :class="resolveFormItemLayout(resolvedLayout, (child.kind ?? 'field') === 'field' ? child.layout : undefined).className"
-      :style="resolveFormItemLayout(resolvedLayout, (child.kind ?? 'field') === 'field' ? child.layout : undefined).style"
+      :class="resolveFormItemLayout(resolvedLayout, formNodeFieldLayout(child)).className"
+      :style="resolveFormItemLayout(resolvedLayout, formNodeFieldLayout(child)).style"
     >
       <FormNodeRenderer
         :node="child"

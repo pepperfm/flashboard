@@ -8,7 +8,7 @@ import {
   type FormContainerLayoutShape,
 } from '@/components/flashboard/forms/layout/resolveFormLayout'
 import FormNodeRenderer from '@/components/flashboard/forms/renderers/FormNodeRenderer.vue'
-import type { FormNodeShape } from '@/components/flashboard/forms/renderers/resolveFormFieldRenderer'
+import { formNodeFieldLayout, type FormNodeShape } from '@/components/flashboard/forms/renderers/resolveFormFieldRenderer'
 
 const props = defineProps<{
   cancelUrl?: string
@@ -67,8 +67,8 @@ function nodeError(node: FormNodeShape): string | undefined {
           <div
             v-for="node in props.schema"
             :key="node.key"
-            :class="resolveFormItemLayout(resolvedLayout, (node.kind ?? 'field') === 'field' ? node.layout : undefined).className"
-            :style="resolveFormItemLayout(resolvedLayout, (node.kind ?? 'field') === 'field' ? node.layout : undefined).style"
+            :class="resolveFormItemLayout(resolvedLayout, formNodeFieldLayout(node)).className"
+            :style="resolveFormItemLayout(resolvedLayout, formNodeFieldLayout(node)).style"
           >
             <FormNodeRenderer
               :node="node"

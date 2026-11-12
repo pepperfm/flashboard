@@ -45,7 +45,9 @@ The package is still beta-stage, but the core resource runtime, table engine, fo
 
 Generated resources now use the typed DSL by default and keep legacy arrays only as a migration fallback.
 
-During install, Flashboard builds its frontend assets inside the installed package directory and then publishes the compiled files into the host application at `public/vendor/flashboard/build`. Use `php artisan flashboard:build-assets` when you need to rebuild and refresh those published assets later.
+Tagged releases include prebuilt frontend assets, which the installer publishes to `public/vendor/flashboard/build` without a Node/Bun requirement in the host app. Source checkouts missing the Vite manifest can still build in-place. Use `php artisan flashboard:build-assets` for development or explicit rebuilds.
+
+For security, define a Laravel Gate ability named `accessFlashboard` in the host app. No authenticated user is allowed into the panel until that Gate is defined and grants access. See [installation and access](docs/installation.md#access).
 
 ## Local Development
 

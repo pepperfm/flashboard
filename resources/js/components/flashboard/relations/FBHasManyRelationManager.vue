@@ -95,7 +95,7 @@ function submitSync() {
   runMutation(syncAction.value, { related: syncValues.value })
 }
 
-function runMutation(action: RelationActionShape, data: Record<string, unknown>) {
+function runMutation(action: RelationActionShape, data: Record<string, RelationScalarValue | RelationScalarValue[]>) {
   if (!action.url) {
     return
   }
@@ -103,7 +103,7 @@ function runMutation(action: RelationActionShape, data: Record<string, unknown>)
   isMutating.value = true
   router.visit(action.url, {
     data,
-    method: (action.method ?? 'post').toLowerCase(),
+    method: (action.method ?? 'post').toLowerCase() as 'post' | 'patch' | 'put' | 'delete',
     preserveScroll: true,
     onFinish: () => {
       isMutating.value = false

@@ -1,6 +1,5 @@
 /vendor export-ignore
 /node_modules export-ignore
-/public/build export-ignore
 /resources/dist export-ignore
 /.ai-factory export-ignore
 /.codex export-ignore

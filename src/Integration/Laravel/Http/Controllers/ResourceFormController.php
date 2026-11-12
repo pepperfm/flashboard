@@ -36,11 +36,18 @@ final readonly class ResourceFormController
 
         $relationCreateContext = $this->relationCreateContext($request, $resourceClass);
         if ($relationCreateContext !== null) {
-            if (!$this->screenAccessResolver->canViewRecord(
-                $relationCreateContext->parentResource,
-                $user,
-                $relationCreateContext->parentRecord,
-            )) {
+            if (
+                !$this->screenAccessResolver->canEditRecord(
+                    $relationCreateContext->parentResource,
+                    $user,
+                    $relationCreateContext->parentRecord,
+                )
+                || !$this->screenAccessResolver->canViewRelation(
+                    $relationCreateContext->parentResource,
+                    $relationCreateContext->relation,
+                    $user,
+                )
+            ) {
                 abort(403);
             }
 

@@ -43,7 +43,7 @@ const popoverReference = computed(() => {
     return segment
   }
 
-  return segment.$el ?? undefined
+  return '$el' in segment ? segment.$el ?? undefined : undefined
 })
 
 watch(

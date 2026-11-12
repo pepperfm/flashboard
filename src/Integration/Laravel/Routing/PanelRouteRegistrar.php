@@ -58,6 +58,7 @@ final readonly class PanelRouteRegistrar
             ->name('auth.login');
 
         Route::post((string) config('flashboard.auth.login_path', 'login'), LoginController::class)
+            ->middleware('throttle:6,1')
             ->name('auth.attempt');
 
         Route::post((string) config('flashboard.auth.logout_path', 'logout'), LogoutController::class)
