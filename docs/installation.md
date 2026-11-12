@@ -173,3 +173,4 @@ For the fastest first run:
 - Use the playground helper: `php artisan flashboard:playground`
 - Generate a resource: `php artisan flashboard:make-resource`
 - Generate a page: `php artisan flashboard:make-page`
+- Generate a component-backed page: `php artisan flashboard:make-page ReviewQueuePage --component`

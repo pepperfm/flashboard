@@ -1,0 +1,3 @@
+import {{ component_import }} from './pages/{{ component_file }}.vue'
+
+window.Flashboard?.registerPageComponent?.('{{ component_name }}', {{ component_import }})

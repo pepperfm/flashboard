@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { router, useForm } from '@inertiajs/vue3'
 import { useToast } from '@nuxt/ui/composables'
+import FBCustomPageRenderer from '@/components/flashboard/custom-pages/FBCustomPageRenderer.vue'
 import FBHasManyRelationManager from '@/components/flashboard/relations/FBHasManyRelationManager.vue'
 import FBHasOneRelationManager from '@/components/flashboard/relations/FBHasOneRelationManager.vue'
 import SimpleFormShell from '@/components/flashboard/forms/layout/SimpleFormShell.vue'
@@ -81,9 +82,25 @@ type DetailGroupShape = {
   schema?: DetailEntryShape[]
 }
 
+type PageComponentAssetShape = {
+  url: string
+  type?: string
+}
+
+type PageComponentPayloadShape = {
+  assets?: {
+    scripts?: PageComponentAssetShape[]
+    styles?: PageComponentAssetShape[]
+  }
+  name: string
+  props?: Record<string, unknown>
+}
+
 type PayloadShape = {
-  page?: { title: string }
+  metadata?: Record<string, unknown>
+  page?: { key?: string; title: string; type?: string; uri?: string }
   workspace?: { title?: string; description?: string }
+  component?: PageComponentPayloadShape | null
   resource?: {
     name?: string
     page?: string
@@ -1316,6 +1333,16 @@ function formatValue(value: unknown): string {
         </div>
       </div>
     </UCard>
+  </template>
+
+  <template v-else-if="payload.page && payload.component?.name">
+    <FBCustomPageRenderer
+      :actions="payload.actions ?? []"
+      :component="payload.component"
+      :metadata="payload.metadata"
+      :page="payload.page"
+      :workspace="payload.workspace"
+    />
   </template>
 
   <template v-else-if="payload.page">

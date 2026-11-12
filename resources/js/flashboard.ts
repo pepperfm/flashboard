@@ -4,6 +4,9 @@ import { createInertiaApp } from '@inertiajs/vue3'
 import ui from '@nuxt/ui/vue-plugin'
 import { createApp, h, type DefineComponent } from 'vue'
 import { createRouter, createWebHistory } from 'vue-router'
+import { installFlashboardRuntime } from './components/flashboard/custom-pages/pageComponentRegistry'
+
+installFlashboardRuntime()
 
 createInertiaApp({
   progress: {

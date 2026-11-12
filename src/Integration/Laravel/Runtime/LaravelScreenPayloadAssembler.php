@@ -7,6 +7,7 @@ namespace Pepperfm\Flashboard\Integration\Laravel\Runtime;
 use Illuminate\Container\Attributes\Singleton;
 use Illuminate\Support\Arr;
 use Pepperfm\Flashboard\Contracts\Actions\ActionContract;
+use Pepperfm\Flashboard\Contracts\Pages\ComponentPageContract;
 use Pepperfm\Flashboard\Contracts\Pages\CustomPageContract;
 use Pepperfm\Flashboard\Contracts\Pages\PageDefinitionContract;
 use Pepperfm\Flashboard\Contracts\Resources\Resource;
@@ -28,6 +29,14 @@ use Pepperfm\Flashboard\Integration\Laravel\DataSources\ResourceListDataSource;
 #[Singleton]
 final readonly class LaravelScreenPayloadAssembler
 {
+    private const string COMPONENT_NAME_PATTERN = '/^[A-Za-z0-9][A-Za-z0-9._:-]*$/';
+
+    private const string COMPONENT_SCRIPT_TYPE_MODULE = 'module';
+
+    private const string COMPONENT_SCRIPT_TYPE_CLASSIC = 'text/javascript';
+
+    private const string COMPONENT_ASSET_SCHEME_PATTERN = '/^[A-Za-z][A-Za-z0-9+.-]*:/';
+
     public function __construct(
         private ActionPayloadAssembler $actionPayloadAssembler,
         private TablePayloadAssembler $tablePayloadAssembler,
@@ -35,6 +44,7 @@ final readonly class LaravelScreenPayloadAssembler
         private ResourceFormDataSource $resourceFormDataSource,
         private ResourceDetailDataSource $resourceDetailDataSource,
         private WorkspacePayloadAssembler $workspacePayloadAssembler,
+        private PageComponentContextFactory $pageComponentContextFactory,
         private ScreenAccessResolver $screenAccessResolver,
         private ResourceSurfaceResolver $resourceSurfaceResolver,
         private PanelAuthenticator $panelAuthenticator,
@@ -46,6 +56,8 @@ final readonly class LaravelScreenPayloadAssembler
     public function assemble(RuntimeRequestContext $context): ScreenPayload
     {
         $screen = $context->screen();
+        $user = $this->panelAuthenticator->user();
+
         if ($screen->isPage()) {
             $pageClass = $screen->pageClass();
             if (!is_string($pageClass) || $pageClass === '') {
@@ -61,6 +73,7 @@ final readonly class LaravelScreenPayloadAssembler
                 'detail' => null,
                 'actions' => [],
                 'navigation_item' => null,
+                'component' => $this->buildPageComponentPayload($pageClass, $context, $user),
                 'workspace' => is_a($pageClass, CustomPageContract::class, true)
                     ? $this->workspacePayloadAssembler->assemble($pageClass, $context->metadata()->toArray())
                     : null,
@@ -73,7 +86,6 @@ final readonly class LaravelScreenPayloadAssembler
         $record = $resourcePage === 'detail' || $resourcePage === 'edit'
             ? $resourceClass::resolveRecord($context->request()->route('record'))
             : null;
-        $user = $this->panelAuthenticator->user();
 
         if (!is_string($resourceClass) || $resourceClass === '') {
             throw new \InvalidArgumentException('Resolved resource screen is missing a resource class.');
@@ -153,6 +165,123 @@ final readonly class LaravelScreenPayloadAssembler
             'is_navigable' => $pageClass::isNavigable(),
             'middleware' => $pageClass::middleware(),
         ];
+    }
+
+    /**
+     * @param class-string<PageDefinitionContract> $pageClass
+     *
+     * @return array{name: string, props: array<string, mixed>, assets: array{scripts: list<array{url: string, type: string}>, styles: list<array{url: string}>}}|null
+     */
+    private function buildPageComponentPayload(
+        string $pageClass,
+        RuntimeRequestContext $context,
+        ?\Illuminate\Contracts\Auth\Authenticatable $user,
+    ): ?array {
+        if (!is_a($pageClass, ComponentPageContract::class, true)) {
+            return null;
+        }
+
+        $component = $pageClass::component();
+        if ($component === null) {
+            return null;
+        }
+
+        $component = trim($component);
+        if ($component === '' || preg_match(self::COMPONENT_NAME_PATTERN, $component) !== 1) {
+            throw new \InvalidArgumentException("Custom page component name [{$component}] is invalid.");
+        }
+
+        $componentContext = $this->pageComponentContextFactory->make($context, $user);
+
+        return [
+            'name' => $component,
+            'props' => $pageClass::componentProps($componentContext),
+            'assets' => $this->normalizeComponentAssets($pageClass::componentAssets()),
+        ];
+    }
+
+    /**
+     * @param array<string, mixed> $assets
+     *
+     * @return array{scripts: list<array{url: string, type: string}>, styles: list<array{url: string}>}
+     */
+    private function normalizeComponentAssets(array $assets): array
+    {
+        return [
+            'scripts' => $this->normalizeComponentAssetList((array) Arr::get($assets, 'scripts', []), 'script'),
+            'styles' => $this->normalizeComponentAssetList((array) Arr::get($assets, 'styles', []), 'style'),
+        ];
+    }
+
+    /**
+     * @param array<mixed> $assets
+     *
+     * @return list<array{url: string, type: string}|array{url: string}>
+     */
+    private function normalizeComponentAssetList(array $assets, string $kind): array
+    {
+        $normalized = [];
+
+        foreach ($assets as $asset) {
+            $normalized[] = $this->normalizeComponentAsset($asset, $kind);
+        }
+
+        return $normalized;
+    }
+
+    /**
+     * @return array{url: string, type: string}|array{url: string}
+     */
+    private function normalizeComponentAsset(mixed $asset, string $kind): array
+    {
+        if (is_string($asset)) {
+            $url = $this->normalizeComponentAssetUrl($asset);
+
+            return $kind === 'script'
+                ? ['url' => $url, 'type' => self::COMPONENT_SCRIPT_TYPE_MODULE]
+                : ['url' => $url];
+        }
+
+        if (!is_array($asset)) {
+            throw new \InvalidArgumentException('Custom page component assets must be URL strings or descriptor arrays.');
+        }
+
+        $url = $this->normalizeComponentAssetUrl((string) Arr::get($asset, 'url', ''));
+        if ($kind !== 'script') {
+            return ['url' => $url];
+        }
+
+        $module = Arr::get($asset, 'module');
+        $type = Arr::get($asset, 'type');
+
+        if (is_bool($module)) {
+            $type = $module ? self::COMPONENT_SCRIPT_TYPE_MODULE : self::COMPONENT_SCRIPT_TYPE_CLASSIC;
+        }
+        if (!is_string($type) || trim($type) === '') {
+            $type = self::COMPONENT_SCRIPT_TYPE_MODULE;
+        }
+
+        return [
+            'url' => $url,
+            'type' => trim($type),
+        ];
+    }
+
+    private function normalizeComponentAssetUrl(string $url): string
+    {
+        $url = trim($url);
+        if (
+            $url === ''
+            || str_starts_with($url, '//')
+            || (
+                preg_match(self::COMPONENT_ASSET_SCHEME_PATTERN, $url) === 1
+                && preg_match('/^https?:\/\//i', $url) !== 1
+            )
+        ) {
+            throw new \InvalidArgumentException('Custom page component asset URLs must be non-empty HTTP or path URLs.');
+        }
+
+        return $url;
     }
 
     /**

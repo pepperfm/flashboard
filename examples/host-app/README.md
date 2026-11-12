@@ -32,6 +32,23 @@ Validate the package in a Laravel 13 application with:
 - `app/Flashboard/OrdersResource.php`
 - `app/Flashboard/ReviewQueuePage.php`
 
+## Component Page Check
+
+To validate a Nova-like custom page component, generate a page with:
+
+```bash
+php artisan flashboard:make-page ReviewQueuePage --component
+```
+
+The command creates:
+
+- `app/Flashboard/ReviewQueuePage.php`
+- `resources/js/flashboard/pages/ReviewQueuePage.vue`
+- `resources/js/flashboard/pages.ts`
+
+Add `resources/js/flashboard/pages.ts` to the host Vite inputs.
+The generated page resolves its script URL with `app(\Illuminate\Foundation\Vite::class)->asset('resources/js/flashboard/pages.ts')`, so the entry must exist in the host Vite manifest.
+
 If you need to keep helper classes in `app/Flashboard`, exclude them explicitly:
 
 ```php
