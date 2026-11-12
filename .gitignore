@@ -38,9 +38,6 @@
 /.mcp.json
 /.ai-factory.json
 
-# Lockfiles not used by this project
-/bun.lock
-
 # OS noise
 .DS_Store
 Thumbs.db
