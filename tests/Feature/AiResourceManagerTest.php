@@ -77,7 +77,7 @@ final class AiResourceManagerTest extends TestCase
         self::assertFileExists($created['path']);
 
         $source = (string) file_get_contents($created['path']);
-        self::assertStringContainsString('return LazyFilterOptionRecord::class;', $source);
+        self::assertStringContainsString('return \\Pepperfm\\Flashboard\\Tests\\Fixtures\\Models\\LazyFilterOptionRecord::class;', $source);
         self::assertStringContainsString("Select::make('status', 'Status')->options(", $source);
         self::assertStringContainsString("SelectFilter::make('status', 'Status')->options(", $source);
         self::assertStringContainsString("TextInput::make('status_label', 'Status Label')", $source);
@@ -146,6 +146,8 @@ final class AiResourceManagerTest extends TestCase
             }
         }
 
+        $spec['fields'][0]['name'] = 'status_label';
+        $spec['fields'][0]['form'] = false;
         $spec['fields'][1]['name'] = 'status';
         $spec['fields'][1]['form'] = false;
         $spec['fields'][2]['name'] = 'id';
