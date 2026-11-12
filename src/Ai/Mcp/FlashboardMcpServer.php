@@ -9,6 +9,9 @@ use Laravel\Mcp\Server\Attributes\Name;
 use Laravel\Mcp\Server\Attributes\Version;
 use Laravel\Mcp\Server\Attributes\Instructions;
 use Pepperfm\Flashboard\Ai\Mcp\Tools\CreateResourceTool;
+use Pepperfm\Flashboard\Ai\Mcp\Tools\AddFieldTool;
+use Pepperfm\Flashboard\Ai\Mcp\Tools\AddRelationTool;
+use Pepperfm\Flashboard\Ai\Mcp\Tools\GetResourceSpecTool;
 use Pepperfm\Flashboard\Ai\Mcp\Tools\InspectModelTool;
 use Pepperfm\Flashboard\Ai\Mcp\Tools\ListModelsTool;
 use Pepperfm\Flashboard\Ai\Mcp\Tools\ListResourcesTool;
@@ -27,5 +30,8 @@ final class FlashboardMcpServer extends Server
         PreviewResourceTool::class,
         CreateResourceTool::class,
         UpdateResourceTool::class,
+        GetResourceSpecTool::class,
+        AddFieldTool::class,
+        AddRelationTool::class,
     ];
 }

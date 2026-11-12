@@ -31,6 +31,16 @@ abstract class HarnessTool extends Tool
                 'required' => $schema->boolean(),
                 'options' => $schema->object()->description('Map of select option value => label; required for select.'),
             ]))->min(1)->max(30)->required(),
+            'relations' => $schema->array()->items($schema->object([
+                'name' => $schema->string()->description('Actual Eloquent relationship method name.')->required(),
+                'type' => $schema->string()->description('belongs_to, belongs_to_many, has_one, has_many.')->required(),
+                'label' => $schema->string(),
+                'resource' => $schema->string()->description('Optional registered related Resource class; required if ambiguous.'),
+                'title_attribute' => $schema->string()->description('Existing visible related table column (name/title preferred).'),
+                'search_columns' => $schema->array()->items($schema->string()),
+                'show_on_edit' => $schema->boolean()->description('HasOne/HasMany manager only.'),
+                'read_only' => $schema->boolean()->description('HasOne/HasMany manager; defaults true.'),
+            ]))->description('Existing Eloquent relationships; requires a registered related Resource.'),
             'allow_delete' => $schema->boolean()->description('Enable delete action; defaults false.'),
         ];
     }
