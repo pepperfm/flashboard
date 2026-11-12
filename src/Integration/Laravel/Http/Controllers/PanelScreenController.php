@@ -43,6 +43,10 @@ final readonly class PanelScreenController
             ? $resourceClass::resolveRecord($request->route('record'))
             : null;
 
+        if (is_string($resourceClass) && in_array($resourcePage, ['detail', 'edit'], true) && $record === null) {
+            abort(404);
+        }
+
         if (
             $context->screen()->pageClass() !== null &&
             !$this->screenAccessResolver->canAccessPage($context->screen()->pageClass(), $user)

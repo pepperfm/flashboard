@@ -12,6 +12,7 @@ return [
         'auth' => ['flashboard.auth'],
     ],
     'auth' => [
+        'access_ability' => 'accessFlashboard',
         'login_path' => 'login',
         'logout_path' => 'logout',
         'username' => 'email',

@@ -27,10 +27,16 @@ final class PolicyBridge implements ResourcePolicyGateContract
         }
 
         $target = $record ?? $resourceClass::model();
+        $gate = app(\Illuminate\Contracts\Auth\Access\Gate::class);
+        $registeredPolicy = $gate->getPolicyFor($resourceClass::model());
 
-        return app(\Illuminate\Contracts\Auth\Access\Gate::class)
-            ->forUser($user)
-            ->allows($ability, $target);
+        // Resource::policy() identifies the policy that must be registered
+        // with Laravel Gate. Do not silently fall back to another model policy.
+        if (!$registeredPolicy instanceof $policyClass) {
+            return false;
+        }
+
+        return $gate->forUser($user)->allows($ability, $target);
     }
 
     /**

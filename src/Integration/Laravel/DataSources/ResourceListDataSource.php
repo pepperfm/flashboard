@@ -28,6 +28,8 @@ final readonly class ResourceListDataSource
 
     private const int MAX_FILTER_VALUES = 200;
 
+    private const int MAX_PER_PAGE = 100;
+
     public function __construct(
         private TablePayloadAssembler $tablePayloadAssembler,
         private ScreenAccessResolver $screenAccessResolver,
@@ -56,7 +58,7 @@ final readonly class ResourceListDataSource
         $search = trim((string) $request->query('search', ''));
         $sort = (string) $request->query('sort', '');
         $direction = strtolower((string) $request->query('direction', 'asc')) === 'desc' ? 'desc' : 'asc';
-        $perPage = max(1, (int) $request->query('per_page', (string) $table->pagination()));
+        $perPage = min(self::MAX_PER_PAGE, max(1, (int) $request->query('per_page', (string) $table->pagination())));
         $filters = $request->query('filters', []);
 
         $searchableColumns = $this->searchableColumns($columns);
@@ -139,6 +141,8 @@ final readonly class ResourceListDataSource
                 $configuredRowActions,
                 $hasDetailSurface,
                 $user,
+                $canViewRecord,
+                $canEditRecord,
             );
 
             $row = [
@@ -239,6 +243,8 @@ final readonly class ResourceListDataSource
         array $actions,
         bool $hasDetailSurface,
         ?\Illuminate\Contracts\Auth\Authenticatable $user,
+        bool $canViewRecord,
+        bool $canEditRecord,
     ): array {
         $rowActions = [];
 
@@ -250,8 +256,8 @@ final readonly class ResourceListDataSource
             }
 
             $rowAction = match ($key) {
-                TableAction::KEY_VIEW => $this->viewRowAction($resourceClass, $record, $action, $hasDetailSurface, $user),
-                TableAction::KEY_EDIT => $this->editRowAction($resourceClass, $record, $action, $user),
+                TableAction::KEY_VIEW => $this->viewRowAction($resourceClass, $record, $action, $canViewRecord),
+                TableAction::KEY_EDIT => $this->editRowAction($resourceClass, $record, $action, $canEditRecord),
                 TableAction::KEY_DELETE => $this->deleteRowAction($resourceClass, $record, $action, $user),
                 default => $this->customRowAction($action),
             };
@@ -274,10 +280,9 @@ final readonly class ResourceListDataSource
         string $resourceClass,
         \Illuminate\Database\Eloquent\Model $record,
         array $action,
-        bool $hasDetailSurface,
-        ?\Illuminate\Contracts\Auth\Authenticatable $user,
+        bool $canViewRecord,
     ): ?array {
-        if (!$hasDetailSurface || !$this->screenAccessResolver->canViewRecord($resourceClass, $user, $record)) {
+        if (!$canViewRecord) {
             return null;
         }
 
@@ -300,9 +305,9 @@ final readonly class ResourceListDataSource
         string $resourceClass,
         \Illuminate\Database\Eloquent\Model $record,
         array $action,
-        ?\Illuminate\Contracts\Auth\Authenticatable $user,
+        bool $canEditRecord,
     ): ?array {
-        if (!$this->screenAccessResolver->canEditRecord($resourceClass, $user, $record)) {
+        if (!$canEditRecord) {
             return null;
         }
 

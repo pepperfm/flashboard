@@ -87,6 +87,21 @@ final class ResourceListDataSourceTest extends TestCase
         }
     }
 
+    public function test_resource_list_page_size_is_bounded_even_with_untrusted_query_input(): void
+    {
+        $large = $this->dataSource()->resolve(
+            LazyFilterOptionsResource::class,
+            \Illuminate\Http\Request::create('/', 'GET', ['per_page' => '1000000']),
+        );
+        self::assertSame(100, $large['pagination']['per_page']);
+
+        $small = $this->dataSource()->resolve(
+            LazyFilterOptionsResource::class,
+            \Illuminate\Http\Request::create('/', 'GET', ['per_page' => '0']),
+        );
+        self::assertSame(1, $small['pagination']['per_page']);
+    }
+
     public function test_resource_lists_apply_global_search_to_searchable_columns(): void
     {
         $payload = $this->dataSource()->resolve(

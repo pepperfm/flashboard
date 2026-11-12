@@ -25,12 +25,17 @@ final readonly class ActionController
         string $action
     ): \Symfony\Component\HttpFoundation\Response {
         $resourceClass = $request->route()?->defaults['flashboard.resource'] ?? null;
-        abort_unless(is_string($resourceClass) && $resourceClass !== '', 404);
+        abort_unless(is_string($resourceClass) && is_subclass_of($resourceClass, \Pepperfm\Flashboard\Contracts\Resources\Resource::class), 404);
 
         $user = $this->authenticator->user();
-        $record = $resourceClass::resolveRecord($request->route('record'));
-        if ($record !== null && !$this->screenAccessResolver->canViewRecord($resourceClass, $user, $record)) {
-            abort(403);
+        $recordKey = $request->route('record');
+        if ($recordKey === null) {
+            // Collection actions have no record policy to fall back to.
+            abort_unless($this->screenAccessResolver->canAccessResource($resourceClass, $user), 403);
+        } else {
+            $record = $resourceClass::resolveRecord($recordKey);
+            abort_unless($record instanceof \Illuminate\Database\Eloquent\Model, 404);
+            abort_unless($this->screenAccessResolver->canViewRecord($resourceClass, $user, $record), 403);
         }
 
         $resolvedAction = $this->resourceSurfaceResolver->findAction($resourceClass, $action);
