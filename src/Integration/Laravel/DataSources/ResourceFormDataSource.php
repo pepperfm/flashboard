@@ -132,6 +132,9 @@ final readonly class ResourceFormDataSource
         }
 
         $state = $this->normalizeFieldStateValues($form->mutateData($state), $fields);
+        // Defaults / mutateData() may add keys not present in the authorized form.
+        // Only serialize state belonging to fields the current user can actually see.
+        $state = array_intersect_key($state, array_fill_keys(array_column($fields, 'key'), true));
 
         $payload = array_merge($schema->toArray(), [
             'schema' => $filteredSchema,
