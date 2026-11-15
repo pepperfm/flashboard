@@ -89,12 +89,22 @@ final readonly class LaravelScreenPayloadAssembler
         /** @var class-string<Resource>|null $resourceClass */
         $resourceClass = $screen->resourceClass();
         $resourcePage = (string) Arr::get($context->request()->route()->defaults, 'flashboard.resource_page', 'index');
-        $record = $resourcePage === 'detail' || $resourcePage === 'edit'
-            ? $resourceClass::resolveRecord($context->request()->route('record'))
-            : null;
-
         if (!is_string($resourceClass) || $resourceClass === '') {
             throw new \InvalidArgumentException('Resolved resource screen is missing a resource class.');
+        }
+
+        $requiresRecord = in_array($resourcePage, ['detail', 'edit'], true);
+        $record = $requiresRecord
+            ? $resourceClass::resolveRecord($context->request()->route('record'))
+            : null;
+        if ($requiresRecord && $record === null) {
+            abort(404);
+        }
+        if ($record !== null && !$this->screenAccessResolver->canViewRecord($resourceClass, $user, $record)) {
+            abort(403);
+        }
+        if ($resourcePage === 'edit' && !$this->screenAccessResolver->canEditRecord($resourceClass, $user, $record)) {
+            abort(403);
         }
 
         $payload = [
