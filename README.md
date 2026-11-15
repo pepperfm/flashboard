@@ -10,12 +10,14 @@ The current primary DX is a typed, declarative resource API:
 - `detail()` / `infolist()` with typed entries such as `TextEntry`
 - `relations()` with inverse `HasOne` and `HasMany` relation managers for protected attach, detach, replace, sync, and nested create flows
 - `actions()` and `pages()` as part of the same package-owned resource surface model
+- opt-in `metrics()` for read-only count, trend, and breakdown analytics with Nuxt UI charts
 
 Legacy array definitions remain supported as a compatibility bridge while host apps move to the typed DSL.
 
 ## Documentation
 
 - [Read the documentation](https://flashboard.pepperfm.com)
+- [Resource metrics (beta)](docs/metrics.md) — Eloquent-backed cards and charts on dashboard/index pages.
 - [AI Harness: local MCP (alpha)](docs/ai-harness.md) — setup, model inspection, preview/create/update workflow, sample prompts and safety limits.
 
 ## Current Scope
