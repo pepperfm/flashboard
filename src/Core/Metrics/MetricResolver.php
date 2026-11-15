@@ -136,7 +136,7 @@ final readonly class MetricResolver
         $expression = "DATE({$wrapped})";
 
         $rows = $query->where($column, '>=', $start)->where($column, '<', $end)
-            ->reorder()->selectRaw("{$expression} AS bucket, COUNT(*) AS aggregate")
+            ->reorder()->select([])->selectRaw("{$expression} AS bucket, COUNT(*) AS aggregate")
             ->groupByRaw($expression)->orderBy('bucket')->get();
 
         $counts = [];
