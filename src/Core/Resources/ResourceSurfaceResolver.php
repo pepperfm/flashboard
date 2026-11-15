@@ -144,7 +144,7 @@ final readonly class ResourceSurfaceResolver
             || $table['filters'] !== []
             || $table['scopes'] !== []
             || $table['bulk_actions'] !== []
-            || $table['pagination'] !== 15;
+            || $table['pagination'] !== 10;
     }
 
     /**
