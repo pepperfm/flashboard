@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased — Resource analytics and integration hardening
+
+- add opt-in Resource metrics (count, daily trends, breakdowns) and Nuxt UI charts
+- resolve detail/edit/action records through Resource queries with query extensions
+- enforce field-level permissions on direct form create/update requests
+- remove unconfigured model attributes from detail and inverse-relation payloads; filter hidden form defaults and derived state
+- restrict relation reads and updates to explicitly scoped related Resources
+- keep Blade views inside the Composer package by default; always refresh published precompiled assets
+- add regression coverage for scoped lookups, direct form writes, related data, form state, and installer behavior
+
 ## 0.2.1 - 2026-05-29
 
 - add server-only relation query modifiers for `BelongsTo`, `HasOne`, and `HasMany` fields/managers; callbacks receive and must return an Eloquent `Builder`

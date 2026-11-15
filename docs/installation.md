@@ -80,8 +80,16 @@ php artisan flashboard:build-assets --skip
 
 This publishes:
 
-- `resources/views/vendor/flashboard/*`
-- `public/vendor/flashboard/build/*`
+- `public/vendor/flashboard/build/*` (refreshed on repeat installs)
+
+By default, Flashboard serves its Blade views from the Composer package, so
+updating the package does **not** leave old copies in the host application.
+To customize the view, explicitly run `php artisan vendor:publish --tag=flashboard-views`.
+Such overrides belong to the host app and must be reviewed after package upgrades.
+
+If an older installation already has `resources/views/vendor/flashboard/*`,
+those copies override package views until removed or updated. Do not delete
+customized views blindly.
 
 The host application does not need to add Flashboard's Vue, Inertia, or Nuxt UI dependencies to its own frontend build. Those dependencies belong to the package build, which `flashboard:install` and `flashboard:build-assets` run from the installed package directory.
 

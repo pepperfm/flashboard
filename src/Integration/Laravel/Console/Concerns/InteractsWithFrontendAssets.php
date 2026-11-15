@@ -106,7 +106,11 @@ trait InteractsWithFrontendAssets
             $assetPublishOptions['--force'] = true;
         }
 
-        $this->call('vendor:publish', $viewPublishOptions + ['--tag' => 'flashboard-views']);
+        // Package-provided views stay in vendor by default. Only publish an
+        // overriding copy when the caller explicitly opts in with --force.
+        if ($forceViews) {
+            $this->call('vendor:publish', $viewPublishOptions + ['--tag' => 'flashboard-views']);
+        }
         $this->call('vendor:publish', $assetPublishOptions + ['--tag' => 'flashboard-assets']);
     }
 

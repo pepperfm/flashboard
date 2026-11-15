@@ -200,7 +200,12 @@ final readonly class ResourceRelationRecordsDataSource
         $query = $eloquentRelation->getQuery();
 
         if ($metadata->relatedResource !== null) {
-            $query = $this->extensionRegistry->extendQuery($metadata->relatedResource, $query);
+            // Constrain related rows by the Resource's own query as well as by
+            // the Eloquent relation; query extensions alone are insufficient.
+            $related = $metadata->relatedResource;
+            $visible = $this->extensionRegistry->extendQuery($related, $related::query())
+                ->select($metadata->relatedTable . '.' . $metadata->recordKeyName);
+            $query->whereIn($metadata->relatedTable . '.' . $metadata->recordKeyName, $visible);
         }
 
         return RelationQueryModifier::apply(
@@ -218,16 +223,31 @@ final readonly class ResourceRelationRecordsDataSource
         Model $record,
         ?\Illuminate\Contracts\Auth\Authenticatable $user,
     ): ?array {
+        // A relation can contain records that the current user cannot view.
+        // Filter them server-side rather than relying on link visibility.
+        if ($metadata->relatedResource !== null && (
+            !$this->screenAccessResolver->canAccessResource($metadata->relatedResource, $user)
+            || !$this->screenAccessResolver->canViewRecord($metadata->relatedResource, $user, $record)
+        )) {
+            return null;
+        }
+
         $key = $this->scalarValue(data_get($record, $metadata->recordKeyName));
 
         if ($key === null) {
             return null;
         }
 
+        $canViewTitle = $metadata->relatedResource === null
+            || $this->screenAccessResolver->canViewField($metadata->relatedResource, $metadata->titleAttribute, $user);
+
         $payload = [
             'key' => $key,
-            'title' => (string) ($this->scalarValue(data_get($record, $metadata->titleAttribute)) ?? $key),
-            'attributes' => $record->attributesToArray(),
+            'title' => $canViewTitle
+                ? (string) ($this->scalarValue(data_get($record, $metadata->titleAttribute)) ?? $key)
+                : (string) $key,
+            // The relation UI only needs key/title/links. Never send arbitrary model attributes.
+            'attributes' => [],
             'links' => [
                 'detail' => $this->detailUrl($metadata, $record, $user),
                 'edit' => $this->editUrl($metadata, $record, $user),

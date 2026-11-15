@@ -26,6 +26,30 @@ Validate the package in a Laravel 13 application with:
    - `/panel/resources/orders/create`
    - `/panel/queues/review`
 
+## Independent host-app smoke checks (before production)
+
+Repeat the basic validation in two **separate** Laravel 13 host applications:
+
+- Laravel 13 with no existing frontend: install with precompiled assets, log in,
+  create/read/update/delete an authorized resource record, inspect relations
+  and JSON payloads, and verify an unauthorized user cannot access the panel.
+- Laravel 13 with Inertia/Vue (and optionally Nuxt UI + SSR): put Flashboard
+  on a separate URL prefix, follow a normal HTML link into the admin area,
+  navigate inside Flashboard, then navigate back with a full page load.
+  Verify that host Vue pages and FB Vue pages do not share root views or bundles.
+
+In each host check that denied `fieldAbilityMap()` fields cannot be submitted
+by direct HTTP requests, that hidden/scoped-out records return 404/403, and
+that neither detail nor inverse relation payloads expose raw model attributes.
+
+Reinstall or upgrade the Composer package and re-run
+`php artisan flashboard:install`; its published build manifest should update
+without writing a copy of Flashboard Blade templates into the host.
+If the host already has a customized published view, test it separately.
+
+This is a manual smoke checklist, **not a claim** that these host checks run
+automatically in package tests.
+
 ## Files In This Example
 
 - `app/Providers/Flashboard/AdminPanelProvider.php`

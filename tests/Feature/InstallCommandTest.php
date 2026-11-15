@@ -133,10 +133,9 @@ final class InstallCommandTest extends TestCase
 
         $publisher->publishArtifacts();
 
-        self::assertSame('flashboard-views', $publisher->calls[0][1]['--tag'] ?? null);
-        self::assertArrayNotHasKey('--force', $publisher->calls[0][1]);
-        self::assertSame('flashboard-assets', $publisher->calls[1][1]['--tag'] ?? null);
-        self::assertTrue($publisher->calls[1][1]['--force'] ?? false);
+        self::assertCount(1, $publisher->calls);
+        self::assertSame('flashboard-assets', $publisher->calls[0][1]['--tag'] ?? null);
+        self::assertTrue($publisher->calls[0][1]['--force'] ?? false);
     }
 
     private function makeCommand(): InstallCommand

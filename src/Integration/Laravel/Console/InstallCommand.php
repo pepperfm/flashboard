@@ -51,7 +51,9 @@ final class InstallCommand extends \Illuminate\Console\Command
             $publishOptions['--force'] = true;
         }
 
-        $this->call('vendor:publish', $publishOptions + ['--tag' => 'flashboard-views']);
+        // Use the package Blade view by default. Publishing a copy into the host
+        // application makes subsequent Composer updates silently use stale markup.
+        // Hosts can still explicitly publish flashboard-views to customize it.
 
         // Tagged Composer archives ship a precompiled Vite manifest and assets.
         // Only a source checkout without compiled assets needs a local JS toolchain.
@@ -63,7 +65,9 @@ final class InstallCommand extends \Illuminate\Console\Command
         }
 
         if ($assetsReady && $files->isDirectory($packageBuildPath)) {
-            $this->call('vendor:publish', $publishOptions + ['--tag' => 'flashboard-assets']);
+            // Precompiled assets are versioned by the package and must always be
+            // refreshed, including when install is run again after an update.
+            $this->call('vendor:publish', $publishOptions + ['--tag' => 'flashboard-assets', '--force' => true]);
         } else {
             warning('Flashboard assets are missing. Rebuild them and rerun the installer.');
             return self::FAILURE;
@@ -95,8 +99,8 @@ final class InstallCommand extends \Illuminate\Console\Command
             }
         }
 
-        if ($this->option('force')) {
-            warning('Install ran with --force, so published targets may have been overwritten.');
+        if ($files->exists(resource_path('views/vendor/flashboard/panel.blade.php'))) {
+            warning('A published Flashboard Blade view overrides the package view. Review this override after upgrades.');
         }
 
         return self::SUCCESS;

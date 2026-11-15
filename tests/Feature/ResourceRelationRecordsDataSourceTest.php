@@ -101,6 +101,8 @@ final class ResourceRelationRecordsDataSourceTest extends TestCase
         self::assertSame('/flashboard.resources.relation_manager_order.relations.attach-options', $payloadsByKey['profile']['options_url']);
         self::assertSame('has_many', $payloadsByKey['items']['type']);
         self::assertSame('Attached item', $payloadsByKey['items']['records'][0]['title']);
+        self::assertSame([], $payloadsByKey['items']['records'][0]['attributes']);
+        self::assertArrayNotHasKey('sku', $payloadsByKey['items']['records'][0]['attributes']);
         self::assertSame(1, $payloadsByKey['items']['pagination']['current_page']);
     }
 
@@ -134,6 +136,23 @@ final class ResourceRelationRecordsDataSourceTest extends TestCase
             ],
         ], $payload['items']);
         self::assertNotContains($this->attachedItem->getKey(), array_column($payload['items'], 'value'));
+    }
+
+    public function test_related_records_are_constrained_by_the_related_resource_query(): void
+    {
+        $registry = new ResourceRegistry();
+        $registry->register(ScopedRecordsOrderResource::class);
+        $registry->register(ScopedRecordsItemResource::class);
+
+        $payload = $this->recordsDataSource($registry)->resolve(
+            ScopedRecordsOrderResource::class,
+            $this->order,
+            'items',
+            \Illuminate\Http\Request::create('/'),
+        );
+
+        self::assertSame([], $payload['records']);
+        self::assertNull($payload['selected_record']);
     }
 
     public function test_relation_records_respect_records_query_modifier(): void
@@ -362,5 +381,35 @@ final class ModifiedRelationManagerOrderResource extends Resource
                 ->modifyRecordsQueryUsing(static fn (Builder $query): Builder => $query->where('sku', 'A-1'))
                 ->modifyAttachOptionsQueryUsing(static fn (Builder $query): Builder => $query->where('sku', 'O-1')),
         ];
+    }
+}
+
+final class ScopedRecordsOrderResource extends Resource
+{
+    public static function model(): string
+    {
+        return RelationManagerOrder::class;
+    }
+
+    public static function relations(): array
+    {
+        return [
+            HasMany::make('items', 'Items')
+                ->resource(ScopedRecordsItemResource::class),
+        ];
+    }
+}
+
+final class ScopedRecordsItemResource extends Resource
+{
+    public static function model(): string
+    {
+        return RelationManagerOrderItem::class;
+    }
+
+    public static function query(): \Illuminate\Database\Eloquent\Builder
+    {
+        // Only the orphan row is visible to this resource, not the attached item.
+        return RelationManagerOrderItem::query()->where('sku', 'O-1');
     }
 }

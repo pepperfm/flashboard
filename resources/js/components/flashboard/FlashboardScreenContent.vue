@@ -2,6 +2,8 @@
 import { router, useForm } from '@inertiajs/vue3'
 import { useToast } from '@nuxt/ui/composables'
 import FBCustomPageRenderer from '@/components/flashboard/custom-pages/FBCustomPageRenderer.vue'
+import FBMetrics from '@/components/flashboard/metrics/FBMetrics.vue'
+import type { MetricsPayload } from '@/components/flashboard/metrics/types'
 import FBHasManyRelationManager from '@/components/flashboard/relations/FBHasManyRelationManager.vue'
 import FBHasOneRelationManager from '@/components/flashboard/relations/FBHasOneRelationManager.vue'
 import SimpleFormShell from '@/components/flashboard/forms/layout/SimpleFormShell.vue'
@@ -97,6 +99,7 @@ type PageComponentPayloadShape = {
 }
 
 type PayloadShape = {
+  metrics?: MetricsPayload | null
   metadata?: Record<string, unknown>
   page?: { key?: string; title: string; type?: string; uri?: string }
   workspace?: { title?: string; description?: string }
@@ -1124,6 +1127,7 @@ function formatValue(value: unknown): string {
 
 <template>
   <template v-if="payload.resource?.page === 'index'">
+    <FBMetrics v-if="payload.metrics?.items?.length" :metrics="payload.metrics" />
     <UCard variant="outline">
       <template #header>
         <div class="section-header">
@@ -1335,6 +1339,14 @@ function formatValue(value: unknown): string {
           </UPagination>
         </div>
       </div>
+    </UCard>
+  </template>
+
+  <template v-else-if="payload.page?.key === 'dashboard'">
+    <FBMetrics v-if="payload.metrics?.items?.length" :metrics="payload.metrics" />
+    <UCard v-else variant="outline">
+      <template #header>Dashboard</template>
+      Define metrics in your Flashboard Resources to see analytics here.
     </UCard>
   </template>
 

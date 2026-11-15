@@ -32,6 +32,18 @@ final class PanelSecurityHttpTest extends TestCase
             ->defaults('flashboard.resource', DeniedActionResource::class);
     }
 
+    public function test_panel_login_uses_package_root_view_even_when_host_has_inertia(): void
+    {
+        // Host applications may already have a different Inertia root view.
+        \Inertia\Inertia::setRootView('host-inertia-view');
+
+        $response = $this->get('/admin/login');
+
+        $response->assertOk();
+        $response->assertSee('vendor/flashboard/build/', false);
+        $response->assertDontSee('resources/js/app.ts', false);
+    }
+
     public function test_guests_cannot_access_panel_endpoints(): void
     {
         $this->get('/__flashboard_access_probe')->assertRedirect();
