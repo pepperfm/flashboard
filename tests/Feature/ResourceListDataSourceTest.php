@@ -628,7 +628,7 @@ final class ResourceListDataSourceTest extends TestCase
                 return $table->columns([
                     TextColumn::make('id'),
                     TextColumn::make('category.name'),
-                ]);
+                ])->pagination(25);
             }
         });
 
