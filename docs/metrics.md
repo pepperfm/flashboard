@@ -42,7 +42,7 @@ final class UsersResource extends Resource
     {
         return [
             Metric::count('total')->label('All users'),
-            Metric::trend('registrations')->label('Daily registrations')->dateColumn('created_at')->chart('area'),
+            Metric::trend('registrations')->label('Daily registrations')->dateColumn('created_at')->chart('area')->span(8),
             Metric::breakdown('by_status')->label('By status')->column('status')->chart('bar'),
         ];
     }
@@ -52,6 +52,25 @@ final class UsersResource extends Resource
 The metrics appear on the Resource's index screen and are automatically included on
 the main Dashboard if the current user has `viewAny` access to that Resource.
 
+## Grid layout
+
+Metrics are placed in a responsive **12-column grid** on large screens; on
+smaller screens each card uses the available width. The default widths are
+3 columns for count cards (four per row) and 6 columns for charts (two per row).
+
+Override any metric with `->span($columns)` where `$columns` is an integer
+from **1 to 12**. For example:
+
+```php
+Metric::trend('registrations')->chart('area')->span(8), // 2/3 of a row
+Metric::trend('verified')->dateColumn('email_verified_at')->span(4), // 1/3
+Metric::breakdown('statuses')->column('status')->chart('donut')->span(12), // full row
+```
+
+Count cards and charts occupy separate grids, preserving their existing visual
+grouping. Width settings are applied on desktop only; metric definitions do not
+support row placement, chart height, or per-breakpoint positioning.
+
 ### Output
 
 Metrics are resolved server-side into a `metrics` payload:
@@ -60,8 +79,8 @@ Metrics are resolved server-side into a `metrics` payload:
 {
   "period_days": 30,
   "items": [
-    { "key": "users.total", "resource": "Users", "kind": "count", "label": "All users", "chart": "line", "value": 42 },
-    { "key": "users.registrations", "resource": "Users", "kind": "trend", "label": "Daily registrations", "chart": "area", "points": [{ "label": "2026-11-15", "value": 2 }] }
+    { "key": "users.total", "resource": "Users", "kind": "count", "label": "All users", "chart": "line", "span": 3, "value": 42 },
+    { "key": "users.registrations", "resource": "Users", "kind": "trend", "label": "Daily registrations", "chart": "area", "span": 8, "points": [{ "label": "2026-11-15", "value": 2 }] }
   ]
 }
 ```
