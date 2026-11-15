@@ -99,8 +99,8 @@ final class InstallCommand extends \Illuminate\Console\Command
             }
         }
 
-        if ($this->option('force')) {
-            warning('Install ran with --force, so published targets may have been overwritten.');
+        if ($files->exists(resource_path('views/vendor/flashboard/panel.blade.php'))) {
+            warning('A published Flashboard Blade view overrides the package view. Review this override after upgrades.');
         }
 
         return self::SUCCESS;
