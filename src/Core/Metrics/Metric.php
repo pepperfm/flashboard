@@ -12,6 +12,7 @@ final class Metric
     private string $label;
     private ?string $column = null;
     private string $chart = 'line';
+    private ?int $span = null;
 
     private function __construct(
         private readonly string $kind,
@@ -82,12 +83,27 @@ final class Metric
     }
 
     /**
+     * Number of columns occupied in the 12-column desktop metrics grid.
+     */
+    public function span(int $columns): self
+    {
+        if ($columns < 1 || $columns > 12) {
+            throw new \InvalidArgumentException('Metric span must be between 1 and 12.');
+        }
+
+        $this->span = $columns;
+
+        return $this;
+    }
+
+    /**
      * @return array{
      *     key: string,
      *     label: string,
      *     kind: string,
      *     column: ?string,
-     *     chart: string
+     *     chart: string,
+     *     span: int
      * }
      */
     public function toArray(): array
@@ -98,6 +114,7 @@ final class Metric
             'kind' => $this->kind,
             'column' => $this->column,
             'chart' => $this->chart,
+            'span' => $this->span ?? ($this->kind === 'count' ? 3 : 6),
         ];
     }
 }
