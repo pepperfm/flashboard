@@ -96,6 +96,35 @@ final class ResourceMetricsTest extends TestCase
         self::assertSame(2, $result['items'][0]['value']);
     }
 
+    public function test_metric_grid_spans_have_safe_defaults_and_allow_explicit_widths(): void
+    {
+        self::assertSame(3, Metric::count('default_count')->toArray()['span']);
+        self::assertSame(6, Metric::trend('default_trend')->toArray()['span']);
+        self::assertSame(6, Metric::breakdown('default_breakdown')->toArray()['span']);
+        self::assertSame(8, Metric::trend('wide')->span(8)->toArray()['span']);
+        self::assertSame(12, Metric::count('full')->span(12)->toArray()['span']);
+
+        foreach ([0, -1, 13] as $invalid) {
+            try {
+                Metric::trend('invalid_span')->span($invalid);
+                self::fail("Span {$invalid} must be rejected.");
+            } catch (\InvalidArgumentException) {
+                // Expected: avoid invalid CSS grid spans.
+            }
+        }
+    }
+
+    public function test_metric_span_is_present_in_resource_payload(): void
+    {
+        $result = $this->resolver()->resource(
+            MetricRecordResource::class,
+            Request::create('/admin/resources/metrics'),
+            null,
+        );
+
+        self::assertSame([3, 8, 6], array_column($result['items'], 'span'));
+    }
+
     public function test_untrusted_period_is_bounded_to_supported_values(): void
     {
         $resolver = $this->resolver();
@@ -163,7 +192,7 @@ class MetricRecordResource extends Resource
     {
         return [
             Metric::count('total')->label('Records'),
-            Metric::trend('registrations')->dateColumn('created_at')->label('Registrations'),
+            Metric::trend('registrations')->dateColumn('created_at')->label('Registrations')->span(8),
             Metric::breakdown('statuses')->column('status')->chart('bar'),
         ];
     }
