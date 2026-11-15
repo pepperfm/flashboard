@@ -15,6 +15,8 @@ use Pepperfm\Flashboard\Core\Authorization\Visibility\ScreenAccessResolver;
 use Pepperfm\Flashboard\Core\Extensions\ExtensionRegistry;
 use Pepperfm\Flashboard\Core\Hooks\RuntimeHookDispatcher;
 use Pepperfm\Flashboard\Core\Navigation\Builders\NavigationItem;
+use Pepperfm\Flashboard\Core\Metrics\MetricResolver;
+use Pepperfm\Flashboard\Core\Pages\DashboardPage;
 use Pepperfm\Flashboard\Core\Resources\ResourceSurfaceResolver;
 use Pepperfm\Flashboard\Core\Runtime\Assemblers\ActionPayloadAssembler;
 use Pepperfm\Flashboard\Core\Runtime\Assemblers\TablePayloadAssembler;
@@ -50,6 +52,7 @@ final readonly class LaravelScreenPayloadAssembler
         private PanelAuthenticator $panelAuthenticator,
         private ExtensionRegistry $extensionRegistry,
         private RuntimeHookDispatcher $runtimeHookDispatcher,
+        private MetricResolver $metricResolver,
     ) {
     }
 
@@ -73,6 +76,9 @@ final readonly class LaravelScreenPayloadAssembler
                 'detail' => null,
                 'actions' => [],
                 'navigation_item' => null,
+                'metrics' => $pageClass === DashboardPage::class
+                    ? $this->metricResolver->dashboard($context->request(), $user)
+                    : null,
                 'component' => $this->buildPageComponentPayload($pageClass, $context, $user),
                 'workspace' => is_a($pageClass, CustomPageContract::class, true)
                     ? $this->workspacePayloadAssembler->assemble($pageClass, $context->metadata()->toArray())
@@ -137,6 +143,9 @@ final readonly class LaravelScreenPayloadAssembler
                 ? $this->resourceDetailDataSource->resolve($resourceClass, $record, $resourcePage)['relations']
                 : [],
             'workspace' => null,
+            'metrics' => $resourcePage === 'index'
+                ? $this->metricResolver->resource($resourceClass, $context->request(), $user)
+                : null,
         ];
 
         $extendedPayload = $this->extensionRegistry->extendPayload($resourceClass, $resourcePage, $payload);
