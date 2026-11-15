@@ -56,6 +56,49 @@ final class ResourceFormDataSourceTest extends TestCase
         self::assertSame(['is_active'], array_column($payload['schema'][1]['tabs'][0]['schema'], 'key'));
     }
 
+    public function test_hidden_default_and_mutated_state_are_never_serialized(): void
+    {
+        $this->fakeUrlGenerator();
+        $this->fakeGateForFieldVisibility();
+
+        $resourceClass = get_class(new class extends Resource
+        {
+            public static function model(): string
+            {
+                return \Illuminate\Database\Eloquent\Model::class;
+            }
+
+            public static function policy(): ?string
+            {
+                return \stdClass::class;
+            }
+
+            public static function fieldAbilityMap(): array
+            {
+                return ['secret' => 'view-hidden'];
+            }
+
+            public static function form(FormContract $form): FormContract
+            {
+                return $form->schema([
+                    TextInput::make('email'),
+                    TextInput::make('secret'),
+                ])->defaults([
+                    'email' => 'shown@example.test',
+                    'secret' => 'never-expose',
+                ])->mutateDataUsing(static fn (array $state): array => [
+                    ...$state,
+                    'undeclared_internal' => 'private',
+                ]);
+            }
+        });
+
+        $payload = $this->makeDataSource()->resolve($resourceClass);
+
+        self::assertSame(['email' => 'shown@example.test'], $payload['state']);
+        self::assertSame(['email'], array_column($payload['fields'], 'key'));
+    }
+
     public function test_boolean_fields_default_to_false_without_overriding_explicit_defaults_or_record_state(): void
     {
         $this->fakeUrlGenerator();
