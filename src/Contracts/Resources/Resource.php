@@ -390,7 +390,9 @@ abstract class Resource
      */
     public static function resolveRecord(mixed $recordKey): ?\Illuminate\Database\Eloquent\Model
     {
-        return static::query()->find($recordKey);
+        return app(\Pepperfm\Flashboard\Core\Extensions\ExtensionRegistry::class)
+            ->extendQuery(static::class, static::query())
+            ->find($recordKey);
     }
 
     /**
