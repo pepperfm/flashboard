@@ -11,6 +11,7 @@ use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Schema\Blueprint;
 use Illuminate\Http\Request;
 use Pepperfm\Flashboard\Contracts\Resources\Resource;
+use Pepperfm\Flashboard\Contracts\Extensions\QueryExtensionContract;
 use Pepperfm\Flashboard\Core\Authorization\Visibility\ScreenAccessResolver;
 use Pepperfm\Flashboard\Core\Extensions\ExtensionRegistry;
 use Pepperfm\Flashboard\Core\Metrics\Metric;
@@ -82,6 +83,17 @@ final class ResourceMetricsTest extends TestCase
 
         self::assertCount(3, $result['items']);
         self::assertSame(30, $result['period_days']);
+    }
+
+    public function test_query_extensions_also_scope_metrics(): void
+    {
+        $result = $this->resolver()->resource(
+            ExtendedMetricResource::class,
+            Request::create('/admin/resources/metrics'),
+            null,
+        );
+
+        self::assertSame(2, $result['items'][0]['value']);
     }
 
     public function test_untrusted_period_is_bounded_to_supported_values(): void
@@ -170,5 +182,26 @@ final class MissingColumnMetricResource extends MetricRecordResource
     public static function metrics(): array
     {
         return [Metric::breakdown('missing')->column('absent_column')];
+    }
+}
+
+final class MetricStatusExtension implements QueryExtensionContract
+{
+    public function extend(Builder $query): Builder
+    {
+        return $query->where('status', 'active');
+    }
+}
+
+final class ExtendedMetricResource extends MetricRecordResource
+{
+    public static function query(): Builder
+    {
+        return MetricRecord::query();
+    }
+
+    public static function queryExtensions(): array
+    {
+        return [new MetricStatusExtension()];
     }
 }
