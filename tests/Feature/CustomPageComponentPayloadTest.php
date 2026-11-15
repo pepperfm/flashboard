@@ -8,6 +8,7 @@ use Illuminate\Routing\Route;
 use Pepperfm\Flashboard\Core\Authorization\Visibility\ScreenAccessResolver;
 use Pepperfm\Flashboard\Core\Extensions\ExtensionRegistry;
 use Pepperfm\Flashboard\Core\Hooks\RuntimeHookDispatcher;
+use Pepperfm\Flashboard\Core\Metrics\MetricResolver;
 use Pepperfm\Flashboard\Core\Panel\PanelConfig;
 use Pepperfm\Flashboard\Core\Registry\ResourceRegistry;
 use Pepperfm\Flashboard\Core\Relations\RelationPayloadFactory;
@@ -294,6 +295,7 @@ final class CustomPageComponentPayloadTest extends TestCase
             $authenticator,
             $extensionRegistry,
             $runtimeHookDispatcher,
+            new MetricResolver($resourceRegistry, $screenAccessResolver, $extensionRegistry),
         );
     }
 
