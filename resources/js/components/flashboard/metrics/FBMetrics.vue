@@ -10,6 +10,30 @@ const props = defineProps<{
 const counts = computed(() => props.metrics.items.filter(item => item.kind === 'count'))
 const charts = computed(() => props.metrics.items.filter(item => item.kind !== 'count'))
 const hasTrends = computed(() => props.metrics.items.some(item => item.kind === 'trend'))
+// Static class names are intentional so Tailwind includes all supported spans.
+const spanClasses = [
+  '',
+  'xl:col-span-1',
+  'xl:col-span-2',
+  'xl:col-span-3',
+  'xl:col-span-4',
+  'xl:col-span-5',
+  'xl:col-span-6',
+  'xl:col-span-7',
+  'xl:col-span-8',
+  'xl:col-span-9',
+  'xl:col-span-10',
+  'xl:col-span-11',
+  'xl:col-span-12',
+] as const
+
+function spanClass(metric: MetricItem): string {
+  const fallback = metric.kind === 'count' ? 3 : 6
+  const span = metric.span
+
+  return spanClasses[typeof span === 'number' && Number.isInteger(span) && span >= 1 && span <= 12 ? span : fallback]!
+}
+
 const periods = [7, 30, 90] as const
 
 function changePeriod(days: number) {
@@ -44,8 +68,8 @@ function countLabel(metric: MetricItem): string {
       </div>
     </div>
 
-    <div v-if="counts.length" class="grid grid-cols-1 gap-3 sm:grid-cols-2 xl:grid-cols-4">
-      <UCard v-for="metric in counts" :key="metric.key" variant="outline">
+    <div v-if="counts.length" class="grid grid-cols-1 gap-3 xl:grid-cols-12">
+      <UCard v-for="metric in counts" :key="metric.key" :class="['min-w-0', spanClass(metric)]" variant="outline">
         <div class="grid gap-1">
           <span class="text-xs text-muted">{{ metric.resource }}</span>
           <span class="text-sm text-default">{{ metric.label }}</span>
@@ -56,8 +80,8 @@ function countLabel(metric: MetricItem): string {
       </UCard>
     </div>
 
-    <div v-if="charts.length" class="grid grid-cols-1 gap-4 xl:grid-cols-2">
-      <UCard v-for="metric in charts" :key="metric.key" variant="outline">
+    <div v-if="charts.length" class="grid grid-cols-1 gap-4 xl:grid-cols-12">
+      <UCard v-for="metric in charts" :key="metric.key" :class="['min-w-0', spanClass(metric)]" variant="outline">
         <template #header>
           <div class="grid gap-1">
             <span class="text-xs text-muted">{{ metric.resource }}</span>
@@ -65,14 +89,15 @@ function countLabel(metric: MetricItem): string {
           </div>
         </template>
 
-        <UChart
-          v-if="metric.points?.length"
-          :type="metric.chart"
-          :data="metric.points"
-          index="label"
-          :categories="[{ key: 'value', label: metric.label }]"
-          class="h-64 w-full"
-        />
+        <div v-if="metric.points?.length" class="min-w-0 pb-4">
+          <UChart
+            :type="metric.chart"
+            :data="metric.points"
+            index="label"
+            :categories="[{ key: 'value', label: metric.label }]"
+            class="h-72 min-w-0 w-full"
+          />
+        </div>
         <UAlert
           v-else
           color="neutral"
