@@ -100,7 +100,10 @@ final readonly class LaravelScreenPayloadAssembler
         if ($requiresRecord && $record === null) {
             abort(404);
         }
-        if ($record !== null && !$this->screenAccessResolver->canViewRecord($resourceClass, $user, $record)) {
+        // Mirror PanelScreenController's permissions: view for detail,
+        // update for edit. An update-only policy must not be required to
+        // grant view as well.
+        if ($resourcePage === 'detail' && !$this->screenAccessResolver->canViewRecord($resourceClass, $user, $record)) {
             abort(403);
         }
         if ($resourcePage === 'edit' && !$this->screenAccessResolver->canEditRecord($resourceClass, $user, $record)) {
