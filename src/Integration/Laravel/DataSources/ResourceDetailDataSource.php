@@ -70,7 +70,8 @@ final readonly class ResourceDetailDataSource
 
         $payload = array_merge($schema->toArray(), [
             'entries' => $entries,
-            'record' => $record?->attributesToArray(),
+            // Never serialize the entire Eloquent record: only authorized detail entries are exposed above.
+            'record' => $record === null ? null : [$record->getKeyName() => $record->getKey()],
             'relations' => $relations,
             'routes' => [
                 'edit' => $record === null
