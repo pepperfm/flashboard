@@ -16,6 +16,7 @@ use Pepperfm\Flashboard\Contracts\Pages\PageDefinitionContract;
 use Pepperfm\Flashboard\Contracts\Resources\Relations\RelationDefinitionContract;
 use Pepperfm\Flashboard\Contracts\Tables\TableActionContract;
 use Pepperfm\Flashboard\Contracts\Tables\TableContract;
+use Pepperfm\Flashboard\Core\Metrics\Metric;
 use Pepperfm\Flashboard\Core\Forms\Builders\Form;
 use Pepperfm\Flashboard\Core\Forms\Fields\BelongsTo;
 use Pepperfm\Flashboard\Core\Forms\Fields\Field;
@@ -73,6 +74,22 @@ abstract class Resource
         $model = static::model();
 
         return $model::query();
+    }
+
+    /**
+     * Explicit, read-only metrics for the dashboard and resource index.
+     *
+     * @return list<Metric>
+     */
+    public static function metrics(): array
+    {
+        return [];
+    }
+
+    /** @return array<string, string> */
+    public static function metricAbilityMap(): array
+    {
+        return [];
     }
 
     public static function table(TableContract $table): TableContract
