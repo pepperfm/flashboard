@@ -2,6 +2,9 @@
 
 ## Unreleased — Resource analytics and integration hardening
 
+- allow per-metric `span(1..12)` in a responsive 12-column dashboard grid, preserving previous default widths
+- add chart body spacing to reduce clipping against card boundaries
+
 - add opt-in Resource metrics (count, daily trends, breakdowns) and Nuxt UI charts
 - resolve detail/edit/action records through Resource queries with query extensions
 - enforce field-level permissions on direct form create/update requests
