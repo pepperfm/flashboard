@@ -60,7 +60,7 @@ final class Metric
 
     public function column(string $column): self
     {
-        if ($this->kind === 'count' || preg_match('/^[a-zA-Z_]\D*$/D', $column) !== 1) {
+        if ($this->kind === 'count' || preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/D', $column) !== 1) {
             throw new \InvalidArgumentException('Metric columns must be simple, trusted database column names.');
         }
 
