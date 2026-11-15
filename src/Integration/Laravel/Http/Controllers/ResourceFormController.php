@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Pepperfm\Flashboard\Integration\Laravel\Http\Controllers;
 
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Arr;
 use Pepperfm\Flashboard\Contracts\Resources\Resource;
 use Pepperfm\Flashboard\Core\Authorization\Visibility\ScreenAccessResolver;
 use Pepperfm\Flashboard\Core\Registry\ResourceRegistry;
@@ -33,6 +34,8 @@ final readonly class ResourceFormController
         if (!$this->screenAccessResolver->canCreateRecord($resourceClass, $user)) {
             abort(403);
         }
+
+        $this->assertWritableRequestFields($resourceClass, $request, $user);
 
         $relationCreateContext = $this->relationCreateContext($request, $resourceClass);
         if ($relationCreateContext !== null) {
@@ -81,6 +84,8 @@ final readonly class ResourceFormController
             abort(403);
         }
 
+        $this->assertWritableRequestFields($resourceClass, $request, $user);
+
         $data = $request->validate($resourceClass::updateRules($record));
 
         try {
@@ -123,6 +128,32 @@ final readonly class ResourceFormController
 
         return $this->redirectToResourceIndex($resourceClass)
             ->with('success', 'Record deleted successfully.');
+    }
+
+    /**
+     * Reject attempts to submit fields that were hidden by fieldAbilityMap().
+     * Removing a field from the frontend alone does not protect a write endpoint.
+     *
+     * @param class-string<Resource> $resourceClass
+     */
+    private function assertWritableRequestFields(
+        string $resourceClass,
+        \Illuminate\Http\Request $request,
+        ?\Illuminate\Contracts\Auth\Authenticatable $user,
+    ): void {
+        $submitted = $request->all();
+        foreach ($resourceClass::fieldAbilityMap() as $field => $ability) {
+            if (!is_string($field) || $field === '') {
+                continue;
+            }
+
+            if (
+                (Arr::has($submitted, $field) || Arr::has($submitted, $field . '_confirmation'))
+                && !$this->screenAccessResolver->canViewField($resourceClass, $field, $user)
+            ) {
+                abort(403);
+            }
+        }
     }
 
     /**
