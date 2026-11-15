@@ -15,6 +15,40 @@
 5. Verify custom extensions against new contracts
 6. Re-test protected panel routes and JSON payload consumers
 
+## Resource permissions and host integration hardening
+
+The resource runtime now applies `queryExtensions()` when resolving a single
+record, including on edit/delete/action routes. Ensure custom Resource
+`resolveRecord()` overrides apply the same scope. For multi-tenant applications,
+**always** enforce tenant isolation in `Resource::query()` and/or
+`queryExtensions()`; row-level policy checks alone are not sufficient.
+
+The detail payload's `record` field now contains only the record primary key.
+The relation-manager `attributes` field is retained for compatibility but is an
+empty array; use the explicit `title`, `key`, and `links` fields instead.
+Custom clients relying on previously serialized raw model attributes must
+migrate to explicitly declared, authorized detail entries.
+
+`fieldAbilityMap()` governs the form as well as server-side writes. Trying to
+submit a denied field directly through POST/PUT/PATCH returns HTTP 403.
+Form defaults and mutation output are reduced to visible form fields before
+they are sent to the browser. Any server-side privileged changes should be
+implemented in trusted Resource hooks, not hidden client-submitted fields.
+
+The installer now publishes only built assets and refreshes them when rerun.
+Flashboard's original package views are served directly from vendor. If a prior
+installation contains `resources/views/vendor/flashboard/*`, those host
+overrides continue taking precedence. Review or remove them manually after
+checking any customizations. To explicitly create a view override, run:
+
+```sh
+php artisan vendor:publish --tag=flashboard-views
+```
+
+When a host application also runs Inertia, keep Flashboard on its own URL
+prefix and use a full browser navigation when crossing frontend runtimes.
+The host should exclude Flashboard routes from its own SSR handler when applicable.
+
 ## Custom page components
 
 Custom pages now expose an additive `component` payload key.
