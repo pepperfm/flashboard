@@ -96,6 +96,18 @@ final readonly class ScreenAccessResolver
     /**
      * @param class-string<Resource> $resourceClass
      */
+    public function canViewMetric(
+        string $resourceClass,
+        string $ability,
+        ?\Illuminate\Contracts\Auth\Authenticatable $user,
+    ): bool {
+        return $this->canAccessResource($resourceClass, $user)
+            && $this->policyGate->allows($resourceClass, $ability, $user);
+    }
+
+    /**
+     * @param class-string<Resource> $resourceClass
+     */
     public function canViewField(
         string $resourceClass,
         string $fieldKey,
