@@ -200,7 +200,12 @@ final readonly class ResourceRelationRecordsDataSource
         $query = $eloquentRelation->getQuery();
 
         if ($metadata->relatedResource !== null) {
-            $query = $this->extensionRegistry->extendQuery($metadata->relatedResource, $query);
+            // Constrain related rows by the Resource's own query as well as by
+            // the Eloquent relation; query extensions alone are insufficient.
+            $related = $metadata->relatedResource;
+            $visible = $this->extensionRegistry->extendQuery($related, $related::query())
+                ->select($metadata->relatedTable . '.' . $metadata->recordKeyName);
+            $query->whereIn($metadata->relatedTable . '.' . $metadata->recordKeyName, $visible);
         }
 
         return RelationQueryModifier::apply(
