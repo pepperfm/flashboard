@@ -9,6 +9,7 @@ export type MetricItem = {
   label: string
   resource: string
   chart: 'line' | 'area' | 'bar' | 'donut'
+  span?: number
   value?: number
   points?: MetricPoint[]
 }
