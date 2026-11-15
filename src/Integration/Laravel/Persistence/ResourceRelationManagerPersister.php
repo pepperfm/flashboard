@@ -301,7 +301,13 @@ final readonly class ResourceRelationManagerPersister
         $query = $parent->{$metadata->relationship}()->getQuery();
 
         if ($metadata->relatedResource !== null) {
-            $query = $this->extensionRegistry?->extendQuery($metadata->relatedResource, $query) ?? $query;
+            $related = $metadata->relatedResource;
+            $scope = $related::query();
+            $visible = $this->extensionRegistry?->extendQuery($related, $scope) ?? $scope;
+            $query->whereIn(
+                $metadata->relatedTable . '.' . $metadata->recordKeyName,
+                $visible->select($metadata->relatedTable . '.' . $metadata->recordKeyName),
+            );
         }
 
         return RelationQueryModifier::apply(
