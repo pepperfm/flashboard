@@ -101,6 +101,8 @@ final class ResourceRelationRecordsDataSourceTest extends TestCase
         self::assertSame('/flashboard.resources.relation_manager_order.relations.attach-options', $payloadsByKey['profile']['options_url']);
         self::assertSame('has_many', $payloadsByKey['items']['type']);
         self::assertSame('Attached item', $payloadsByKey['items']['records'][0]['title']);
+        self::assertSame([], $payloadsByKey['items']['records'][0]['attributes']);
+        self::assertArrayNotHasKey('sku', $payloadsByKey['items']['records'][0]['attributes']);
         self::assertSame(1, $payloadsByKey['items']['pagination']['current_page']);
     }
 
