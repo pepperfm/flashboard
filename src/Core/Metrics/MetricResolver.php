@@ -31,7 +31,9 @@ final readonly class MetricResolver
         return in_array($value, ['7', '30', '90', 7, 30, 90], true) ? (int) $value : 30;
     }
 
-    /** @return array{period_days: int, items: list<array<string, mixed>>} */
+    /**
+     * @return array{period_days: int, items: list<array<string, mixed>>}
+     */
     public function dashboard(Request $request, ?Authenticatable $user): array
     {
         $period = $this->period($request);
@@ -44,8 +46,10 @@ final readonly class MetricResolver
         return ['period_days' => $period, 'items' => $items];
     }
 
-    /** @param class-string<Resource> $resourceClass
-     *  @return array{period_days: int, items: list<array<string, mixed>>}
+    /**
+     * @param class-string<Resource> $resourceClass
+     *
+     * @return array{period_days: int, items: list<array<string, mixed>>}
      */
     public function resource(string $resourceClass, Request $request, ?Authenticatable $user): array
     {
@@ -56,6 +60,7 @@ final readonly class MetricResolver
 
     /**
      * @param class-string<Resource> $resourceClass
+     *
      * @return list<array<string, mixed>>
      */
     private function metricsFor(string $resourceClass, int $period, ?Authenticatable $user): array
@@ -97,8 +102,10 @@ final readonly class MetricResolver
         return $items;
     }
 
-    /** @param array{kind: string, column: ?string} $metric
-     *  @return array<string, mixed>
+    /**
+     * @param array{kind: string, column: ?string} $metric
+     *
+     * @return array<string, mixed>
      */
     private function aggregate(Builder $query, array $metric, int $period): array
     {
@@ -121,10 +128,12 @@ final readonly class MetricResolver
                 ->limit(10)
                 ->get();
 
-            return ['points' => $rows->map(static fn ($row): array => [
-                'label' => $row->{$column} === null ? '—' : (string) $row->{$column},
-                'value' => (int) $row->aggregate,
-            ])->all()];
+            return [
+                'points' => $rows->map(static fn ($row): array => [
+                    'label' => $row->$column === null ? '—' : (string) $row->$column,
+                    'value' => (int) $row->aggregate,
+                ])->all(),
+            ];
         }
 
         if ($metric['kind'] !== 'trend') {
@@ -133,11 +142,16 @@ final readonly class MetricResolver
 
         $start = CarbonImmutable::now('UTC')->startOfDay()->subDays($period - 1);
         $end = CarbonImmutable::now('UTC')->startOfDay()->addDay();
-        $expression = "DATE({$wrapped})";
+        $expression = "DATE($wrapped)";
 
-        $rows = $query->where($column, '>=', $start)->where($column, '<', $end)
-            ->reorder()->select([])->selectRaw("{$expression} AS bucket, COUNT(*) AS aggregate")
-            ->groupByRaw($expression)->orderBy('bucket')->get();
+        $rows = $query->where($column, '>=', $start)
+            ->where($column, '<', $end)
+            ->reorder()
+            ->select([])
+            ->selectRaw("$expression AS bucket, COUNT(*) AS aggregate")
+            ->groupByRaw($expression)
+            ->oldest('bucket')
+            ->get();
 
         $counts = [];
         foreach ($rows as $row) {

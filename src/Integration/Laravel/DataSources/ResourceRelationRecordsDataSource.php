@@ -203,15 +203,16 @@ final readonly class ResourceRelationRecordsDataSource
             // Constrain related rows by the Resource's own query as well as by
             // the Eloquent relation; query extensions alone are insufficient.
             $related = $metadata->relatedResource;
-            $visible = $this->extensionRegistry->extendQuery($related, $related::query())
+            $visible = $this->extensionRegistry
+                ->extendQuery($related, $related::query())
                 ->select($metadata->relatedTable . '.' . $metadata->recordKeyName);
             $query->whereIn($metadata->relatedTable . '.' . $metadata->recordKeyName, $visible);
         }
 
         return RelationQueryModifier::apply(
-            $this->recordsQueryModifier($relation),
-            $query,
-            $metadata->key . ':records',
+            modifier: $this->recordsQueryModifier($relation),
+            query: $query,
+            context: "$metadata->key:records",
         );
     }
 
@@ -225,15 +226,16 @@ final readonly class ResourceRelationRecordsDataSource
     ): ?array {
         // A relation can contain records that the current user cannot view.
         // Filter them server-side rather than relying on link visibility.
-        if ($metadata->relatedResource !== null && (
-            !$this->screenAccessResolver->canAccessResource($metadata->relatedResource, $user)
-            || !$this->screenAccessResolver->canViewRecord($metadata->relatedResource, $user, $record)
-        )) {
+        if (
+            $metadata->relatedResource !== null && (
+                !$this->screenAccessResolver->canAccessResource($metadata->relatedResource, $user)
+                || !$this->screenAccessResolver->canViewRecord($metadata->relatedResource, $user, $record)
+            )
+        ) {
             return null;
         }
 
         $key = $this->scalarValue(data_get($record, $metadata->recordKeyName));
-
         if ($key === null) {
             return null;
         }
@@ -299,7 +301,10 @@ final readonly class ResourceRelationRecordsDataSource
         Model $record,
         ?\Illuminate\Contracts\Auth\Authenticatable $user,
     ): ?string {
-        if ($metadata->relatedResource === null || !$this->screenAccessResolver->canEditRecord($metadata->relatedResource, $user, $record)) {
+        if (
+            $metadata->relatedResource === null
+            || !$this->screenAccessResolver->canEditRecord($metadata->relatedResource, $user, $record)
+        ) {
             return null;
         }
 
@@ -374,6 +379,13 @@ final readonly class ResourceRelationRecordsDataSource
         ]));
     }
 
+    /**
+     * @param RelationManagerMetadata $metadata
+     * @param class-string<Resource> $resourceClass
+     * @param Model $record
+     *
+     * @return string
+     */
     private function createUrl(RelationManagerMetadata $metadata, string $resourceClass, Model $record): string
     {
         if ($metadata->relatedResource === null) {
@@ -426,6 +438,7 @@ final readonly class ResourceRelationRecordsDataSource
 
     /**
      * @param class-string<Resource> $resourceClass
+     * @param string $relationKey
      *
      * @return RelationDefinitionContract|null
      */

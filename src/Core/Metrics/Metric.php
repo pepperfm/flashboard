@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Pepperfm\Flashboard\Core\Metrics;
 
-/**
+/*
  * Opt-in, declarative metric definition. Never accepts raw SQL or user-supplied columns.
  */
 final class Metric
@@ -34,7 +34,7 @@ final class Metric
 
     public static function trend(string $key): self
     {
-        return (new self('trend', $key))->dateColumn('created_at');
+        return new self('trend', $key)->dateColumn('created_at');
     }
 
     public static function breakdown(string $key): self
@@ -60,7 +60,7 @@ final class Metric
 
     public function column(string $column): self
     {
-        if ($this->kind === 'count' || preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/D', $column) !== 1) {
+        if ($this->kind === 'count' || preg_match('/^[a-zA-Z_]\D*$/D', $column) !== 1) {
             throw new \InvalidArgumentException('Metric columns must be simple, trusted database column names.');
         }
 
@@ -81,7 +81,15 @@ final class Metric
         return $this;
     }
 
-    /** @return array{key: string, label: string, kind: string, column: ?string, chart: string} */
+    /**
+     * @return array{
+     *     key: string,
+     *     label: string,
+     *     kind: string,
+     *     column: ?string,
+     *     chart: string
+     * }
+     */
     public function toArray(): array
     {
         return [

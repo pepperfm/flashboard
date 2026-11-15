@@ -305,15 +305,15 @@ final readonly class ResourceRelationManagerPersister
             $scope = $related::query();
             $visible = $this->extensionRegistry?->extendQuery($related, $scope) ?? $scope;
             $query->whereIn(
-                $metadata->relatedTable . '.' . $metadata->recordKeyName,
-                $visible->select($metadata->relatedTable . '.' . $metadata->recordKeyName),
+                "$metadata->relatedTable.$metadata->recordKeyName",
+                $visible->select("$metadata->relatedTable.$metadata->recordKeyName"),
             );
         }
 
         return RelationQueryModifier::apply(
-            $this->recordsQueryModifier($relation),
-            $query,
-            $metadata->key . ':records',
+            modifier: $this->recordsQueryModifier($relation),
+            query: $query,
+            context: "$metadata->key:records",
         );
     }
 
@@ -383,7 +383,10 @@ final readonly class ResourceRelationManagerPersister
         Model $record,
         ?\Illuminate\Contracts\Auth\Authenticatable $user,
     ): void {
-        if ($metadata->relatedResource === null || !$this->screenAccessResolver->canEditRecord($metadata->relatedResource, $user, $record)) {
+        if (
+            $metadata->relatedResource === null
+            || !$this->screenAccessResolver->canEditRecord($metadata->relatedResource, $user, $record)
+        ) {
             throw new \Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException();
         }
     }
