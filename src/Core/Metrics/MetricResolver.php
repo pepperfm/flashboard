@@ -95,6 +95,7 @@ final readonly class MetricResolver
                 'resource' => $resourceClass::name(),
                 'kind' => $definition['kind'],
                 'chart' => $definition['chart'],
+                'span' => $definition['span'],
                 ...$this->aggregate($query, $definition, $period),
             ];
         }
