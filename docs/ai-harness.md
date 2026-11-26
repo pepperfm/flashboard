@@ -278,3 +278,8 @@ Read-only generation uses `read_only: true`, omits editable form fields and stan
 The example requires existing columns, enum casts and a registered related resource. Enum metadata preserves backing values and derives labels from case names, without invoking custom enum methods. Optional options override valid case labels. Writable enum fields validate allowed backing values. Explicit filter_type supports input, select and date; the legacy boolean filter is unchanged. Date filters and trend metrics require date/timestamp columns. Metrics validate keys, columns, charts and spans.
 
 Read-only is a standard Flashboard surface restriction, not a database write lock or tenant scope. Host policies and query scopes still require review. The legacy allow_delete flag controls the generated delete action; host policies enforce deletion permissions for writable resources.
+
+
+### Analytics generation (since 0.3.1)
+
+Since 0.3.1, the local Harness supports field filter_type: date_range for physical date/timestamp fields and metrics with kind: sum or avg on physical numeric columns. For example, use {"name":"ordered_on","type":"date","filter_type":"date_range"} and {"key":"total_value","kind":"sum","column":"total"}. Use get_capabilities to verify the installed package supports these features. Existing filter and metric specs retain their behavior. The generator does not generate arbitrary callbacks or host-specific tenant scopes.

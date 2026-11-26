@@ -88,6 +88,14 @@ final readonly class MetricResolver
 
             // Apply the SAME query extensions as resource lists: tenant scopes must not be bypassed.
             $query = $this->extensions->extendQuery($resourceClass, $resourceClass::query());
+            if ($column !== null && in_array($definition['kind'], ['sum', 'avg'], true)) {
+                $model = $query->getModel();
+                if (in_array($column, $model->getHidden(), true)
+                    || ($model->getVisible() !== [] && !in_array($column, $model->getVisible(), true))) {
+                    continue;
+                }
+            }
+
             $this->assertColumn($query, $column);
             $items[] = [
                 'key' => $resourceClass::key() . '.' . $definition['key'],
@@ -116,7 +124,11 @@ final readonly class MetricResolver
 
         $column = $metric['column'];
         if ($column === null) {
-            throw new \InvalidArgumentException('Trend and breakdown metrics require a column.');
+            throw new \InvalidArgumentException('Non-count metrics require a column.');
+        }
+
+        if (in_array($metric['kind'], ['sum', 'avg'], true)) {
+            return new NumericMetricAggregate()->resolve($query, $metric['kind'], $column);
         }
 
         $wrapped = $query->getQuery()->getGrammar()->wrap($column);

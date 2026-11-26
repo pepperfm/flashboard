@@ -10,7 +10,7 @@ No tracking service, event table, scheduled collector, or analytics database is 
 - `Metric::breakdown()` — top 10 groups by a configured database column.
 
 The runtime currently supports 7/30/90-day **UTC** trend windows. The `metric_period`
-query parameter is allowlisted and defaults to 30. Counts and breakdowns are all-time
+query parameter is allowlisted and defaults to 30. Counts, sums, averages and breakdowns are all-time
 aggregates over the Resource query (only trends change when the period changes).
 
 ## Example
@@ -56,7 +56,7 @@ the main Dashboard if the current user has `viewAny` access to that Resource.
 
 Metrics are placed in a responsive **12-column grid** on large screens; on
 smaller screens each card uses the available width. The default widths are
-3 columns for count cards (four per row) and 6 columns for charts (two per row).
+3 columns for scalar cards (four per row) and 6 columns for charts (two per row).
 
 Override any metric with `->span($columns)` where `$columns` is an integer
 from **1 to 12**. For example:
@@ -67,7 +67,7 @@ Metric::trend('verified')->dateColumn('email_verified_at')->span(4), // 1/3
 Metric::breakdown('statuses')->column('status')->chart('donut')->span(12), // full row
 ```
 
-Count cards and charts occupy separate grids, preserving their existing visual
+Scalar cards and charts occupy separate grids, preserving their existing visual
 grouping. Width settings are applied on desktop only; metric definitions do not
 support row placement, chart height, or per-breakpoint positioning.
 
@@ -94,7 +94,7 @@ Flashboard renders this via Nuxt UI `UCard` and `UChart`; the project depends on
 - **Resource authorization.** Access requires `canAccess()` + `viewAny`.
   Per-metric abilities can be declared using `metricAbilityMap()`, e.g.
   `['by_status' => 'viewAnalytics']`, using the Resource's registered Laravel Policy.
-- **Field authorization.** Breakdown and trend columns respect `fieldAbilityMap()`.
+- **Field authorization.** Numeric, breakdown and trend columns respect `fieldAbilityMap()`.
 - **Query scope.** Aggregations start from `Resource::query()` and go through
   `queryExtensions()`. Tenant / record scoping **must** be enforced in these queries.
   A `view()` check applied to individual records does NOT scope aggregate queries.
@@ -116,3 +116,20 @@ not part of Resource metrics.
 ## Breakdown labels
 
 Breakdown metrics normalize BackedEnum values to their backing int/string. Use `breakdownLabels(['active' => 'Active', 0 => 'Zero'])` for a display map, or `breakdownLabelUsing(fn ($value): string => ...)` for custom labels. The callback receives the normalized scalar or null. Null displays as an em dash by default; zero and empty values are not treated as null.
+
+## Numeric metrics (since 0.3.1)
+
+```php
+Metric::sum('revenue')->column('total')->label('Total order value'),
+Metric::avg('average_order')->column('total')->label('Average order value'),
+```
+
+Sum and average use a declared physical numeric column on the resource model. They respect resource access, field and metric abilities, model hidden/visible fields, global scopes and query extensions. Per-record policy checks do not replace query scoping.
+
+The SQL aggregate operates on distinct pairs of model primary key and column value from the scoped query, so ordinary joins do not multiply records; different records with equal values are still counted separately. The query must use the model table and cannot contain grouping, having, unions, limit/offset, group limits, locking or DISTINCT ON. Projection aliases used as filters are not supported. Use an ordinary membership query rather than a preaggregated query.
+
+Null column values do not contribute. The empty sum is the string "0"; the empty average is null, displayed as an em dash. Non-null results are database-produced strings (including decimal scale); the frontend does not cast them to JavaScript Number. PostgreSQL numeric columns retain database decimal precision. SQLite uses its native numeric arithmetic and is not an exact arbitrary-precision decimal engine. Only SQLite and PostgreSQL have been verified.
+
+These are scalar cards (default span 3); chart settings are not supported. Like count and breakdown, both are all-time over the resource scope; the trend period and table filters do not change them.
+
+For the current order dashboard, existing Resource::query() and queryExtensions() express the required tenant scope; no generic custom metric callback is necessary. A paid-only revenue metric cannot be implemented by changing the shared resource scope without also changing the list. Use a separately scoped resource if that is the intended resource boundary; per-metric custom queries are deliberately not introduced in this release.

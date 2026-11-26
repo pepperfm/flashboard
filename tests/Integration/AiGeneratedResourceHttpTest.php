@@ -84,6 +84,12 @@ final class AiGeneratedResourceHttpTest extends TestCase
         self::assertSame([], $resource::actions());
         $this->getJson($base)->assertOk()
             ->assertJsonPath('payload.metrics.items.0.value', 1);
+        $range = http_build_query(['filters' => ['occurred_on' => ['start' => '2026-11-25', 'end' => '2026-11-25']]]);
+        $this->getJson($base.'?'.$range)->assertOk()
+            ->assertJsonPath('payload.table.dataset.pagination.total', 0)
+            ->assertJsonPath('payload.metrics.items.3.value', '0')
+            ->assertJsonPath('payload.metrics.items.4.value', '0.0');
+        $this->getJson($base.'?filters[occurred_on][start]=2026-11-26')->assertStatus(422);
         $this->getJson($base.'/'.$record->getKey())->assertOk();
         self::assertFalse(Route::has('flashboard.resources.ai_read_only_probe.store'));
         self::assertFalse(Route::has('flashboard.resources.ai_read_only_probe.update'));
@@ -192,12 +198,14 @@ final class AiGeneratedResourceHttpTest extends TestCase
             'fields' => [
                 ['name' => 'name', 'required' => true],
                 ['name' => 'state', 'type' => 'enum', 'filter' => true, 'required' => true],
-                ['name' => 'occurred_on', 'type' => 'date', 'filter_type' => 'date', 'required' => true],
+                ['name' => 'occurred_on', 'type' => 'date', 'filter_type' => $readOnly ? 'date_range' : 'date', 'required' => true],
             ],
             'metrics' => [
                 ['kind' => 'count', 'key' => 'total'],
                 ['kind' => 'trend', 'key' => 'trend', 'column' => 'occurred_on'],
                 ['kind' => 'breakdown', 'key' => 'states', 'column' => 'state', 'chart' => 'donut'],
+                ['kind' => 'sum', 'key' => 'state_total', 'column' => 'state'],
+                ['kind' => 'avg', 'key' => 'state_average', 'column' => 'state'],
             ],
         ];
 

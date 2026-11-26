@@ -28,7 +28,7 @@ abstract class HarnessTool extends Tool
                 'searchable' => $schema->boolean(),
                 'sortable' => $schema->boolean(),
                 'filter' => $schema->boolean(),
-                'filter_type' => $schema->string()->description('Explicit input, select or date filter; overrides filter.'),
+                'filter_type' => $schema->string()->description('Explicit input, select, date or date_range filter; overrides filter.'),
                 'required' => $schema->boolean(),
                 'options' => $schema->object()->description('Map of option value => label; required for select, optional for enum.'),
             ]))->min(1)->max(30)->required(),
@@ -44,7 +44,7 @@ abstract class HarnessTool extends Tool
             ]))->description('Existing Eloquent relationships; requires a registered related Resource.'),
             'metrics' => $schema->array()->items($schema->object([
                 'key' => $schema->string()->required(),
-                'kind' => $schema->string()->description('count, trend or breakdown')->required(),
+                'kind' => $schema->string()->description('count, trend, breakdown, sum or avg')->required(),
                 'column' => $schema->string(),
                 'label' => $schema->string(),
                 'chart' => $schema->string(),

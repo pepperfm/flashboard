@@ -173,7 +173,7 @@ final class FieldCompiler
             }
 
             $filterType = $item['filter_type'] ?? ($filter ? ($type === 'select' ? 'select' : 'input') : null);
-            if ($filterType !== null && !in_array($filterType, ['input', 'select', 'date'], true)) {
+            if ($filterType !== null && !in_array($filterType, ['input', 'select', 'date', 'date_range'], true)) {
                 throw new \InvalidArgumentException('Unsupported filter type.');
             }
 
@@ -181,12 +181,13 @@ final class FieldCompiler
                 if ($filterType === 'select' && $options === []) {
                     throw new \InvalidArgumentException("Select filter [$name] needs a select or enum field.");
                 }
-                if ($filterType === 'date' && !ColumnType::isDate($available[$name])) {
+                if (in_array($filterType, ['date', 'date_range'], true) && !ColumnType::isDate($available[$name])) {
                     throw new \InvalidArgumentException("Date filter [$name] requires a date or timestamp column.");
                 }
 
                 $filters[] = match ($filterType) {
                     'select' => "                SelectFilter::make($namePhp, $labelPhp)->options($enumItemsPhp),",
+                    'date_range' => "                \\Pepperfm\\Flashboard\\Core\\Tables\\Filters\\DateRangeFilter::make($namePhp, $labelPhp),",
                     'date' => "                \\Pepperfm\\Flashboard\\Core\\Tables\\Filters\\DateFilter::make($namePhp, $labelPhp),",
                     default => "                InputFilter::make($namePhp, $labelPhp),",
                 };

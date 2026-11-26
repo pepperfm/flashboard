@@ -85,8 +85,8 @@ final class AiInspectionTest extends TestCase
 
         self::assertNotSame('', $capabilities['package_version']);
         self::assertSame('stdio', $capabilities['transport']);
-        self::assertSame(['count', 'trend', 'breakdown'], $capabilities['features']['generation']['metrics']);
-        self::assertSame(['count', 'trend', 'breakdown'], $capabilities['features']['manual_dsl']['metrics']);
+        self::assertSame(['count', 'trend', 'breakdown', 'sum', 'avg'], $capabilities['features']['generation']['metrics']);
+        self::assertSame(['count', 'trend', 'breakdown', 'sum', 'avg'], $capabilities['features']['manual_dsl']['metrics']);
         self::assertFalse($capabilities['write_safety']['business_record_access']);
     }
 }

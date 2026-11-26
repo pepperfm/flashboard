@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace Pepperfm\Flashboard\Ai\Generation;
 
+use Pepperfm\Flashboard\Core\Metrics\NumericMetricAggregate;
+
 final class MetricCompiler
 {
     /**
@@ -33,7 +35,7 @@ final class MetricCompiler
                 !is_string($key)
                 || isset($seen[$key])
                 || !preg_match('/^[a-z][a-z0-9_-]{0,63}$/D', $key)
-                || !in_array($kind, ['count', 'trend', 'breakdown'], true)
+                || !in_array($kind, ['count', 'trend', 'breakdown', 'sum', 'avg'], true)
             ) {
                 throw new \InvalidArgumentException('Invalid or duplicate metric key or unsupported kind.');
             }
@@ -55,6 +57,9 @@ final class MetricCompiler
                 if ($kind === 'trend' && !ColumnType::isDate($available[$column])) {
                     throw new \InvalidArgumentException("Trend metric [$key] requires a date or timestamp column.");
                 }
+                if (in_array($kind, ['sum', 'avg'], true) && !NumericMetricAggregate::supportsColumnType($available[$column])) {
+                    throw new \InvalidArgumentException("Numeric metric [$key] requires a numeric column.");
+                }
 
                 $method = $kind === 'trend' ? 'dateColumn' : 'column';
                 $line .= "->$method(" . var_export($column, true) . ')';
@@ -62,7 +67,7 @@ final class MetricCompiler
                 if ($kind === 'breakdown') {
                     $enum = new EnumOptions()->inspect($model, $column);
                     if ($enum !== null) {
-                        $line .= '->breakdownLabels('.$this->options($enum['options']).')';
+                        $line .= '->breakdownLabels(' . $this->options($enum['options']) . ')';
                     }
                 }
             } elseif ($column !== null) {

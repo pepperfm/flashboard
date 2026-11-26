@@ -38,12 +38,15 @@ final class ResourceMetricsTest extends TestCase
             $table->increments('id');
             $table->string('status');
             $table->dateTime('created_at');
+            $table->decimal('amount', 12, 2)->nullable();
+            $table->decimal('private_amount', 12, 2)->nullable();
+            $table->decimal('restricted_amount', 12, 2)->nullable();
         });
 
         MetricRecord::query()->insert([
-            ['status' => 'active', 'created_at' => '2026-11-14 08:00:00'],
-            ['status' => 'active', 'created_at' => '2026-11-15 09:00:00'],
-            ['status' => 'hidden', 'created_at' => '2026-11-15 11:00:00'],
+            ['status' => 'active', 'created_at' => '2026-11-14 08:00:00', 'amount' => '10.25'],
+            ['status' => 'active', 'created_at' => '2026-11-15 09:00:00', 'amount' => '20.50'],
+            ['status' => 'hidden', 'created_at' => '2026-11-15 11:00:00', 'amount' => '999.00'],
         ]);
     }
 
@@ -163,6 +166,38 @@ final class ResourceMetricsTest extends TestCase
         );
     }
 
+    public function test_numeric_metrics_use_extensions_and_respect_field_and_metric_abilities(): void
+    {
+        $gate = $this->createStub(\Illuminate\Contracts\Auth\Access\Gate::class);
+        $gate->method('getPolicyFor')->willReturn(new \stdClass());
+        $gate->method('forUser')->willReturnSelf();
+        $gate->method('allows')->willReturnCallback(
+            static fn (string $ability): bool => !in_array($ability, ['view-restricted', 'view-sensitive-metric'], true),
+        );
+        $this->app->instance(\Illuminate\Contracts\Auth\Access\Gate::class, $gate);
+
+        $result = $this->resolver()->resource(NumericMetricResource::class, Request::create('/admin'), null);
+
+        self::assertSame(['metric_records.revenue', 'metric_records.average'], array_column($result['items'], 'key'));
+        self::assertSame(['30.75', '15.375'], array_column($result['items'], 'value'));
+        self::assertSame([3, 3], array_column($result['items'], 'span'));
+    }
+
+    public function test_numeric_metric_definition_rejects_chart_and_untrusted_column(): void
+    {
+        foreach ([
+            fn () => Metric::sum('revenue')->chart('bar'),
+            fn () => Metric::avg('average')->column('SUM(amount)'),
+        ] as $invalid) {
+            try {
+                $invalid();
+                self::fail('Invalid numeric metric accepted.');
+            } catch (\InvalidArgumentException $exception) {
+                self::assertNotSame('', $exception->getMessage());
+            }
+        }
+    }
+
     private function resolver(?ResourceRegistry $registry = null): MetricResolver
     {
         $registry ??= new ResourceRegistry();
@@ -179,6 +214,7 @@ final class MetricRecord extends Model
     protected $table = 'metric_records';
     public $timestamps = false;
     protected $guarded = [];
+    protected $hidden = ['private_amount'];
 }
 
 class MetricRecordResource extends Resource
@@ -248,4 +284,43 @@ final class ExtendedMetricResource extends MetricRecordResource
 enum MetricTestStatus: string
 {
     case Active = 'active';
+}
+
+final class NumericMetricResource extends MetricRecordResource
+{
+    public static function policy(): string
+    {
+        return \stdClass::class;
+    }
+
+    public static function query(): Builder
+    {
+        return MetricRecord::query();
+    }
+
+    public static function queryExtensions(): array
+    {
+        return [new MetricStatusExtension()];
+    }
+
+    public static function fieldAbilityMap(): array
+    {
+        return ['restricted_amount' => 'view-restricted'];
+    }
+
+    public static function metricAbilityMap(): array
+    {
+        return ['sensitive' => 'view-sensitive-metric'];
+    }
+
+    public static function metrics(): array
+    {
+        return [
+            Metric::sum('revenue')->column('amount'),
+            Metric::avg('average')->column('amount'),
+            Metric::sum('private')->column('private_amount'),
+            Metric::sum('restricted')->column('restricted_amount'),
+            Metric::avg('sensitive')->column('amount'),
+        ];
+    }
 }

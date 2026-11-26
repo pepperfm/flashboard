@@ -232,6 +232,9 @@ final class AiResourceManagerTest extends TestCase
             [...$spec, 'metrics' => [['key' => 'secret', 'kind' => 'breakdown', 'column' => 'password']]],
             [...$spec, 'fields' => [['name' => 'status', 'type' => 'enum']]],
             [...$spec, 'fields' => [['name' => 'status', 'filter_type' => 'date']]],
+            [...$spec, 'fields' => [['name' => 'status', 'filter_type' => 'date_range']]],
+            [...$spec, 'metrics' => [['key' => 'broken', 'kind' => 'sum', 'column' => 'status']]],
+            [...$spec, 'metrics' => [['key' => 'broken', 'kind' => 'avg', 'column' => 'id', 'chart' => 'bar']]],
             [...$spec, 'read_only' => true, 'allow_delete' => true],
         ];
 

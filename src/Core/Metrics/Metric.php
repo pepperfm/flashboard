@@ -63,6 +63,16 @@ final class Metric
         return new self('count', $key);
     }
 
+    public static function sum(string $key): self
+    {
+        return new self('sum', $key);
+    }
+
+    public static function avg(string $key): self
+    {
+        return new self('avg', $key);
+    }
+
     public static function trend(string $key): self
     {
         return new self('trend', $key)->dateColumn('created_at');
@@ -103,7 +113,7 @@ final class Metric
     public function chart(string $chart): self
     {
         $allowed = $this->kind === 'trend' ? ['line', 'area', 'bar'] : ['bar', 'donut'];
-        if ($this->kind === 'count' || !in_array($chart, $allowed, true)) {
+        if ($this->isScalar() || !in_array($chart, $allowed, true)) {
             throw new \InvalidArgumentException('Unsupported chart type for metric kind.');
         }
 
@@ -144,7 +154,12 @@ final class Metric
             'kind' => $this->kind,
             'column' => $this->column,
             'chart' => $this->chart,
-            'span' => $this->span ?? ($this->kind === 'count' ? 3 : 6),
+            'span' => $this->span ?? ($this->isScalar() ? 3 : 6),
         ];
+    }
+
+    private function isScalar(): bool
+    {
+        return in_array($this->kind, ['count', 'sum', 'avg'], true);
     }
 }

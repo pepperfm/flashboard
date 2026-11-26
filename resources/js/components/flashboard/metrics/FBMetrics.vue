@@ -2,13 +2,14 @@
 import { router } from '@inertiajs/vue3'
 import { computed } from 'vue'
 import type { MetricItem, MetricsPayload } from './types'
+import { metricValueLabel, isScalarMetric } from './metricValue'
 
 const props = defineProps<{
   metrics: MetricsPayload
 }>()
 
-const counts = computed(() => props.metrics.items.filter(item => item.kind === 'count'))
-const charts = computed(() => props.metrics.items.filter(item => item.kind !== 'count'))
+const scalars = computed(() => props.metrics.items.filter(isScalarMetric))
+const charts = computed(() => props.metrics.items.filter(item => !isScalarMetric(item)))
 const hasTrends = computed(() => props.metrics.items.some(item => item.kind === 'trend'))
 // Static class names are intentional so Tailwind includes all supported spans.
 const spanClasses = [
@@ -28,7 +29,7 @@ const spanClasses = [
 ] as const
 
 function spanClass(metric: MetricItem): string {
-  const fallback = metric.kind === 'count' ? 3 : 6
+  const fallback = isScalarMetric(metric) ? 3 : 6
   const span = metric.span
 
   return spanClasses[typeof span === 'number' && Number.isInteger(span) && span >= 1 && span <= 12 ? span : fallback]!
@@ -44,9 +45,6 @@ function changePeriod(days: number) {
   router.get(url.pathname + url.search, {}, { preserveScroll: true, preserveState: false })
 }
 
-function countLabel(metric: MetricItem): string {
-  return new Intl.NumberFormat().format(metric.value ?? 0)
-}
 </script>
 
 <template>
@@ -68,13 +66,13 @@ function countLabel(metric: MetricItem): string {
       </div>
     </div>
 
-    <div v-if="counts.length" class="grid grid-cols-1 gap-3 xl:grid-cols-12">
-      <UCard v-for="metric in counts" :key="metric.key" :class="['min-w-0', spanClass(metric)]" variant="outline">
+    <div v-if="scalars.length" class="grid grid-cols-1 gap-3 xl:grid-cols-12">
+      <UCard v-for="metric in scalars" :key="metric.key" :class="['min-w-0', spanClass(metric)]" variant="outline">
         <div class="grid gap-1">
           <span class="text-xs text-muted">{{ metric.resource }}</span>
           <span class="text-sm text-default">{{ metric.label }}</span>
-          <strong class="text-2xl font-semibold tabular-nums text-highlighted">
-            {{ countLabel(metric) }}
+          <strong class="text-2xl font-semibold tabular-nums text-highlighted break-all">
+            {{ metricValueLabel(metric) }}
           </strong>
         </div>
       </UCard>

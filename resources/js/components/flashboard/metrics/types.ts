@@ -5,12 +5,12 @@ export type MetricPoint = {
 
 export type MetricItem = {
   key: string
-  kind: 'count' | 'trend' | 'breakdown'
+  kind: 'count' | 'sum' | 'avg' | 'trend' | 'breakdown'
   label: string
   resource: string
   chart: 'line' | 'area' | 'bar' | 'donut'
   span?: number
-  value?: number
+  value?: number | string | null
   points?: MetricPoint[]
 }
 

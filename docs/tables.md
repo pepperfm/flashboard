@@ -183,7 +183,7 @@ Use `queryColumn()` when the public filter key should differ from the database c
 
 `DateFilter` remains single-date only.
 
-### Date-range filters (upcoming 0.4.0)
+### Date-range filters (since 0.3.1)
 
 ```php
 \Pepperfm\Flashboard\Core\Tables\Filters\DateRangeFilter::make('period', 'Period')

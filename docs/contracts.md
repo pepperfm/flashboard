@@ -70,3 +70,7 @@ ActionContract has no new required methods. ContextualActionContract adds action
 ### Relation sync snapshot
 
 The panel sends the complete original related-key list as `expected_related` with the requested `related` list. The sync endpoint rejects a mismatched snapshot with a validation error before any changes. Legacy callers without a snapshot retain explicit replacement semantics. Read-only relation managers reject contextual nested creation.
+
+### Numeric metrics (since 0.3.1)
+
+Metric items of kind sum or avg carry value as a database-produced string or null (avg on an empty set); count retains its integer payload, and trend/breakdown retain points. Numeric metric strings must not be coerced to JavaScript Number. Date-range active filter values are objects with ISO start and end dates; existing scalar filter values are unchanged.

@@ -24,15 +24,15 @@ final class CapabilityCatalog
                 ],
                 'generation' => [
                     'relations' => ['belongs_to', 'belongs_to_many', 'has_one', 'has_many'],
-                    'filters' => ['input', 'select', 'date'],
+                    'filters' => ['input', 'select', 'date', 'date_range'],
                     'requires_editable_field' => true,
                     'read_only_resources' => true,
                     'enum_options' => true,
-                    'metrics' => ['count', 'trend', 'breakdown'],
+                    'metrics' => ['count', 'trend', 'breakdown', 'sum', 'avg'],
                     'record_actions' => false,
                 ],
                 'manual_dsl' => [
-                    'metrics' => ['count', 'trend', 'breakdown'],
+                    'metrics' => ['count', 'trend', 'breakdown', 'sum', 'avg'],
                     'scoped_actions' => true,
                     'action_forms' => true,
                     'read_only_resources' => true,

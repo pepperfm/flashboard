@@ -26,7 +26,7 @@ final class AddFieldTool extends HarnessTool
                 'searchable' => $schema->boolean(),
                 'sortable' => $schema->boolean(),
                 'filter' => $schema->boolean(),
-                'filter_type' => $schema->string()->description('Explicit input, select or date filter.'),
+                'filter_type' => $schema->string()->description('Explicit input, select, date or date_range filter.'),
                 'options' => $schema->object(),
             ])->required(),
             'apply' => $schema->boolean()->description('Defaults false: preview only. Set true only after user approves preview.'),

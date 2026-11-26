@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.1 - 2026-11-26
+
+- add inclusive UTC date-range table filters with strict validation and field authorization
+- add scoped sum and average metrics with primary-key deduplication and decimal string payloads
+- support date_range, sum and avg in local MCP generation and capabilities
+- verify SQLite and PostgreSQL, independent host preview and scoped order analytics
+
 ## 0.3.0 - 2026-11-26
 
 - expand local AI Harness to 13 tools with capability discovery, registered resource inspection, validation and shared panel diagnostics
