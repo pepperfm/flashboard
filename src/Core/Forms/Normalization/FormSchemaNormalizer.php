@@ -318,17 +318,7 @@ final class FormSchemaNormalizer
         $merged = $inferredRules;
 
         foreach ($explicitRules as $field => $rules) {
-            $inferred = $merged[$field] ?? [];
-
-            if (!is_array($rules)) {
-                $rules = [$rules];
-            }
-
-            if (!is_array($inferred)) {
-                $inferred = [$inferred];
-            }
-
-            $merged[$field] = array_values(array_unique(array_merge($inferred, $rules), SORT_REGULAR));
+            $merged[$field] = ServerRuleList::merge($merged[$field] ?? [], $rules);
         }
 
         return $merged;

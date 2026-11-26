@@ -13,12 +13,54 @@ final readonly class FormPayload
     private const string KEY_RULES = 'rules';
     private const string KEY_DEFAULTS = 'defaults';
 
+    /** @var array<string, mixed> */
+    private array $schema;
+
     /**
      * @param array<string, mixed> $schema
      */
-    public function __construct(
-        private array $schema,
-    ) {
+    public function __construct(array $schema)
+    {
+        $this->schema = self::publicMetadata($schema);
+    }
+
+    /**
+     * Form definitions are server-side; never serialize Laravel validation rules.
+     * Keep an empty root rules key for compatibility with existing payload consumers.
+     *
+     * @param array<string, mixed> $schema
+     * @return array<string, mixed>
+     */
+    public static function publicMetadata(array $schema): array
+    {
+        $schema[self::KEY_RULES] = [];
+
+        foreach ([self::KEY_SCHEMA, self::KEY_SECTIONS, self::KEY_TABS, self::KEY_FIELDS] as $key) {
+            if (isset($schema[$key]) && is_array($schema[$key])) {
+                $schema[$key] = self::publicNodes($schema[$key]);
+            }
+        }
+
+        return $schema;
+    }
+
+    /**
+     * @param list<array<string, mixed>> $nodes
+     * @return list<array<string, mixed>>
+     */
+    private static function publicNodes(array $nodes): array
+    {
+        foreach ($nodes as &$node) {
+            unset($node[self::KEY_RULES]);
+
+            foreach ([self::KEY_SCHEMA, self::KEY_SECTIONS, self::KEY_TABS, self::KEY_FIELDS] as $key) {
+                if (isset($node[$key]) && is_array($node[$key])) {
+                    $node[$key] = self::publicNodes($node[$key]);
+                }
+            }
+        }
+
+        return $nodes;
     }
 
     public function toArray(): array
@@ -59,6 +101,7 @@ final readonly class FormPayload
     }
 
     /**
+     * @deprecated Validation rules are server-only. This compatibility accessor returns an empty array.
      * @return array<string, mixed>
      */
     public function rules(): array

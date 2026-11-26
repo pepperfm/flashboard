@@ -20,6 +20,7 @@ use Pepperfm\Flashboard\Core\Metrics\Metric;
 use Pepperfm\Flashboard\Core\Forms\Builders\Form;
 use Pepperfm\Flashboard\Core\Forms\Fields\BelongsTo;
 use Pepperfm\Flashboard\Core\Forms\Fields\Field;
+use Pepperfm\Flashboard\Core\Forms\Normalization\ServerRuleList;
 use Pepperfm\Flashboard\Core\Forms\Relations\BelongsToManyRelationMetadataResolver;
 use Pepperfm\Flashboard\Core\Forms\Relations\BelongsToRelationMetadataResolver;
 
@@ -308,9 +309,7 @@ abstract class Resource
             }
 
             $metadata = $resolver->resolve(static::class, $field);
-            $fieldRules = (array) ($rules[$key] ?? []);
-            $fieldRules[] = "exists:$metadata->relatedTable,$metadata->ownerKey";
-            $rules[$key] = array_values(array_unique($fieldRules));
+            $rules[$key] = ServerRuleList::merge($rules[$key] ?? [], "exists:$metadata->relatedTable,$metadata->ownerKey");
         }
 
         return $rules;
@@ -337,13 +336,8 @@ abstract class Resource
             }
 
             $metadata = $resolver->resolve(static::class, $field);
-            $fieldRules = (array) ($rules[$key] ?? []);
-            $fieldRules[] = 'array';
-            $rules[$key] = array_values(array_unique($fieldRules));
-
-            $itemRules = (array) ($rules[$key . '.*'] ?? []);
-            $itemRules[] = "exists:$metadata->relatedTable,$metadata->relatedKey";
-            $rules[$key . '.*'] = array_values(array_unique($itemRules));
+            $rules[$key] = ServerRuleList::merge($rules[$key] ?? [], 'array');
+            $rules[$key . '.*'] = ServerRuleList::merge($rules[$key . '.*'] ?? [], "exists:$metadata->relatedTable,$metadata->relatedKey");
         }
 
         return $rules;

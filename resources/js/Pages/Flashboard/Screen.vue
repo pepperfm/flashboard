@@ -165,7 +165,7 @@ function logout() {
 <template>
   <Head :title="props.layout.title" />
 
-  <UApp :locale="en_gb" :toaster="toaster">
+  <UApp :locale="en_gb" :toaster="toaster" :tooltip="{ delayDuration: 0 }">
     <UDashboardGroup
       storage="local"
       storage-key="flashboard"

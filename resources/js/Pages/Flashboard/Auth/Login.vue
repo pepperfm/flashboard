@@ -69,7 +69,7 @@ watch(
 <template>
   <Head :title="`${panelName} Login`" />
 
-  <UApp>
+  <UApp :tooltip="{ delayDuration: 0 }">
     <div class="login-shell">
       <div class="login-frame">
         <div class="login-intro">

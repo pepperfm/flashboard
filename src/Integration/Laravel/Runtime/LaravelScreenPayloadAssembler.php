@@ -23,6 +23,7 @@ use Pepperfm\Flashboard\Core\Resources\ResourceSurfaceResolver;
 use Pepperfm\Flashboard\Core\Runtime\Assemblers\ActionPayloadAssembler;
 use Pepperfm\Flashboard\Core\Runtime\Assemblers\TablePayloadAssembler;
 use Pepperfm\Flashboard\Core\Runtime\Context\RuntimeRequestContext;
+use Pepperfm\Flashboard\Core\Runtime\Payloads\FormPayload;
 use Pepperfm\Flashboard\Core\Runtime\Payloads\ScreenPayload;
 use Pepperfm\Flashboard\Core\Runtime\Workspaces\WorkspacePayloadAssembler;
 use Pepperfm\Flashboard\Integration\Laravel\Auth\PanelAuthenticator;
@@ -165,6 +166,9 @@ final readonly class LaravelScreenPayloadAssembler
         ];
 
         $extendedPayload = $this->extensionRegistry->extendPayload($resourceClass, $resourcePage, $payload);
+        if (is_array(Arr::get($extendedPayload, 'form'))) {
+            $extendedPayload['form'] = FormPayload::publicMetadata($extendedPayload['form']);
+        }
         $this->runtimeHookDispatcher->dispatch($resourceClass, 'payload.assembled', [
             'page' => $resourcePage,
             'screen_key' => $context->screen()->key(),

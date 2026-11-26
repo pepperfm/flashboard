@@ -182,7 +182,8 @@ final class TypedSchemaNormalizationTest extends TestCase
         self::assertSame(FieldRenderer::Select->value, $payload->sections()[0]['schema'][3]['renderer']);
         self::assertSame(FieldRenderer::Checkbox->value, $payload->sections()[0]['schema'][4]['renderer']);
         self::assertSame(FieldRenderer::Switch->value, $payload->sections()[0]['schema'][5]['renderer']);
-        self::assertArrayHasKey('email', $payload->rules());
+        self::assertSame([], $payload->rules());
+        self::assertSame([], $payload->toArray()['rules']);
     }
 
     public function test_detail_builder_flattens_section_entries_into_runtime_payload(): void

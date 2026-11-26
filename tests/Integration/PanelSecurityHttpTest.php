@@ -109,6 +109,22 @@ final class PanelSecurityHttpTest extends TestCase
         $this->postJson($base . '/missing/actions/grant')->assertNotFound();
     }
 
+    public function test_action_form_rules_remain_server_only(): void
+    {
+        $base = $this->actionFixture();
+        $url = $base.'/42/actions/validation_probe';
+        $key = 'f7f1499b-e13d-4226-8689-4746aaea2461';
+
+        $this->getJson($url.'/form')->assertOk()->assertJsonMissingPath('rules')
+            ->assertDontSee('server-only-rule-configuration')->assertDontSee('server-only-denied-name');
+        foreach (['reserved', 'class-denied', 'server-only-denied-name'] as $name) {
+            $this->postJson($url, ['payload' => ['reason' => $name], 'idempotency_key' => $key])
+                ->assertUnprocessable()->assertJsonValidationErrors('reason');
+        }
+        $this->postJson($url, ['payload' => ['reason' => 'Allowed'], 'idempotency_key' => $key])
+            ->assertOk()->assertJsonPath('data.reason', 'Allowed');
+    }
+
     public function test_record_action_business_failure_and_collection_scope(): void
     {
         $base = $this->actionFixture();
@@ -280,6 +296,17 @@ class ActionProbeResource extends Resource
                 Textarea::make('reason')->required(),
             ])->rules(['units' => ['integer', 'min:1']]))
                 ->handleUsing(static fn (array $context): array => $context['payload']),
+            Action::make('validation_probe')->scope(ActionScope::Record)->form(Form::make()->schema([
+                Textarea::make('reason')->required(),
+            ])->rules(['reason' => [
+                static function (string $attribute, mixed $value, \Closure $fail): void {
+                    if ($value === 'reserved') {
+                        $fail('Reserved name.');
+                    }
+                },
+                new \Pepperfm\Flashboard\Tests\Fixtures\Rules\ServerOnlyNameRule(),
+                \Illuminate\Validation\Rule::notIn(['server-only-denied-name']),
+            ]]))->handleUsing(static fn (array $context): array => $context['payload']),
             Action::make('hidden')->scope(ActionScope::Record)->form($form)->visible(false),
             Action::make('mapped'),
             Action::make('denied_callback')->scope(ActionScope::Record)->form($form)->authorizeUsing(static fn (): bool => false),

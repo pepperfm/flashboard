@@ -313,6 +313,7 @@ function rowActionControl(action: ActionShape) {
 
 function rowActionButton(action: ActionShape, onClick?: () => void) {
   const UButton = resolveComponent('UButton')
+  const UTooltip = resolveComponent('UTooltip')
   const label = rowActionLabel(action)
   const props: Record<string, unknown> = {
     'aria-label': label,
@@ -320,7 +321,6 @@ function rowActionButton(action: ActionShape, onClick?: () => void) {
     icon: action.icon ?? fallbackRowActionIcon(action.key),
     size: 'xs',
     square: true,
-    title: label,
     variant: 'ghost',
   }
 
@@ -328,7 +328,7 @@ function rowActionButton(action: ActionShape, onClick?: () => void) {
     props.onClick = onClick
   }
 
-  return h(UButton, props)
+  return h(UTooltip, { text: label }, { default: () => h(UButton, props) })
 }
 
 function rowActionConfirmationPopover(action: ActionShape) {
@@ -528,21 +528,22 @@ function renderTableHeader(column: TableColumnShape) {
   const UButton = resolveComponent('UButton')
   const direction = sortDirectionForColumn(column)
 
-  return h(UButton, {
-    'aria-label': sortableHeaderLabel(column),
-    active: direction !== null,
-    class: {
-      'table-sort-button': true,
-      'table-sort-button--active': direction !== null,
-    },
-    color: direction === null ? 'neutral' : 'primary',
-    icon: sortableHeaderIcon(column),
-    label: column.label,
-    size: 'xs',
-    title: sortableHeaderLabel(column),
-    trailing: true,
-    variant: 'ghost',
-    onClick: () => toggleTableSort(column),
+  return h(resolveComponent('UTooltip'), { text: sortableHeaderLabel(column) }, {
+    default: () => h(UButton, {
+      'aria-label': sortableHeaderLabel(column),
+      active: direction !== null,
+      class: {
+        'table-sort-button': true,
+        'table-sort-button--active': direction !== null,
+      },
+      color: direction === null ? 'neutral' : 'primary',
+      icon: sortableHeaderIcon(column),
+      label: column.label,
+      size: 'xs',
+      trailing: true,
+      variant: 'ghost',
+      onClick: () => toggleTableSort(column),
+    }),
   })
 }
 
@@ -560,10 +561,14 @@ const tableColumns = computed(() => {
       cell: ({ row }: { row: { original: Record<string, unknown> } }) => {
         const value = row.original[column.key]
 
-        return h('span', {
+        const cell = () => h('span', {
           class: 'table-cell-value',
-          title: tableCellTitle(value),
         }, renderTableValue(column, value))
+        const title = tableCellTitle(value)
+
+        return title
+          ? h(resolveComponent('UTooltip'), { text: title, ui: { content: 'h-auto max-w-[min(32rem,90vw)]', text: 'whitespace-normal break-words' } }, { default: cell })
+          : cell()
       },
     }))
 
@@ -1212,16 +1217,17 @@ function formatValue(value: unknown): string {
             @update:model-value="updateTableSearchDraft"
           >
             <template v-if="hasActiveTableSearch || tableSearchValue !== ''" #trailing>
-              <UButton
-                aria-label="Clear search"
-                color="neutral"
-                icon="i-lucide-x"
-                size="xs"
-                square
-                title="Clear search"
-                variant="ghost"
-                @click.stop.prevent="clearTableSearch"
-              />
+              <UTooltip text="Clear search">
+                <UButton
+                  aria-label="Clear search"
+                  color="neutral"
+                  icon="i-lucide-x"
+                  size="xs"
+                  square
+                  variant="ghost"
+                  @click.stop.prevent="clearTableSearch"
+                />
+              </UTooltip>
             </template>
           </UInput>
         </UFormField>

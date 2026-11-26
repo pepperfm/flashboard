@@ -141,6 +141,36 @@ final class ResourceRelationManagerPersisterTest extends TestCase
         );
     }
 
+    public function test_explicit_read_only_relation_rejects_all_mutation_modes(): void
+    {
+        $this->createTables();
+        $order = RelationManagerOrder::query()->create(['name' => 'Order 1']);
+        $item = RelationManagerOrderItem::query()->create([
+            'order_id' => $order->getKey(),
+            'name' => 'Attached item',
+        ]);
+        $orphan = RelationManagerOrderItem::query()->create(['name' => 'Orphan item']);
+        $persister = $this->persister($this->readOnlyRegistry());
+        $resource = ReadOnlyRelationManagerOrderResource::class;
+
+        foreach ([
+            fn () => $persister->attach($resource, $order, 'history', $orphan->getKey()),
+            fn () => $persister->detach($resource, $order, 'history', [$item->getKey()]),
+            fn () => $persister->replace($resource, $order, 'history', $orphan->getKey()),
+            fn () => $persister->sync($resource, $order, 'history', []),
+        ] as $mutation) {
+            try {
+                $mutation();
+                self::fail('Read-only relations must deny mutations.');
+            } catch (\Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException $exception) {
+                self::assertSame(403, $exception->getStatusCode());
+            }
+        }
+
+        self::assertSame($order->getKey(), $item->refresh()->getAttribute('order_id'));
+        self::assertNull($orphan->refresh()->getAttribute('order_id'));
+    }
+
     public function test_scoped_out_selected_records_fail_before_mutation(): void
     {
         $this->createTables();
@@ -326,6 +356,9 @@ final class ReadOnlyRelationManagerOrderResource extends Resource
         return [
             HasMany::make('items', 'Items')
                 ->resource(RelationManagerOrderItemResource::class),
+            HasMany::make('history', 'History', 'items')
+                ->resource(RelationManagerOrderItemResource::class)
+                ->readOnly(),
         ];
     }
 }

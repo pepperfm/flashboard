@@ -96,6 +96,8 @@ final class ResourceFormDataSourceTest extends TestCase
         $payload = $this->makeDataSource()->resolve($resourceClass);
 
         self::assertSame(['email' => 'shown@example.test'], $payload['state']);
+        self::assertSame(['email' => 'shown@example.test'], $payload['defaults']);
+        self::assertStringNotContainsString('never-expose', json_encode($payload, JSON_THROW_ON_ERROR));
         self::assertSame(['email'], array_column($payload['fields'], 'key'));
     }
 

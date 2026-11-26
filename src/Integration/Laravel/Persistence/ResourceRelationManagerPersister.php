@@ -196,10 +196,12 @@ final readonly class ResourceRelationManagerPersister
                 break;
             }
 
-            return [
-                $relation,
-                new RelationManagerMetadataResolver($this->resourceRegistry)->resolve($resourceClass, $definition),
-            ];
+            $metadata = new RelationManagerMetadataResolver($this->resourceRegistry)->resolve($resourceClass, $definition);
+            if ($metadata->readOnly) {
+                throw new \Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException();
+            }
+
+            return [$relation, $metadata];
         }
 
         throw new \Symfony\Component\HttpKernel\Exception\NotFoundHttpException();

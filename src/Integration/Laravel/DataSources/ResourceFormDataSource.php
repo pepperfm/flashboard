@@ -26,6 +26,7 @@ use Pepperfm\Flashboard\Core\Forms\Relations\BelongsToRelationMetadataResolver;
 use Pepperfm\Flashboard\Core\Registry\ResourceRegistry;
 use Pepperfm\Flashboard\Core\Resources\ResourceSurfaceResolver;
 use Pepperfm\Flashboard\Core\Runtime\Assemblers\FormPayloadAssembler;
+use Pepperfm\Flashboard\Core\Runtime\Payloads\FormPayload;
 use Pepperfm\Flashboard\Integration\Laravel\Auth\PanelAuthenticator;
 use Pepperfm\Flashboard\Integration\Laravel\Relations\RelationCreateContext;
 use Pepperfm\Flashboard\Integration\Laravel\Relations\RelationCreateContextResolver;
@@ -141,7 +142,10 @@ final readonly class ResourceFormDataSource
             'sections' => $this->extractRootSections($filteredSchema),
             'tabs' => $this->extractRootTabs($filteredSchema),
             'fields' => $fields,
-            'rules' => $record === null ? $resourceClass::creationRules() : $resourceClass::updateRules($record),
+            'defaults' => Arr::only($schema->defaults(), array_column(array_filter(
+                $fields,
+                fn (array $field): bool => !$this->isPasswordField($field) && !$this->isFileField($field),
+            ), 'key')),
             'state' => $state,
             'mode' => $record === null ? 'create' : 'edit',
             'submit' => [
@@ -167,7 +171,9 @@ final readonly class ResourceFormDataSource
             ],
         ]);
 
-        return $this->extensionRegistry->extendPayload($resourceClass, $record === null ? 'create' : 'edit', $payload);
+        return FormPayload::publicMetadata(
+            $this->extensionRegistry->extendPayload($resourceClass, $record === null ? 'create' : 'edit', $payload),
+        );
     }
 
     /**

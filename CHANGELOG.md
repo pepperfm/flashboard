@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.3.2 - 2026-11-26
+
+- keep Laravel validation rules server-side in CRUD forms; fix Inertia closure rule serialization and preserve rule objects in relation validation
+- omit hidden field defaults and prevent form extensions from reintroducing server rules
+- remove tooltip delays throughout the panel
+- reject direct read-only relation mutations with HTTP 403
+
 ## 0.3.1 - 2026-11-26
 
 - add inclusive UTC date-range table filters with strict validation and field authorization

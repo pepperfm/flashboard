@@ -31,7 +31,7 @@
 
 ## Execution sequence and plan index
 
-Baseline: 0.3.0 (2026-11-26), published after explicit manual host acceptance. B and C delivered; A has remaining comprehensive browser automation and remote CI evidence (15 stays open for this coverage). D–F remain queued; existing PLAN.md is preserved.
+Baseline: 0.3.1 (2026-11-26), scoped analytics implementation released; visual acceptance evidence remains open. B and C delivered; A has remaining comprehensive browser automation and remote CI evidence (15 stays open for this coverage). D–F remain queued; existing PLAN.md is preserved.
 
 | Order | Target | Milestones | Plan | Dependency |
 |---|---|---|---|---|

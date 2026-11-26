@@ -88,6 +88,28 @@ final class RelationManagerHttpTest extends TestCase
         self::assertNull($second->refresh()->parent_id);
     }
 
+    public function test_nested_create_form_uses_server_rules_without_serializing_them(): void
+    {
+        $parent = RelationHttpParent::query()->create(['id' => 'nested-validation']);
+        $base = '/admin/resources/relation_http_child';
+        $query = http_build_query([
+            'parent_resource' => 'relation_http_parent',
+            'parent_record' => $parent->getKey(),
+            'relation' => 'items',
+        ]);
+
+        $this->get($base.'/create?'.$query)->assertOk()->assertDontSee('server-only-rule-configuration');
+        $this->get($base.'/create?'.$query, ['X-Inertia' => 'true', 'Accept' => 'text/html'])
+            ->assertOk()->assertJsonPath('props.payload.form.rules', []);
+        $this->getJson($base.'/create?'.$query)->assertOk()->assertJsonPath('payload.form.rules', []);
+        $this->postJson($base.'?'.$query, ['name' => 'reserved'])->assertUnprocessable()
+            ->assertJsonValidationErrors('name');
+        $this->postJson($base.'?'.$query, ['name' => 'class-denied'])->assertUnprocessable()
+            ->assertJsonValidationErrors('name');
+        $this->postJson($base.'?'.$query, ['name' => 'Nested child'])->assertRedirect();
+        $this->assertDatabaseHas('relation_http_children', ['parent_id' => 'nested-validation', 'name' => 'Nested child']);
+    }
+
     public function test_nested_routes_resolve_relation_key_for_uuid_and_numeric_parent_keys(): void
     {
         foreach (['f7f1499b-e13d-4226-8689-4746aaea2461', '42'] as $parentKey) {
@@ -196,6 +218,22 @@ final class RelationHttpChildResource extends Resource
     public static function model(): string
     {
         return RelationHttpChild::class;
+    }
+
+    public static function form(\Pepperfm\Flashboard\Contracts\Forms\FormContract $form): \Pepperfm\Flashboard\Contracts\Forms\FormContract
+    {
+        return $form->schema([
+            \Pepperfm\Flashboard\Core\Forms\Fields\TextInput::make('name')->required(),
+        ])->rules([
+            'name' => [
+                static function (string $attribute, mixed $value, \Closure $fail): void {
+                    if ($value === 'reserved') {
+                        $fail('Reserved name.');
+                    }
+                },
+                new \Pepperfm\Flashboard\Tests\Fixtures\Rules\ServerOnlyNameRule(),
+            ],
+        ]);
     }
 }
 

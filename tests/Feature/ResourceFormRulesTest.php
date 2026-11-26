@@ -309,6 +309,40 @@ final class ResourceFormRulesTest extends TestCase
         );
     }
 
+    public function test_relation_rules_preserve_closures_and_rule_objects(): void
+    {
+        $resource = new class extends Resource
+        {
+            public static function model(): string
+            {
+                return ResourceFormRulesBelongsToProduct::class;
+            }
+
+            public static function form(FormContract $form): FormContract
+            {
+                return $form->schema([
+                    BelongsTo::make('category_id', 'Category')
+                        ->model(BelongsToCategory::class)
+                        ->foreignKey('category_id')
+                        ->ownerKey('uuid')
+                        ->required(),
+                ])->rules([
+                    'category_id' => [
+                        static function (string $attribute, mixed $value, \Closure $fail): void {},
+                        new \Pepperfm\Flashboard\Tests\Fixtures\Rules\ServerOnlyNameRule(),
+                        \Illuminate\Validation\Rule::in([1, 2]),
+                    ],
+                ]);
+            }
+        };
+        $rules = $resource::creationRules()['category_id'];
+        self::assertSame('required', $rules[0]);
+        self::assertInstanceOf(\Closure::class, $rules[1]);
+        self::assertInstanceOf(\Pepperfm\Flashboard\Tests\Fixtures\Rules\ServerOnlyNameRule::class, $rules[2]);
+        self::assertInstanceOf(\Illuminate\Validation\Rules\In::class, $rules[3]);
+        self::assertSame('exists:belongs_to_categories,uuid', $rules[4]);
+    }
+
     public function test_belongs_to_many_fields_infer_array_and_exists_rules_from_relation_metadata(): void
     {
         $resourceClass = new class() extends Resource
@@ -351,7 +385,7 @@ final class ResourceFormRulesTest extends TestCase
                     ])
                     ->rules([
                         'tags' => ['min:1'],
-                        'tags.*' => ['integer'],
+                        'tags.*' => ['integer', new \Pepperfm\Flashboard\Tests\Fixtures\Rules\ServerOnlyNameRule(), static function (string $attribute, mixed $value, \Closure $fail): void {}],
                     ]);
             }
         };
@@ -359,7 +393,10 @@ final class ResourceFormRulesTest extends TestCase
         $rules = $resourceClass::creationRules();
 
         self::assertSame(['nullable', 'array', 'min:1'], $rules['tags']);
-        self::assertSame(['integer', 'exists:belongs_to_many_tags,id'], $rules['tags.*']);
+        self::assertSame('integer', $rules['tags.*'][0]);
+        self::assertInstanceOf(\Pepperfm\Flashboard\Tests\Fixtures\Rules\ServerOnlyNameRule::class, $rules['tags.*'][1]);
+        self::assertInstanceOf(\Closure::class, $rules['tags.*'][2]);
+        self::assertSame('exists:belongs_to_many_tags,id', $rules['tags.*'][3]);
     }
 }
 

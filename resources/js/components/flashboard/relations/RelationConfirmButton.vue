@@ -33,16 +33,17 @@ function confirm() {
     :content="{ align: 'end', collisionPadding: 12, side: 'top', sideOffset: 8 }"
     :ui="{ content: 'w-56 p-3' }"
   >
-    <UButton
-      :aria-label="props.label"
-      :color="props.color"
-      :disabled="props.disabled"
-      :icon="props.icon"
-      :title="props.label"
-      size="xs"
-      square
-      variant="ghost"
-    />
+    <UTooltip :text="props.label">
+      <UButton
+        :aria-label="props.label"
+        :color="props.color"
+        :disabled="props.disabled"
+        :icon="props.icon"
+        size="xs"
+        square
+        variant="ghost"
+      />
+    </UTooltip>
 
     <template #content>
       <div class="grid gap-3">

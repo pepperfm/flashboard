@@ -143,18 +143,18 @@ function openRecord(record: RelationRecordShape, routeKey: 'detail' | 'edit') {
           variant="soft"
           @click="visitAction(createAction)"
         />
-        <UButton
-          v-if="manager.records_url"
-          aria-label="Refresh"
-          color="neutral"
-          icon="i-lucide-refresh-cw"
-          :loading="isRefreshing"
-          size="xs"
-          square
-          title="Refresh"
-          variant="ghost"
-          @click="refreshRecords"
-        />
+        <UTooltip v-if="manager.records_url" text="Refresh">
+          <UButton
+            aria-label="Refresh"
+            color="neutral"
+            icon="i-lucide-refresh-cw"
+            :loading="isRefreshing"
+            size="xs"
+            square
+            variant="ghost"
+            @click="refreshRecords"
+          />
+        </UTooltip>
       </div>
     </header>
 
@@ -172,28 +172,28 @@ function openRecord(record: RelationRecordShape, routeKey: 'detail' | 'edit') {
         <span v-if="String(selectedRecord.key) !== selectedRecord.title" class="relation-record__key">{{ selectedRecord.key }}</span>
       </div>
       <div class="relation-record__actions">
-        <UButton
-          v-if="selectedRecord.links?.detail"
-          aria-label="Open"
-          color="neutral"
-          icon="i-lucide-eye"
-          size="xs"
-          square
-          title="Open"
-          variant="ghost"
-          @click="openRecord(selectedRecord, 'detail')"
-        />
-        <UButton
-          v-if="selectedRecord.links?.edit"
-          aria-label="Edit"
-          color="neutral"
-          icon="i-lucide-pencil"
-          size="xs"
-          square
-          title="Edit"
-          variant="ghost"
-          @click="openRecord(selectedRecord, 'edit')"
-        />
+        <UTooltip v-if="selectedRecord.links?.detail" text="Open">
+          <UButton
+            aria-label="Open"
+            color="neutral"
+            icon="i-lucide-eye"
+            size="xs"
+            square
+            variant="ghost"
+            @click="openRecord(selectedRecord, 'detail')"
+          />
+        </UTooltip>
+        <UTooltip v-if="selectedRecord.links?.edit" text="Edit">
+          <UButton
+            aria-label="Edit"
+            color="neutral"
+            icon="i-lucide-pencil"
+            size="xs"
+            square
+            variant="ghost"
+            @click="openRecord(selectedRecord, 'edit')"
+          />
+        </UTooltip>
         <RelationConfirmButton
           v-if="detachAction"
           color="warning"

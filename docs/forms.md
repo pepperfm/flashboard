@@ -256,6 +256,15 @@ On create screens, visible `Checkbox` and `Toggle` fields default to `false` unl
 - resource-level: `mutateFormDataBeforeSave()`
 - post-persist: `afterSave()`
 
+
+### Server-only validation rules
+
+Laravel validation rules are evaluated on submission, never serialized into the resource form payload. `Form::rules()`, `Resource::formRules()`, `creationRules()` and `updateRules($record)` support Laravel rule strings, closure rules, `ValidationRule` implementations and built-in Rule objects. Inferred rules and relation existence rules preserve rule objects without stringifying them. Opening a form does not invoke record-dependent rule factories or validators.
+
+The public resource `form.rules` key is an empty array for payload compatibility. `FormPayload::rules()` is deprecated and returns an empty array; consumers needing validation rules on the server must use the resource validation methods. Field metadata such as `required`, input type and bounds remains public. Hidden or undeclared field defaults are excluded from resource form metadata.
+
+`Form::toArray()` is a server-side definition, not a public props contract. For a custom page that explicitly exposes a form definition, use `new FormPayload($form->toArray())->toArray()` and apply the host's field authorization and safe state/default projection. Never send raw form definitions or arbitrary rule objects through `componentProps()`, `workspace()` or extensions. Custom page props outside the standard form payload remain host-owned. Action forms already omit `rules` from their preparation response.
+
 ## Action forms
 
 Action forms reuse FormContract and the existing schema tree/renderers; they are not CRUD forms. Supported fields: TextInput (text, email, numeric variants), NumberInput, Textarea, DateInput, Checkbox, Toggle, and static single-value Select. Sections/tabs use the existing form node renderer. Defaults are recomputed from authorized context; never put secrets into public defaults, labels, or options.
