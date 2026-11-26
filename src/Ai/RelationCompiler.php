@@ -80,7 +80,6 @@ final class RelationCompiler
                 throw new \InvalidArgumentException("Relation [$name] must return [$expected].");
             }
 
-            /** @var Relation $relation */
             $related = $relation->getRelated();
             $relatedClass = $related::class;
             $candidates = $this->registry->resourcesForModel($relatedClass);

@@ -50,6 +50,14 @@ final class ResourceFormPersisterTest extends TestCase
             $table->string('receipt')->nullable();
             $table->unsignedInteger('category_id')->nullable();
         });
+        $this->database->schema()->create('belongs_to_categories', static function (\Illuminate\Database\Schema\Blueprint $table): void {
+            $table->increments('id');
+            $table->string('name');
+        });
+        BelongsToCategory::query()->insert([
+            ['id' => 7, 'name' => 'Allowed'],
+            ['id' => 9, 'name' => 'Another allowed'],
+        ]);
         $this->app->instance('validator', new ValidationFactory(
             new Translator(new ArrayLoader(), 'en'),
             $this->app,
@@ -375,7 +383,7 @@ final class ResourceFormPersisterTest extends TestCase
             {
                 return $form->schema([
                     TextInput::make('name')->label('Name'),
-                    BelongsTo::make('category_id', 'Category'),
+                    BelongsTo::make('category_id', 'Category')->allowModelFallback(),
                 ]);
             }
         });
@@ -397,7 +405,7 @@ final class ResourceFormPersisterTest extends TestCase
             {
                 return $form->schema([
                     TextInput::make('name')->label('Name'),
-                    BelongsTo::make('category', 'Category'),
+                    BelongsTo::make('category', 'Category')->allowModelFallback(),
                 ]);
             }
         });

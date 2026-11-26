@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.100 - 2026-11-26
+
+- enforce related resource query scopes, query extensions, field query modifiers and record view policies for submitted BelongsTo and BelongsToMany selections
+- reject unavailable related keys before saving parent attributes or pivot membership; preserve null and empty selections, require explicit model fallback when no related resource is registered
+- add read-only flashboard:doctor diagnostics with JSON output and shared published asset manifest checks
+- restore CI verification against SQLite and PostgreSQL, PHPStan and frontend builds
+
 ## 0.2.81 - 2026-11-26
 
 - resolve nested relation manager keys by route name rather than positional controller arguments for records, options, attach, detach, replace and sync

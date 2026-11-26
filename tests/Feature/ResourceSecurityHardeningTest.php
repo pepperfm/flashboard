@@ -126,7 +126,7 @@ final class ResourceSecurityHardeningTest extends TestCase
             self::assertSame(403, $exception->getStatusCode());
         }
 
-        self::assertSame('original', $record->fresh()?->secret);
+        self::assertSame('original', $record->fresh()?->getAttribute('secret'));
     }
 
     private function controller(): ResourceFormController
@@ -193,7 +193,7 @@ final class SecurityResource extends Resource
         return SecurityRecord::class;
     }
 
-    public static function policy(): ?string
+    public static function policy(): string
     {
         return \stdClass::class;
     }

@@ -64,7 +64,7 @@ final readonly class ResourceFormController
         }
 
         try {
-            $record = $this->persister->create($resourceClass, $data);
+            $record = $this->persister->create($resourceClass, $data, $user);
         } catch (\Illuminate\Database\QueryException $exception) {
             return $this->redirectBackAfterSaveFailure($exception, $resourceClass);
         }
@@ -89,7 +89,7 @@ final readonly class ResourceFormController
         $data = $request->validate($resourceClass::updateRules($record));
 
         try {
-            $this->persister->update($resourceClass, $record, $data);
+            $this->persister->update($resourceClass, $record, $data, $user);
         } catch (\Illuminate\Database\QueryException $exception) {
             return $this->redirectBackAfterSaveFailure($exception, $resourceClass, $record);
         }

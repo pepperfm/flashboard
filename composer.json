@@ -48,6 +48,7 @@
     },
     "scripts": {
         "test": "vendor/bin/phpunit",
+        "check-assets": "php scripts/check-assets.php",
         "analyse": "vendor/bin/phpstan analyse",
         "style": "vendor/bin/pint",
         "style:check": "vendor/bin/pint --test"

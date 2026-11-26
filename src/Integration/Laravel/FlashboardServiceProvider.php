@@ -11,6 +11,7 @@ use Pepperfm\Flashboard\Core\Panel\PanelConfig;
 use Pepperfm\Flashboard\Flashboard;
 use Pepperfm\Flashboard\Integration\Laravel\Auth\PolicyBridge;
 use Pepperfm\Flashboard\Integration\Laravel\Console\BuildAssetsCommand;
+use Pepperfm\Flashboard\Integration\Laravel\Console\DoctorCommand;
 use Pepperfm\Flashboard\Integration\Laravel\Console\InstallCommand;
 use Pepperfm\Flashboard\Integration\Laravel\Console\PlaygroundInfoCommand;
 use Pepperfm\Flashboard\Integration\Laravel\Discovery\PanelDiscovery;
@@ -43,6 +44,7 @@ final class FlashboardServiceProvider extends \Illuminate\Support\ServiceProvide
         if ($this->app->runningInConsole()) {
             $this->commands([
                 BuildAssetsCommand::class,
+                DoctorCommand::class,
                 InstallCommand::class,
                 \Pepperfm\Flashboard\Integration\Laravel\Console\MakePageCommand::class,
                 \Pepperfm\Flashboard\Integration\Laravel\Console\MakeProviderCommand::class,

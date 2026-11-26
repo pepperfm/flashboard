@@ -7,6 +7,7 @@ namespace Pepperfm\Flashboard\Tests\Feature;
 use Illuminate\Database\Capsule\Manager as Capsule;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Schema\Blueprint;
+use Pepperfm\Flashboard\Tests\PostgresTestConnection;
 use Pepperfm\Flashboard\Integration\Laravel\DataSources\TypedColumnSearch;
 use Pepperfm\Flashboard\Tests\TestCase;
 
@@ -14,20 +15,8 @@ final class TypedColumnSearchTest extends TestCase
 {
     public function test_native_postgresql_uuid_search_preserves_scope_and_text_matching(): void
     {
-        $database = getenv('FLASHBOARD_PG_TEST_DB');
-        if (! is_string($database) || ! str_starts_with($database, 'flashboard_test_')) {
-            self::markTestSkipped('Provide an isolated flashboard_test_ PostgreSQL database.');
-        }
-
-        $capsule = new Capsule;
-        $capsule->addConnection([
-            'driver' => 'pgsql',
-            'host' => '/tmp',
-            'port' => 5432,
-            'database' => $database,
-            'username' => get_current_user(),
-            'prefix' => '',
-        ]);
+        $capsule = new Capsule();
+        $capsule->addConnection(PostgresTestConnection::configuration());
         $capsule->setAsGlobal();
         $capsule->bootEloquent();
         $schema = $capsule->schema();

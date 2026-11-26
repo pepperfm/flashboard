@@ -66,9 +66,6 @@ abstract class Resource
         return static::key();
     }
 
-    /**
-     * @return \Illuminate\Database\Eloquent\Builder<\Illuminate\Database\Eloquent\Model>
-     */
     public static function query(): \Illuminate\Database\Eloquent\Builder
     {
         $model = static::model();

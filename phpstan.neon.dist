@@ -3,9 +3,6 @@ parameters:
     paths:
         - src
         - tests
-    excludePaths:
-        analyse:
-            - src/Ai/Mcp
     bootstrapFiles:
         - phpstan-bootstrap.php
     treatPhpDocTypesAsCertain: false

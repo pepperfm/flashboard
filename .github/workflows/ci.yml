@@ -1,0 +1,52 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [master]
+    tags: ['[0-9]*']
+
+permissions:
+  contents: read
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:17
+        env:
+          POSTGRES_DB: flashboard_test_ci
+          POSTGRES_USER: flashboard
+          POSTGRES_PASSWORD: flashboard-ci
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U flashboard -d flashboard_test_ci"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 10
+    env:
+      FLASHBOARD_PG_TEST_DB: flashboard_test_ci
+      FLASHBOARD_PG_TEST_HOST: 127.0.0.1
+      FLASHBOARD_PG_TEST_USER: flashboard
+      FLASHBOARD_PG_TEST_PASSWORD: flashboard-ci
+    steps:
+      - uses: actions/checkout@v4
+      - uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.5'
+          extensions: pdo_sqlite, pdo_pgsql, mbstring
+          coverage: none
+          tools: composer:v2
+      - run: composer install --prefer-dist --no-interaction --no-progress
+      - run: composer check-assets
+      - run: composer test -- --fail-on-skipped
+      - run: composer analyse -- --memory-limit=512M --no-progress
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: '1.4.5'
+      - run: bun install --frozen-lockfile
+      - run: bun run dist:prepare
+      - run: composer check-assets

@@ -24,7 +24,7 @@ use Pepperfm\Flashboard\Core\Forms\Relations\BelongsToRelationMetadataResolver;
 use Pepperfm\Flashboard\Core\Registry\ResourceRegistry;
 use Pepperfm\Flashboard\Core\Resources\ResourceSurfaceResolver;
 use Pepperfm\Flashboard\Integration\Laravel\Auth\PanelAuthenticator;
-use Pepperfm\Flashboard\Integration\Laravel\Relations\RelationQueryModifier;
+use Pepperfm\Flashboard\Integration\Laravel\Relations\RelationOptionAccess;
 
 #[Singleton]
 final readonly class ResourceRelationOptionsDataSource
@@ -32,13 +32,16 @@ final readonly class ResourceRelationOptionsDataSource
     private const int MAX_PER_PAGE = 100;
     private const int MAX_SELECTED_VALUES = 200;
 
+    private RelationOptionAccess $optionAccess;
+
     public function __construct(
         private PanelAuthenticator $authenticator,
         private ScreenAccessResolver $screenAccessResolver,
-        private ExtensionRegistry $extensionRegistry,
+        ExtensionRegistry $extensionRegistry,
         private ResourceRegistry $resourceRegistry,
         private ResourceSurfaceResolver $resourceSurfaceResolver,
     ) {
+        $this->optionAccess = new RelationOptionAccess($extensionRegistry, $screenAccessResolver);
     }
 
     /**
@@ -64,7 +67,7 @@ final readonly class ResourceRelationOptionsDataSource
 
         $queryModifier = $this->findBelongsToQueryModifier($form, $fieldKey);
         $metadata = new BelongsToRelationMetadataResolver($this->resourceRegistry)->resolve($resourceClass, $field);
-        if (!$this->canQueryOptions($metadata, $user)) {
+        if (!$this->optionAccess->canQuery($metadata, $user)) {
             throw new \Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException();
         }
 
@@ -117,7 +120,7 @@ final readonly class ResourceRelationOptionsDataSource
     ): array {
         $queryModifier = $this->findBelongsToManyQueryModifier($form, $fieldKey);
         $metadata = new BelongsToManyRelationMetadataResolver($this->resourceRegistry)->resolve($resourceClass, $field);
-        if (!$this->canQueryBelongsToManyOptions($metadata, $user)) {
+        if (!$this->optionAccess->canQuery($metadata, $user)) {
             throw new \Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException();
         }
 
@@ -240,27 +243,6 @@ final readonly class ResourceRelationOptionsDataSource
             || $renderer === FieldRenderer::RelationMultiSelect->value;
     }
 
-    private function canQueryOptions(
-        BelongsToRelationMetadata $metadata,
-        ?\Illuminate\Contracts\Auth\Authenticatable $user,
-    ): bool {
-        if ($metadata->relatedResource === null) {
-            return $metadata->allowModelFallback;
-        }
-
-        return $this->screenAccessResolver->canAccessResource($metadata->relatedResource, $user);
-    }
-
-    private function canQueryBelongsToManyOptions(
-        BelongsToManyRelationMetadata $metadata,
-        ?\Illuminate\Contracts\Auth\Authenticatable $user,
-    ): bool {
-        if ($metadata->relatedResource === null) {
-            return $metadata->allowModelFallback;
-        }
-
-        return $this->screenAccessResolver->canAccessResource($metadata->relatedResource, $user);
-    }
 
     /**
      * @return list<array{label: string, value: string|int|bool, url?: string}>
@@ -273,7 +255,7 @@ final readonly class ResourceRelationOptionsDataSource
         int $perPage,
         ?\Closure $queryModifier,
     ): array {
-        $query = $this->optionsQuery($metadata, $queryModifier);
+        $query = $this->optionAccess->query($metadata, $queryModifier);
 
         if ($search !== '' && $metadata->searchColumns !== []) {
             $columns = array_values(array_filter(
@@ -305,31 +287,12 @@ final readonly class ResourceRelationOptionsDataSource
         ?\Illuminate\Contracts\Auth\Authenticatable $user,
         ?\Closure $queryModifier,
     ): array {
-        $records = $this->optionsQuery($metadata, $queryModifier)
+        $records = $this->optionAccess->query($metadata, $queryModifier)
             ->whereIn($metadata->ownerKey, $selectedValues)
             ->get()
             ->all();
 
         return $this->optionsFromRecords($metadata, $records, $user);
-    }
-
-    /**
-     * @return Builder<Model>
-     */
-    private function optionsQuery(BelongsToRelationMetadata $metadata, ?\Closure $queryModifier): Builder
-    {
-        if ($metadata->relatedResource !== null) {
-            $query = $this->extensionRegistry->extendQuery(
-                $metadata->relatedResource,
-                $metadata->relatedResource::query(),
-            );
-
-            return RelationQueryModifier::apply($queryModifier, $query, $metadata->fieldKey);
-        }
-
-        $modelClass = $metadata->relatedModel;
-
-        return RelationQueryModifier::apply($queryModifier, $modelClass::query(), $metadata->fieldKey);
     }
 
     /**
@@ -366,8 +329,7 @@ final readonly class ResourceRelationOptionsDataSource
         Model $record,
         ?\Illuminate\Contracts\Auth\Authenticatable $user,
     ): ?array {
-        if ($metadata->relatedResource !== null
-            && !$this->screenAccessResolver->canViewRecord($metadata->relatedResource, $user, $record)) {
+        if (!$this->optionAccess->canView($metadata, $record, $user)) {
             return null;
         }
 
@@ -422,7 +384,7 @@ final readonly class ResourceRelationOptionsDataSource
         int $perPage,
         ?\Closure $queryModifier,
     ): array {
-        $query = $this->belongsToManyOptionsQuery($metadata, $queryModifier);
+        $query = $this->optionAccess->query($metadata, $queryModifier);
 
         if ($search !== '' && $metadata->searchColumns !== []) {
             $columns = array_values(array_filter(
@@ -454,31 +416,12 @@ final readonly class ResourceRelationOptionsDataSource
         ?\Illuminate\Contracts\Auth\Authenticatable $user,
         ?\Closure $queryModifier,
     ): array {
-        $records = $this->belongsToManyOptionsQuery($metadata, $queryModifier)
+        $records = $this->optionAccess->query($metadata, $queryModifier)
             ->whereIn($metadata->relatedTable . '.' . $metadata->relatedKey, $selectedValues)
             ->get()
             ->all();
 
         return $this->belongsToManyOptionsFromRecords($metadata, $records, $user);
-    }
-
-    /**
-     * @return Builder<Model>
-     */
-    private function belongsToManyOptionsQuery(BelongsToManyRelationMetadata $metadata, ?\Closure $queryModifier): Builder
-    {
-        if ($metadata->relatedResource !== null) {
-            $query = $this->extensionRegistry->extendQuery(
-                $metadata->relatedResource,
-                $metadata->relatedResource::query(),
-            );
-
-            return RelationQueryModifier::apply($queryModifier, $query, $metadata->fieldKey);
-        }
-
-        $modelClass = $metadata->relatedModel;
-
-        return RelationQueryModifier::apply($queryModifier, $modelClass::query(), $metadata->fieldKey);
     }
 
     /**
@@ -515,8 +458,7 @@ final readonly class ResourceRelationOptionsDataSource
         Model $record,
         ?\Illuminate\Contracts\Auth\Authenticatable $user,
     ): ?array {
-        if ($metadata->relatedResource !== null
-            && !$this->screenAccessResolver->canViewRecord($metadata->relatedResource, $user, $record)) {
+        if (!$this->optionAccess->canView($metadata, $record, $user)) {
             return null;
         }
 

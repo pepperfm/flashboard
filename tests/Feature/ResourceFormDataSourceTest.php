@@ -68,7 +68,7 @@ final class ResourceFormDataSourceTest extends TestCase
                 return \Illuminate\Database\Eloquent\Model::class;
             }
 
-            public static function policy(): ?string
+            public static function policy(): string
             {
                 return \stdClass::class;
             }

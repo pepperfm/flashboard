@@ -216,3 +216,16 @@ For the fastest first run:
 - Generate a resource: `php artisan flashboard:make-resource`
 - Generate a page: `php artisan flashboard:make-page`
 - Generate a component-backed page: `php artisan flashboard:make-page ReviewQueuePage --component`
+
+## Diagnose an existing installation
+
+Run the read-only diagnostic command from the host application:
+
+```bash
+php artisan flashboard:doctor
+php artisan flashboard:doctor --json
+```
+
+The command checks supported Laravel version, named routes, configured middleware, the stateful auth guard, panel access Gate, resource registration and explicit policy methods, local MCP configuration, and the published Vite manifest and referenced files. It does not evaluate user-specific authorization, run resource queries, change configuration, or publish assets. Missing optional policies and empty resource discovery are warnings; explicit ability maps without a configured policy and invalid assets are errors. Exit code 0 means no errors; exit code 1 means at least one error. JSON output contains diagnostic code, severity, message and optional resource class.
+
+If published assets are missing or stale, run `php artisan vendor:publish --tag=flashboard-assets --force` and repeat the check. Custom middleware and dynamic policy behavior still need runtime tests.

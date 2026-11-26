@@ -278,8 +278,8 @@ final class ResourceManager
                 if (!is_array($options) || array_is_list($options) || count($options) === 0 || count($options) > 50) {
                     throw new \InvalidArgumentException("Select field [$name] needs an options map of up to 50 entries.");
                 }
-                foreach ($options as $value => $optionLabel) {
-                    if ((!is_string($value) && !is_int($value)) || !is_string($optionLabel) || strlen($optionLabel) > 100) {
+                foreach ($options as $optionLabel) {
+                    if (!is_string($optionLabel) || strlen($optionLabel) > 100) {
                         throw new \InvalidArgumentException('Select options require scalar keys and string labels.');
                     }
                 }

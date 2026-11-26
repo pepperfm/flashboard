@@ -174,3 +174,7 @@ Check public/vendor/flashboard/build/manifest.json and the files referenced by i
 ```
 
 Review policy maps, then smoke-test list/detail actions and validation failures. To roll back, restore the previous Composer version and republish that version's compiled assets. No schema migration is required.
+
+### Relation fields: stricter write authorization
+
+`BelongsTo` and `BelongsToMany` now reject selected records unavailable through the relation options endpoint. Register or explicitly declare the related resource, or opt into model fallback intentionally. Direct calls to `ResourceFormPersister::create()` and `update()` can pass the authenticated user as the optional final argument for related resource policy checks. Existing null/empty and omitted-field behavior is retained.

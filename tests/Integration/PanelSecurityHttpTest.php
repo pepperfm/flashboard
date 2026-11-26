@@ -8,6 +8,7 @@ use Illuminate\Auth\GenericUser;
 use Illuminate\Support\Facades\Gate;
 use Illuminate\Support\Facades\Route;
 use Orchestra\Testbench\TestCase;
+use Pepperfm\Flashboard\Tests\PostgresTestConnection;
 use Pepperfm\Flashboard\Contracts\Actions\ActionScope;
 use Pepperfm\Flashboard\Contracts\Resources\Resource;
 use Pepperfm\Flashboard\Core\Actions\Builders\Action;
@@ -170,19 +171,7 @@ final class PanelSecurityHttpTest extends TestCase
 
     public function test_invalid_native_postgresql_record_key_returns_not_found(): void
     {
-        $database = getenv('FLASHBOARD_PG_TEST_DB');
-        if (!is_string($database) || !str_starts_with($database, 'flashboard_test_')) {
-            self::markTestSkipped('Provide an isolated flashboard_test_ PostgreSQL database.');
-        }
-
-        $this->app['config']->set('database.connections.flashboard_pg_test', [
-            'driver' => 'pgsql',
-            'host' => '/tmp',
-            'port' => 5432,
-            'database' => $database,
-            'username' => get_current_user(),
-            'prefix' => '',
-        ]);
+        $this->app['config']->set('database.connections.flashboard_pg_test', PostgresTestConnection::configuration());
         $connection = $this->app['db']->connection('flashboard_pg_test');
         $connection->getSchemaBuilder()->create('flashboard_action_probe', static function (\Illuminate\Database\Schema\Blueprint $table): void {
             $table->uuid('id')->primary();
