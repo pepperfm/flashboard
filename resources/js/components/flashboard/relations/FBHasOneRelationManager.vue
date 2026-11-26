@@ -25,7 +25,16 @@ watch(
   },
 )
 
-const options = useRelationOptions(
+const {
+  isOpen: pickerIsOpen,
+  searchTerm: pickerSearchTerm,
+  items: pickerItems,
+  isLoading: pickerIsLoading,
+  isLoadingMore: pickerIsLoadingMore,
+  loadFailed: pickerLoadFailed,
+  hasMore: pickerHasMore,
+  loadMore: pickerLoadMore,
+} = useRelationOptions(
   computed(() => manager.value.options_url),
   computed(() => manager.value.per_page),
   selectedValue,
@@ -160,7 +169,7 @@ function openRecord(record: RelationRecordShape, routeKey: 'detail' | 'edit') {
     <div v-if="selectedRecord" class="relation-record">
       <div class="relation-record__main">
         <span class="relation-record__title">{{ selectedRecord.title }}</span>
-        <span class="relation-record__key">{{ selectedRecord.key }}</span>
+        <span v-if="String(selectedRecord.key) !== selectedRecord.title" class="relation-record__key">{{ selectedRecord.key }}</span>
       </div>
       <div class="relation-record__actions">
         <UButton
@@ -209,13 +218,13 @@ function openRecord(record: RelationRecordShape, routeKey: 'detail' | 'edit') {
 
     <div v-if="canAttach || canReplace" class="relation-picker">
       <USelectMenu
-        v-model:open="options.isOpen"
-        v-model:search-term="options.searchTerm"
+        v-model:open="pickerIsOpen"
+        v-model:search-term="pickerSearchTerm"
         class="relation-picker__select"
         :disabled="selectDisabled"
         :ignore-filter="true"
-        :items="options.items"
-        :loading="options.isLoading"
+        :items="pickerItems"
+        :loading="pickerIsLoading"
         :model-value="selectedValue"
         :placeholder="selectPlaceholder"
         :reset-search-term-on-blur="false"
@@ -223,19 +232,19 @@ function openRecord(record: RelationRecordShape, routeKey: 'detail' | 'edit') {
         value-key="value"
         @update:model-value="selectedValue = $event"
       >
-        <template v-if="options.loadFailed" #empty>
+        <template v-if="pickerLoadFailed" #empty>
           Could not load records.
         </template>
-        <template v-if="options.hasMore" #content-bottom>
+        <template v-if="pickerHasMore" #content-bottom>
           <div class="relation-picker__more">
             <UButton
               block
               color="neutral"
               label="Load more"
-              :loading="options.isLoading"
+              :loading="pickerIsLoadingMore"
               size="xs"
               variant="ghost"
-              @click.stop="options.loadMore"
+              @click.stop="pickerLoadMore"
             />
           </div>
         </template>

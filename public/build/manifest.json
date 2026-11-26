@@ -1,50 +1,50 @@
 {
-  "_Button-CMDX7rnp.js": {
-    "file": "assets/Button-CMDX7rnp.js",
+  "_Button-DO5W2gW1.js": {
+    "file": "assets/Button-DO5W2gW1.js",
     "name": "Button",
     "imports": [
-      "_vue-router-BZFVKKSw.js"
+      "_vue-router-DQhL-1hg.js"
     ]
   },
-  "__plugin-vue_export-helper-DsiPprzA.js": {
-    "file": "assets/_plugin-vue_export-helper-DsiPprzA.js",
+  "__plugin-vue_export-helper-DVwKTnay.js": {
+    "file": "assets/_plugin-vue_export-helper-DVwKTnay.js",
     "name": "_plugin-vue_export-helper",
     "imports": [
-      "_vue-router-BZFVKKSw.js",
-      "_Button-CMDX7rnp.js",
+      "_vue-router-DQhL-1hg.js",
+      "_Button-DO5W2gW1.js",
       "resources/js/flashboard.ts"
     ],
     "dynamicImports": [
       "node_modules/@nuxt/ui/dist/runtime/components/Toast.vue"
     ]
   },
-  "_overlay-BPsa67ho.js": {
-    "file": "assets/overlay-BPsa67ho.js",
+  "_overlay-BtsGVHg3.js": {
+    "file": "assets/overlay-BtsGVHg3.js",
     "name": "overlay",
     "imports": [
-      "_vue-router-BZFVKKSw.js",
-      "_Button-CMDX7rnp.js",
-      "__plugin-vue_export-helper-DsiPprzA.js"
+      "_vue-router-DQhL-1hg.js",
+      "_Button-DO5W2gW1.js",
+      "__plugin-vue_export-helper-DVwKTnay.js"
     ]
   },
-  "_vue-router-BZFVKKSw.js": {
-    "file": "assets/vue-router-BZFVKKSw.js",
+  "_vue-router-DQhL-1hg.js": {
+    "file": "assets/vue-router-DQhL-1hg.js",
     "name": "vue-router"
   },
   "node_modules/@nuxt/ui/dist/runtime/components/Drawer.vue": {
-    "file": "assets/Drawer-BVpj5GI3.js",
+    "file": "assets/Drawer-DTmTvdpm.js",
     "name": "Drawer",
     "src": "node_modules/@nuxt/ui/dist/runtime/components/Drawer.vue",
     "isDynamicEntry": true,
     "imports": [
-      "_vue-router-BZFVKKSw.js",
-      "_Button-CMDX7rnp.js",
-      "_overlay-BPsa67ho.js",
-      "__plugin-vue_export-helper-DsiPprzA.js"
+      "_vue-router-DQhL-1hg.js",
+      "_Button-DO5W2gW1.js",
+      "_overlay-BtsGVHg3.js",
+      "__plugin-vue_export-helper-DVwKTnay.js"
     ]
   },
   "node_modules/@nuxt/ui/dist/runtime/components/Modal.vue": {
-    "file": "assets/Modal-Cpt2OCTn.js",
+    "file": "assets/Modal-D5YVrD6z.js",
     "name": "Modal",
     "src": "node_modules/@nuxt/ui/dist/runtime/components/Modal.vue",
     "isDynamicEntry": true,
@@ -53,37 +53,37 @@
     ]
   },
   "node_modules/@nuxt/ui/dist/runtime/components/Slideover.vue": {
-    "file": "assets/Slideover-BQ4qwURo.js",
+    "file": "assets/Slideover-DLPsB6fO.js",
     "name": "Slideover",
     "src": "node_modules/@nuxt/ui/dist/runtime/components/Slideover.vue",
     "isDynamicEntry": true,
     "imports": [
-      "_vue-router-BZFVKKSw.js",
-      "_overlay-BPsa67ho.js",
-      "_Button-CMDX7rnp.js",
-      "__plugin-vue_export-helper-DsiPprzA.js"
+      "_vue-router-DQhL-1hg.js",
+      "_overlay-BtsGVHg3.js",
+      "_Button-DO5W2gW1.js",
+      "__plugin-vue_export-helper-DVwKTnay.js"
     ]
   },
   "node_modules/@nuxt/ui/dist/runtime/components/Toast.vue": {
-    "file": "assets/Toast-D50Qx9rU.js",
+    "file": "assets/Toast-DDfJk1Xa.js",
     "name": "Toast",
     "src": "node_modules/@nuxt/ui/dist/runtime/components/Toast.vue",
     "isDynamicEntry": true,
     "imports": [
-      "_vue-router-BZFVKKSw.js",
-      "_Button-CMDX7rnp.js",
-      "__plugin-vue_export-helper-DsiPprzA.js"
+      "_vue-router-DQhL-1hg.js",
+      "_Button-DO5W2gW1.js",
+      "__plugin-vue_export-helper-DVwKTnay.js"
     ]
   },
   "resources/js/Pages/Flashboard/Auth/Login.vue": {
-    "file": "assets/Login-CnESr1L-.js",
+    "file": "assets/Login-BzLOVdw4.js",
     "name": "Login",
     "src": "resources/js/Pages/Flashboard/Auth/Login.vue",
     "isDynamicEntry": true,
     "imports": [
-      "__plugin-vue_export-helper-DsiPprzA.js",
-      "_vue-router-BZFVKKSw.js",
-      "_Button-CMDX7rnp.js",
+      "__plugin-vue_export-helper-DVwKTnay.js",
+      "_vue-router-DQhL-1hg.js",
+      "_Button-DO5W2gW1.js",
       "resources/js/flashboard.ts"
     ],
     "css": [
@@ -91,16 +91,16 @@
     ]
   },
   "resources/js/Pages/Flashboard/Screen.vue": {
-    "file": "assets/Screen-CS6nuBJw.js",
+    "file": "assets/Screen-D-H7As9Q.js",
     "name": "Screen",
     "src": "resources/js/Pages/Flashboard/Screen.vue",
     "isDynamicEntry": true,
     "imports": [
-      "__plugin-vue_export-helper-DsiPprzA.js",
-      "_vue-router-BZFVKKSw.js",
-      "_Button-CMDX7rnp.js",
+      "__plugin-vue_export-helper-DVwKTnay.js",
+      "_vue-router-DQhL-1hg.js",
+      "_Button-DO5W2gW1.js",
       "resources/js/flashboard.ts",
-      "_overlay-BPsa67ho.js"
+      "_overlay-BtsGVHg3.js"
     ],
     "dynamicImports": [
       "node_modules/@nuxt/ui/dist/runtime/components/Modal.vue",
@@ -108,16 +108,16 @@
       "node_modules/@nuxt/ui/dist/runtime/components/Drawer.vue"
     ],
     "css": [
-      "assets/Screen-Z_grp7u0.css"
+      "assets/Screen-Bypb8647.css"
     ]
   },
   "resources/js/flashboard.ts": {
-    "file": "assets/flashboard-BtzHgEM_.js",
+    "file": "assets/flashboard-BvuC22UO.js",
     "name": "flashboard",
     "src": "resources/js/flashboard.ts",
     "isEntry": true,
     "imports": [
-      "_vue-router-BZFVKKSw.js"
+      "_vue-router-DQhL-1hg.js"
     ],
     "dynamicImports": [
       "resources/js/Pages/Flashboard/Auth/Login.vue",

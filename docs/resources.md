@@ -308,7 +308,7 @@ Mutation modes are opt-in:
 - `attachable()` moves one related record by setting its FK to the parent key
 - `detachable()` clears a related FK only when the FK is nullable or otherwise safe
 - `replaceable()` on `HasOne` detaches the current related record and attaches the replacement in one transaction
-- `syncable()` on `HasMany` explicitly moves selected records and detaches omitted current records; it never deletes records
+- `syncable()` on `HasMany` explicitly moves selected records and detaches omitted current records; it never deletes records The panel requires all current relation pages to be loaded and submits an expected membership snapshot; an incomplete or stale snapshot is rejected before mutation.
 
 Relation records, attach options, and mutation actions are served through protected nested resource routes. Related resource query extensions, relation query modifiers, and policy checks are applied before records or options are exposed, and selected records are re-resolved server-side for every mutation. Related create actions open the related resource create form with a server-resolved parent context; submitted FK values are overwritten by the server before persistence, so client-side FK tampering does not decide the relationship.
 
@@ -395,5 +395,7 @@ when a per-record policy is present, the runtime scans ordered rows in batches.
 For large datasets, apply authorization restrictions in the resource query where possible.
 
 ### Explicit read-only resources
+
+> Development feature, not included in 0.2.100.
 
 Override `public static function isReadOnly(): bool` to return true. Flashboard omits standard create/edit/store/update/delete, relation mutation and custom action routes and denies mutation authorization checks. Table, detail, metrics and read-only relation managers remain available. Host-owned query scopes and policies still determine record visibility.

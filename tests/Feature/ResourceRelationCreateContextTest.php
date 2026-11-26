@@ -160,6 +160,46 @@ final class ResourceRelationCreateContextTest extends TestCase
         self::assertSame(['attach', 'detach'], array_column($payloads[0]['actions'], 'key'));
     }
 
+    public function test_read_only_relation_rejects_nested_create_and_hides_action(): void
+    {
+        $order = RelationManagerOrder::query()->create(['name' => 'Order 1']);
+        $registry = new ResourceRegistry();
+        $registry->register(ReadOnlyCreateContextOrderResource::class);
+        $registry->register(RelationManagerOrderItemResource::class);
+        $payload = [
+            'name' => 'Unauthorized child',
+            'sku' => 'DENIED-READONLY',
+            'parent_resource' => ReadOnlyCreateContextOrderResource::key(),
+            'parent_record' => $order->getKey(),
+            'relation' => 'items',
+        ];
+
+        $relations = $this->recordsDataSource($registry)->initialPayloads(
+            ReadOnlyCreateContextOrderResource::class,
+            $order,
+            null,
+        );
+        self::assertSame([], $relations[0]['actions']);
+
+        foreach ([
+            fn() => $this->formDataSource($registry)->resolve(
+                RelationManagerOrderItemResource::class,
+                null,
+                \Illuminate\Http\Request::create('/', 'GET', $payload),
+            ),
+            fn() => $this->controller($registry)->store($this->storeRequest($payload)),
+        ] as $operation) {
+            try {
+                $operation();
+                self::fail('Read-only relation must reject nested creation.');
+            } catch (\Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException $exception) {
+                self::assertSame(403, $exception->getStatusCode());
+            }
+        }
+
+        self::assertSame(0, RelationManagerOrderItem::query()->count());
+    }
+
     private function formDataSource(?ResourceRegistry $registry = null): ResourceFormDataSource
     {
         $screenAccessResolver = new ScreenAccessResolver(new PolicyBridge());
@@ -278,10 +318,12 @@ final class ResourceRelationCreateContextTest extends TestCase
 
     private function bindValidator(): void
     {
-        $this->app->instance('validator', new ValidationFactory(
+        $validator = new ValidationFactory(
             new Translator(new ArrayLoader(), 'en'),
             $this->app,
-        ));
+        );
+        $this->app->instance('validator', $validator);
+        $this->app->instance(\Illuminate\Contracts\Validation\Factory::class, $validator);
 
         if (!\Illuminate\Http\Request::hasMacro('validate')) {
             \Illuminate\Http\Request::macro('validate', function (array $rules): array {
@@ -457,5 +499,22 @@ final class NoFormRelationManagerOrderItemResource extends Resource
     public static function form(\Pepperfm\Flashboard\Contracts\Forms\FormContract $form): \Pepperfm\Flashboard\Contracts\Forms\FormContract
     {
         return Form::make();
+    }
+}
+
+final class ReadOnlyCreateContextOrderResource extends Resource
+{
+    public static function model(): string
+    {
+        return RelationManagerOrder::class;
+    }
+
+    public static function relations(): array
+    {
+        return [
+            HasMany::make('items', 'Items')
+                ->resource(RelationManagerOrderItemResource::class)
+                ->readOnly(),
+        ];
     }
 }

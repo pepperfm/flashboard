@@ -5,6 +5,8 @@ declare(strict_types=1);
 namespace Pepperfm\Flashboard\Integration\Laravel\Runtime;
 
 use Illuminate\Container\Attributes\Singleton;
+use Illuminate\Contracts\Auth\Authenticatable;
+use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Arr;
 use Pepperfm\Flashboard\Contracts\Actions\ActionContract;
 use Pepperfm\Flashboard\Contracts\Pages\ComponentPageContract;
@@ -120,7 +122,7 @@ final readonly class LaravelScreenPayloadAssembler
                 'page' => $resourcePage,
                 'surfaces' => $this->resourceSurfaceResolver->availability($resourceClass, $user),
                 'pages' => $this->resourceSurfaceResolver->pagePayloads($resourceClass, $user),
-                'routes' => $this->resourceRoutes($resourceClass, $record),
+                'routes' => $this->resourceRoutes($resourceClass, $record, $user),
             ],
             'table' => $resourcePage === 'index'
                 ? array_merge(
@@ -327,15 +329,16 @@ final readonly class LaravelScreenPayloadAssembler
      *
      * @return array<string, string|null>
      */
-    private function resourceRoutes(string $resourceClass, mixed $recordKey = null): array
+    private function resourceRoutes(string $resourceClass, ?Model $record, ?Authenticatable $user): array
     {
+        $recordKey = $record?->getKey();
         $hasDetailSurface = $this->resourceSurfaceResolver->hasDetailSurfaceForResource($resourceClass);
 
         return [
             'index' => route(
                 config('flashboard.route_name_prefix', 'flashboard.') . 'resources.' . $resourceClass::key() . '.index',
             ),
-            'create' => $resourceClass::isReadOnly() ? null : route(
+            'create' => !$this->screenAccessResolver->canCreateRecord($resourceClass, $user) ? null : route(
                 config('flashboard.route_name_prefix', 'flashboard.') . 'resources.' . $resourceClass::key() . '.create',
             ),
             'detail' => $recordKey === null || !$hasDetailSurface
@@ -344,7 +347,7 @@ final readonly class LaravelScreenPayloadAssembler
                     config('flashboard.route_name_prefix', 'flashboard.') . 'resources.' . $resourceClass::key() . '.detail',
                     ['record' => $recordKey],
                 ),
-            'edit' => $recordKey === null || $resourceClass::isReadOnly()
+            'edit' => $recordKey === null || !$this->screenAccessResolver->canEditRecord($resourceClass, $user, $record)
                 ? null
                 : route(
                     config('flashboard.route_name_prefix', 'flashboard.') . 'resources.' . $resourceClass::key() . '.edit',

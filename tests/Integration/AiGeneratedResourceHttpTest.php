@@ -14,6 +14,10 @@ use Orchestra\Testbench\TestCase;
 use Pepperfm\Flashboard\Ai\ModelCatalog;
 use Pepperfm\Flashboard\Ai\ResourceManager;
 use Pepperfm\Flashboard\Contracts\Resources\Resource;
+use Pepperfm\Flashboard\Contracts\Detail\DetailContract;
+use Pepperfm\Flashboard\Contracts\Tables\TableContract;
+use Pepperfm\Flashboard\Core\Detail\Entries\TextEntry;
+use Pepperfm\Flashboard\Core\Tables\Columns\TextColumn;
 use Pepperfm\Flashboard\Core\Forms\Builders\Form;
 use Pepperfm\Flashboard\Core\Registry\ResourceRegistry;
 use Pepperfm\Flashboard\Core\Tables\Builders\Table;
@@ -122,6 +126,60 @@ final class AiGeneratedResourceHttpTest extends TestCase
 
     }
 
+    public function test_policy_denied_mutation_links_are_absent_from_read_surfaces(): void
+    {
+        $resource = (new class extends Resource {
+            public static function model(): string
+            {
+                return AiProbeRecord::class;
+            }
+
+            public static function key(): string
+            {
+                return 'policy_read_only_probe';
+            }
+
+            public static function policy(): string
+            {
+                return ReadSurfacePolicy::class;
+            }
+
+            public static function table(TableContract $table): TableContract
+            {
+                return $table->columns([
+                    TextColumn::make('name'),
+                ]);
+            }
+
+            public static function detail(DetailContract $detail): DetailContract
+            {
+                return $detail->entries([
+                    TextEntry::make('name'),
+                ]);
+            }
+        })::class;
+
+        Gate::policy(AiProbeRecord::class, ReadSurfacePolicy::class);
+        $this->app->make(ResourceRegistry::class)->register($resource);
+        $this->app->make(PanelRouteRegistrar::class)->register();
+
+        $record = AiProbeRecord::query()->create([
+            'name' => 'Original', 'state' => 0, 'occurred_on' => '2026-11-26',
+        ]);
+        $base = '/admin/resources/policy_read_only_probe';
+        $detail = $base.'/'.$record->getKey();
+
+        $this->getJson($base)->assertOk()
+            ->assertJsonPath('payload.resource.routes.create', null)
+            ->assertJsonPath('payload.table.dataset.routes.create', null)
+            ->assertJsonPath('payload.table.dataset.rows.0.links.edit', null);
+        $this->getJson($detail)->assertOk()
+            ->assertJsonPath('payload.resource.routes.edit', null)
+            ->assertJsonPath('payload.detail.routes.edit', null);
+        $this->getJson($base.'/create')->assertForbidden();
+        $this->getJson($detail.'/edit')->assertForbidden();
+    }
+
     /** @return class-string<Resource> */
     private function generate(string $name, bool $readOnly): string
     {
@@ -152,5 +210,28 @@ final class AiGeneratedResourceHttpTest extends TestCase
         $this->app->make(PanelRouteRegistrar::class)->register();
 
         return $resource;
+    }
+}
+
+final class ReadSurfacePolicy
+{
+    public function viewAny(GenericUser $user): bool
+    {
+        return true;
+    }
+
+    public function view(GenericUser $user, AiProbeRecord $record): bool
+    {
+        return true;
+    }
+
+    public function create(GenericUser $user): bool
+    {
+        return false;
+    }
+
+    public function update(GenericUser $user, AiProbeRecord $record): bool
+    {
+        return false;
     }
 }

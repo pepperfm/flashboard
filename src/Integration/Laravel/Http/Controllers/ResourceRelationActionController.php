@@ -77,6 +77,8 @@ final readonly class ResourceRelationActionController
             ]);
 
             throw $e;
+        } catch (\Illuminate\Validation\ValidationException $e) {
+            throw $e;
         } catch (\InvalidArgumentException $e) {
             logger()->warning('Relation manager mutation was rejected.', [
                 'resource' => $resourceClass,
@@ -127,7 +129,15 @@ final readonly class ResourceRelationActionController
             return;
         }
         if ($action === 'sync') {
-            $this->persister->sync($resourceClass, $record, $relation, $this->relatedKeys($request), $user);
+            $expected = $request->input('expected_related');
+            if ($request->has('expected_related') && (!is_array($expected) || !array_is_list($expected) || array_any($expected, static fn (mixed $key): bool => !is_scalar($key)))) {
+                throw \Illuminate\Validation\ValidationException::withMessages(['related' => ['Invalid relation snapshot.']]);
+            }
+
+            $this->persister->sync(
+                $resourceClass, $record, $relation, $this->relatedKeys($request), $user,
+                expectedRelatedKeys: is_array($expected) ? $expected : null,
+            );
         }
     }
 

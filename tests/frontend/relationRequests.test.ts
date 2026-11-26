@@ -1,4 +1,6 @@
 import { afterEach, expect, test } from 'bun:test'
+import { effectScope, nextTick, ref } from 'vue'
+import { useRelationOptions } from '../../resources/js/components/flashboard/relations/useRelationOptions'
 import { fetchRelationOptions, fetchRelationPayload } from '../../resources/js/components/flashboard/relations/relationRequests'
 
 const environment = globalThis as typeof globalThis & { window?: Window }
@@ -103,4 +105,52 @@ test('relation options retain valid falsy selected values', async () => {
   })
 
   expect(requestedUrl?.searchParams.getAll('selected[]')).toEqual(['0', 'false'])
+})
+
+test('relation picker uses separate loading states and avoids reloading a selected visible option', async () => {
+  const requests: URL[] = []
+  const pending: Array<(response: Response) => void> = []
+  installFetchMock((url) => {
+    requests.push(url)
+    return new Promise((resolve) => pending.push(resolve))
+  })
+
+  const scope = effectScope()
+  try {
+    const selected = ref<number | null>(null)
+    const picker = scope.run(() => useRelationOptions(ref('/admin/options'), ref(5), selected))!
+    expect(picker.isLoading.value).toBe(false)
+    expect(picker.loadFailed.value).toBe(false)
+    picker.isOpen.value = true
+    await nextTick()
+    expect(requests.length).toBe(1)
+    expect(picker.isLoading.value).toBe(true)
+    pending.shift()!(new Response(JSON.stringify({
+      items: [{ label: 'First', value: 1 }],
+      meta: { has_more: true, next_page: 2 },
+    })))
+    await Bun.sleep(0)
+    expect(picker.isLoading.value).toBe(false)
+    expect(picker.items.value[0]?.value).toBe(1)
+
+    selected.value = 1
+    await nextTick()
+    expect(requests.length).toBe(1)
+
+    picker.loadMore()
+    expect(picker.isLoading.value).toBe(false)
+    expect(picker.isLoadingMore.value).toBe(true)
+    expect(requests[1]?.searchParams.get('page')).toBe('2')
+    picker.loadMore()
+    expect(requests.length).toBe(2)
+    pending.shift()!(new Response(JSON.stringify({
+      items: [{ label: 'Second', value: 2 }],
+      meta: { has_more: false, next_page: null },
+    })))
+    await Bun.sleep(0)
+    expect(picker.isLoadingMore.value).toBe(false)
+    expect(picker.items.value.map((item) => item.value)).toEqual([1, 2])
+  } finally {
+    scope.stop()
+  }
 })

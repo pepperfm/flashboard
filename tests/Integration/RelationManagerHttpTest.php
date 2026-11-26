@@ -66,6 +66,28 @@ final class RelationManagerHttpTest extends TestCase
         $this->app->make(PanelRouteRegistrar::class)->register();
     }
 
+    public function test_sync_with_incomplete_or_stale_snapshot_leaves_membership_unchanged(): void
+    {
+        $parent = RelationHttpParent::query()->create(['id' => 'sync-probe']);
+        $first = RelationHttpChild::query()->create(['parent_id' => $parent->getKey(), 'name' => 'First']);
+        $second = RelationHttpChild::query()->create(['parent_id' => $parent->getKey(), 'name' => 'Second']);
+        $base = '/admin/resources/relation_http_parent/'.$parent->getKey().'/_relations/items/sync';
+
+        $this->patchJson($base, [
+            'related' => [$first->getKey()],
+            'expected_related' => [$first->getKey()],
+        ])->assertUnprocessable()->assertJsonValidationErrors('related');
+        self::assertSame($parent->getKey(), $first->refresh()->parent_id);
+        self::assertSame($parent->getKey(), $second->refresh()->parent_id);
+
+        $this->patchJson($base, [
+            'related' => [$first->getKey()],
+            'expected_related' => [$second->getKey(), $first->getKey()],
+        ])->assertRedirect();
+        self::assertSame($parent->getKey(), $first->refresh()->parent_id);
+        self::assertNull($second->refresh()->parent_id);
+    }
+
     public function test_nested_routes_resolve_relation_key_for_uuid_and_numeric_parent_keys(): void
     {
         foreach (['f7f1499b-e13d-4226-8689-4746aaea2461', '42'] as $parentKey) {

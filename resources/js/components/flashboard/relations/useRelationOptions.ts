@@ -19,6 +19,7 @@ export function useRelationOptions(
   const debouncedSearchTerm = refDebounced(searchTerm, SEARCH_DEBOUNCE_MS)
   const items = ref<RelationOptionShape[]>([])
   const isLoading = ref(false)
+  const isLoadingMore = ref(false)
   const loadFailed = ref(false)
   const hasMore = ref(false)
   const nextPage = ref<number | null>(null)
@@ -39,10 +40,17 @@ export function useRelationOptions(
   })
 
   watch(selected, (value) => {
-    if (hasSelectedValue(value)) {
+    if (isOpen.value && hasSelectedValue(value) && !selectedOptionsPresent(value)) {
       void loadPage(1, true)
     }
   })
+
+  function selectedOptionsPresent(value: SelectedValueInput): boolean {
+    const values = Array.isArray(value) ? value : [value]
+    return values.filter(hasRelationValue).every((key) =>
+      items.value.some((item) => String(item.value) === String(key)),
+    )
+  }
 
   async function loadPage(page: number, replace: boolean) {
     if (typeof window === 'undefined' || !optionsUrl.value) {
@@ -50,8 +58,13 @@ export function useRelationOptions(
     }
 
     const currentToken = ++requestToken
-    isLoading.value = true
+    isLoading.value = replace
+    isLoadingMore.value = !replace
     loadFailed.value = false
+    if (replace) {
+      hasMore.value = false
+      nextPage.value = null
+    }
 
     try {
       const payload = await fetchRelationOptions(optionsUrl.value, {
@@ -76,12 +89,13 @@ export function useRelationOptions(
     } finally {
       if (currentToken === requestToken) {
         isLoading.value = false
+        isLoadingMore.value = false
       }
     }
   }
 
   function loadMore() {
-    if (!hasMore.value || nextPage.value === null || isLoading.value) {
+    if (!hasMore.value || nextPage.value === null || isLoading.value || isLoadingMore.value) {
       return
     }
 
@@ -91,6 +105,7 @@ export function useRelationOptions(
   return {
     hasMore,
     isLoading,
+    isLoadingMore,
     isOpen,
     items,
     loadFailed,

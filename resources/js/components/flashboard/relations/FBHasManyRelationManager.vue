@@ -5,6 +5,7 @@ import RelationConfirmButton from '@/components/flashboard/relations/RelationCon
 import { fetchRelationPayload } from '@/components/flashboard/relations/relationRequests'
 import type { RelationActionShape, RelationManagerPayload, RelationRecordShape, RelationScalarValue } from '@/components/flashboard/relations/types'
 import { hasRelationValue } from '@/components/flashboard/relations/types'
+import { relationSyncKeys, relationSyncOptions } from '@/components/flashboard/relations/relationSyncSelection'
 import { useRelationOptions } from '@/components/flashboard/relations/useRelationOptions'
 
 const props = defineProps<{
@@ -14,7 +15,7 @@ const props = defineProps<{
 const manager = ref<RelationManagerPayload>(props.relation)
 const attachValue = ref<RelationScalarValue | null>(null)
 const selectedKeys = ref<RelationScalarValue[]>([])
-const syncValues = ref<RelationScalarValue[]>(initialRecordKeys(props.relation))
+const syncValues = ref<RelationScalarValue[]>(relationSyncKeys(props.relation) ?? [])
 const isRefreshing = ref(false)
 const refreshFailed = ref(false)
 const isMutating = ref(false)
@@ -25,16 +26,34 @@ watch(
     manager.value = relation
     attachValue.value = null
     selectedKeys.value = []
-    syncValues.value = initialRecordKeys(relation)
+    syncValues.value = relationSyncKeys(relation) ?? []
   },
 )
 
-const attachOptions = useRelationOptions(
+const {
+  isOpen: attachIsOpen,
+  searchTerm: attachSearchTerm,
+  items: attachItems,
+  isLoading: attachIsLoading,
+  isLoadingMore: attachIsLoadingMore,
+  loadFailed: attachLoadFailed,
+  hasMore: attachHasMore,
+  loadMore: attachLoadMore,
+} = useRelationOptions(
   computed(() => manager.value.options_url),
   computed(() => manager.value.per_page),
   attachValue,
 )
-const syncOptions = useRelationOptions(
+const {
+  isOpen: syncIsOpen,
+  searchTerm: syncSearchTerm,
+  items: syncItems,
+  isLoading: syncIsLoading,
+  isLoadingMore: syncIsLoadingMore,
+  loadFailed: syncLoadFailed,
+  hasMore: syncHasMore,
+  loadMore: syncLoadMore,
+} = useRelationOptions(
   computed(() => manager.value.options_url),
   computed(() => manager.value.per_page),
   syncValues,
@@ -48,7 +67,9 @@ const detachAction = computed(() => actionByKey('detach'))
 const syncAction = computed(() => actionByKey('sync'))
 const canAttach = computed(() => !manager.value.read_only && attachAction.value !== undefined)
 const canDetach = computed(() => !manager.value.read_only && detachAction.value !== undefined)
-const canSync = computed(() => !manager.value.read_only && syncAction.value !== undefined)
+const syncEnabled = computed(() => !manager.value.read_only && syncAction.value !== undefined)
+const canSync = computed(() => syncEnabled.value && !isRefreshing.value && !refreshFailed.value && relationSyncKeys(manager.value) !== null)
+const syncMenuItems = computed(() => relationSyncOptions(records.value, syncItems.value))
 const pagination = computed(() => manager.value.pagination)
 
 function actionByKey(key: string): RelationActionShape | undefined {
@@ -88,11 +109,14 @@ function detachRecord(record: RelationRecordShape) {
 }
 
 function submitSync() {
-  if (!syncAction.value?.url) {
+  if (!canSync.value || !syncAction.value?.url) {
     return
   }
 
-  runMutation(syncAction.value, { related: syncValues.value })
+  const expected = relationSyncKeys(manager.value)
+  if (expected !== null) {
+    runMutation(syncAction.value, { related: syncValues.value, expected_related: expected })
+  }
 }
 
 function runMutation(action: RelationActionShape, data: Record<string, RelationScalarValue | RelationScalarValue[]>) {
@@ -131,6 +155,7 @@ async function refreshRecords(page = 1, append = false) {
           selected_records: [...records.value, ...(payload.selected_records ?? [])],
         }
       : payload
+    syncValues.value = relationSyncKeys(manager.value) ?? []
   } catch {
     refreshFailed.value = true
   } finally {
@@ -165,11 +190,6 @@ function recordIsSelected(record: RelationRecordShape): boolean {
   return selectedKeys.value.some((selectedKey) => String(selectedKey) === String(record.key))
 }
 
-function initialRecordKeys(relation: RelationManagerPayload): RelationScalarValue[] {
-  return (relation.selected_records ?? relation.records ?? [])
-    .map((record) => record.key)
-    .filter(hasRelationValue)
-}
 </script>
 
 <template>
@@ -235,7 +255,7 @@ function initialRecordKeys(relation: RelationManagerPayload): RelationScalarValu
         />
         <div class="relation-record__main">
           <span class="relation-record__title">{{ record.title }}</span>
-          <span class="relation-record__key">{{ record.key }}</span>
+          <span v-if="String(record.key) !== record.title" class="relation-record__key">{{ record.key }}</span>
         </div>
         <div class="relation-record__actions">
           <UButton
@@ -318,13 +338,13 @@ function initialRecordKeys(relation: RelationManagerPayload): RelationScalarValu
       class="relation-picker"
     >
       <USelectMenu
-        v-model:open="attachOptions.isOpen"
-        v-model:search-term="attachOptions.searchTerm"
+        v-model:open="attachIsOpen"
+        v-model:search-term="attachSearchTerm"
         class="relation-picker__select"
         :disabled="isMutating"
         :ignore-filter="true"
-        :items="attachOptions.items"
-        :loading="attachOptions.isLoading"
+        :items="attachItems"
+        :loading="attachIsLoading"
         :model-value="attachValue"
         placeholder="Select record"
         :reset-search-term-on-blur="false"
@@ -332,19 +352,19 @@ function initialRecordKeys(relation: RelationManagerPayload): RelationScalarValu
         value-key="value"
         @update:model-value="attachValue = $event"
       >
-        <template v-if="attachOptions.loadFailed" #empty>
+        <template v-if="attachLoadFailed" #empty>
           Could not load records.
         </template>
-        <template v-if="attachOptions.hasMore" #content-bottom>
+        <template v-if="attachHasMore" #content-bottom>
           <div class="relation-picker__more">
             <UButton
               block
               color="neutral"
               label="Load more"
-              :loading="attachOptions.isLoading"
+              :loading="attachIsLoadingMore"
               size="xs"
               variant="ghost"
-              @click.stop="attachOptions.loadMore"
+              @click.stop="attachLoadMore"
             />
           </div>
         </template>
@@ -360,18 +380,24 @@ function initialRecordKeys(relation: RelationManagerPayload): RelationScalarValu
       />
     </div>
 
+    <UAlert
+      v-if="syncEnabled && !canSync && !isRefreshing && !refreshFailed"
+      color="neutral"
+      variant="subtle"
+      description="Load all related records before syncing."
+    />
     <div
       v-if="canSync"
       class="relation-picker"
     >
       <USelectMenu
-        v-model:open="syncOptions.isOpen"
-        v-model:search-term="syncOptions.searchTerm"
+        v-model:open="syncIsOpen"
+        v-model:search-term="syncSearchTerm"
         class="relation-picker__select"
         :disabled="isMutating"
         :ignore-filter="true"
-        :items="syncOptions.items"
-        :loading="syncOptions.isLoading"
+        :items="syncMenuItems"
+        :loading="syncIsLoading"
         :model-value="syncValues"
         multiple
         placeholder="Select records"
@@ -380,19 +406,19 @@ function initialRecordKeys(relation: RelationManagerPayload): RelationScalarValu
         value-key="value"
         @update:model-value="syncValues = Array.isArray($event) ? $event : []"
       >
-        <template v-if="syncOptions.loadFailed" #empty>
+        <template v-if="syncLoadFailed" #empty>
           Could not load records.
         </template>
-        <template v-if="syncOptions.hasMore" #content-bottom>
+        <template v-if="syncHasMore" #content-bottom>
           <div class="relation-picker__more">
             <UButton
               block
               color="neutral"
               label="Load more"
-              :loading="syncOptions.isLoading"
+              :loading="syncIsLoadingMore"
               size="xs"
               variant="ghost"
-              @click.stop="syncOptions.loadMore"
+              @click.stop="syncLoadMore"
             />
           </div>
         </template>

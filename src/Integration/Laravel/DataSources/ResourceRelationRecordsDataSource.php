@@ -311,7 +311,7 @@ final readonly class ResourceRelationRecordsDataSource
         RelationManagerMetadata $metadata,
         ?\Illuminate\Contracts\Auth\Authenticatable $user,
     ): array {
-        $canCreateRelated = $metadata->relatedResource !== null
+        $canCreateRelated = !$metadata->readOnly && $metadata->relatedResource !== null
             && $this->screenAccessResolver->canEditRecord($resourceClass, $user, $record)
             && $this->screenAccessResolver->canViewRelation($resourceClass, $metadata->key, $user)
             && $this->resourceSurfaceResolver->hasFormSurfaceForResource($metadata->relatedResource)

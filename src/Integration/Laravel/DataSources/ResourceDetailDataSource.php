@@ -74,7 +74,7 @@ final readonly class ResourceDetailDataSource
             'record' => $record === null ? null : [$record->getKeyName() => $record->getKey()],
             'relations' => $relations,
             'routes' => [
-                'edit' => $record === null || $resourceClass::isReadOnly()
+                'edit' => $record === null || !$this->screenAccessResolver->canEditRecord($resourceClass, $user, $record)
                     ? null
                     : route(
                         config('flashboard.route_name_prefix', 'flashboard.')

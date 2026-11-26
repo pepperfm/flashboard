@@ -60,6 +60,10 @@ final readonly class RelationCreateContextResolver
                 throw new \Symfony\Component\HttpKernel\Exception\NotFoundHttpException();
             }
 
+            if ($metadata->readOnly) {
+                throw new \Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException();
+            }
+
             return new RelationCreateContext($parentResource, $parentRecord, $relationKey, $metadata);
         }
 

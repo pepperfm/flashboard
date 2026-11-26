@@ -116,6 +116,7 @@ final readonly class ResourceRelationManagerPersister
     /**
      * @param class-string<Resource> $resourceClass
      * @param list<mixed> $relatedKeys
+     * @param list<mixed>|null $expectedRelatedKeys
      */
     public function sync(
         string $resourceClass,
@@ -123,6 +124,7 @@ final readonly class ResourceRelationManagerPersister
         string $relationKey,
         array $relatedKeys,
         ?\Illuminate\Contracts\Auth\Authenticatable $user = null,
+        ?array $expectedRelatedKeys = null,
     ): void {
         [$relation, $metadata] = $this->definitionAndMetadata($resourceClass, $relationKey);
         $this->assertMode($metadata->type === HasMany::TYPE && $metadata->syncable, 'Relation manager sync is not enabled.');
@@ -134,9 +136,25 @@ final readonly class ResourceRelationManagerPersister
             static fn (Model $record): string => (string) $record->getAttribute($metadata->recordKeyName),
             $selectedRecords,
         ), true);
-        $currentRecords = $this->relationQuery($metadata, $parent, $relation)->get()->all();
+        $parent->getConnection()->transaction(function () use ($metadata, $parent, $relation, $selectedRecords, $selectedKeys, $user, $expectedRelatedKeys): void {
+            $currentRecords = $this->relationQuery($metadata, $parent, $relation)->get()->all();
 
-        $parent->getConnection()->transaction(function () use ($metadata, $parent, $currentRecords, $selectedRecords, $selectedKeys, $user): void {
+            if ($expectedRelatedKeys !== null) {
+                $actualKeys = array_map(
+                    static fn (Model $record): string => (string) $record->getAttribute($metadata->recordKeyName),
+                    $currentRecords,
+                );
+                $expectedKeys = array_map(strval(...), $this->uniqueRelatedKeys($expectedRelatedKeys));
+                sort($actualKeys, SORT_STRING);
+                sort($expectedKeys, SORT_STRING);
+
+                if ($actualKeys !== $expectedKeys) {
+                    throw \Illuminate\Validation\ValidationException::withMessages([
+                        'related' => ['Relation membership changed. Refresh the records before syncing.'],
+                    ]);
+                }
+            }
+
             foreach ($currentRecords as $currentRecord) {
                 if (
                     !$currentRecord instanceof Model
@@ -370,7 +388,8 @@ final readonly class ResourceRelationManagerPersister
         RelationManagerMetadata $metadata,
         ?\Illuminate\Contracts\Auth\Authenticatable $user,
     ): void {
-        if (!$this->screenAccessResolver->canEditRecord($resourceClass, $user, $parent)) {
+        if (!$this->screenAccessResolver->canEditRecord($resourceClass, $user, $parent)
+            || !$this->screenAccessResolver->canViewRelation($resourceClass, $metadata->key, $user)) {
             throw new \Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException();
         }
         if ($metadata->relatedResource === null) {
@@ -385,6 +404,8 @@ final readonly class ResourceRelationManagerPersister
     ): void {
         if (
             $metadata->relatedResource === null
+            || !$this->screenAccessResolver->canAccessResource($metadata->relatedResource, $user)
+            || !$this->screenAccessResolver->canViewRecord($metadata->relatedResource, $user, $record)
             || !$this->screenAccessResolver->canEditRecord($metadata->relatedResource, $user, $record)
         ) {
             throw new \Symfony\Component\HttpKernel\Exception\AccessDeniedHttpException();
