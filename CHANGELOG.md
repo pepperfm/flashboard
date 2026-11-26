@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.3.0 - 2026-11-26
+
+- expand local AI Harness to 13 tools with capability discovery, registered resource inspection, validation and shared panel diagnostics
+- generate read-only resources, BackedEnum fields, date filters and count/trend/breakdown metrics; preserve legacy specifications and JSON text responses through the public MCP API
+- protect generated files with exact preview hashes, managed fingerprints, path validation and atomic publication under a local advisory lock
+- omit mutation routes for explicit read-only resources and enforce policies on create/edit links and contextual relation creation
+- fix paginated relation synchronization, stale membership validation and relation option selector loading
+- render numeric form fields with UInputNumber; use theme-aware detail labels and remove technical payload counters
+- verify independent Laravel hosts with and without their own frontend; update bundled assets and documentation
+
 ## 0.2.100 - 2026-11-26
 
 - enforce related resource query scopes, query extensions, field query modifiers and record view policies for submitted BelongsTo and BelongsToMany selections

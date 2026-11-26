@@ -1456,11 +1456,6 @@ function formatValue(value: unknown): string {
         </div>
       </template>
 
-      <p class="section-description">
-        Detail payload prepared with {{ payload.detail?.entries?.length ?? 0 }} entries
-        and {{ payload.detail?.relations?.length ?? 0 }} relation groups.
-      </p>
-
       <div v-if="visibleDetailSections.length" class="relations-stack">
         <UCard
           v-for="section in visibleDetailSections"
@@ -1752,12 +1747,12 @@ function formatValue(value: unknown): string {
   justify-content: space-between;
   gap: 1rem;
   padding-bottom: 0.75rem;
-  border-bottom: 1px solid rgba(120, 96, 67, 0.12);
+  border-bottom: 1px solid var(--ui-border);
 }
 
 .detail-label {
   font-weight: 600;
-  color: #6b5844;
+  color: var(--ui-text-toned);
 }
 
 .detail-value {

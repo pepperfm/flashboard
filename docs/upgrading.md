@@ -178,3 +178,7 @@ Review policy maps, then smoke-test list/detail actions and validation failures.
 ### Relation fields: stricter write authorization
 
 `BelongsTo` and `BelongsToMany` now reject selected records unavailable through the relation options endpoint. Register or explicitly declare the related resource, or opt into model fallback intentionally. Direct calls to `ResourceFormPersister::create()` and `update()` can pass the authenticated user as the optional final argument for related resource policy checks. Existing null/empty and omitted-field behavior is retained.
+
+## Upgrade to 0.3.0
+
+Refresh the bundled assets after upgrading: `php artisan vendor:publish --tag=flashboard-assets --force` and run `php artisan flashboard:doctor`. No package database migration is required. Review explicit read-only resource declarations and relation policies; denied create/edit links are now omitted and contextual creation through read-only relationships is forbidden. HasMany sync in the panel submits an expected membership snapshot; legacy clients without that snapshot retain full-replacement semantics. Numeric inputs now submit numbers or null, not empty strings. The opt-in local MCP server reports the installed Composer version; existing JSON text responses remain compatible. Re-preview any outstanding managed-file changes after upgrading.

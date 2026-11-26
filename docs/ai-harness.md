@@ -4,13 +4,13 @@ Flashboard's AI Harness lets a coding agent inspect a **host Laravel application
 
 The current project is a demo/alpha-MVP. Test generated Resources in a host application before treating them as ready for use.
 
-> Development documentation: the expanded 13-tool Harness, read-only generation, enum and metric generation, and atomic writer describe the upcoming release. Version 0.2.100 has the original nine local tools. Use get_capabilities when available to check your installed version.
+> Available since 0.3.0. Version 0.2.100 has the original nine local tools. Use get_capabilities to check your installed version.
 
 ## 1. Setup in a host Laravel application
 
 Prerequisites: **PHP 8.5+**, **Laravel 13**, an available database/schema, and Flashboard installed following [installation](installation.md). A panel provider must enable discovery with `$this->panelConfig()->discover()` (or discover the `app/Flashboard` resource directory). Opening the UI also requires the host's `accessFlashboard` Gate.
 
-**Do not install `laravel/mcp` a second time.** In the current development checkout, `flashboard/composer.json` already includes `laravel/mcp:^1.2` in `require`. The dependency is installed with Flashboard; **running the server remains opt-in**.
+**Do not install `laravel/mcp` a second time.** Since 0.3.0, `flashboard/composer.json` already includes `laravel/mcp:^1.2` in `require`. The dependency is installed with Flashboard; **running the server remains opt-in**.
 
 In the **host app's** `.env`:
 

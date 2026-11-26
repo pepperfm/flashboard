@@ -396,6 +396,6 @@ For large datasets, apply authorization restrictions in the resource query where
 
 ### Explicit read-only resources
 
-> Development feature, not included in 0.2.100.
+> Available since 0.3.0.
 
 Override `public static function isReadOnly(): bool` to return true. Flashboard omits standard create/edit/store/update/delete, relation mutation and custom action routes and denies mutation authorization checks. Table, detail, metrics and read-only relation managers remain available. Host-owned query scopes and policies still determine record visibility.
