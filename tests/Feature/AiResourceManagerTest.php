@@ -187,6 +187,42 @@ final class AiResourceManagerTest extends TestCase
         $manager->update($spec, hash('sha256', '<?php // handwritten resource'), $preview['proposal_hash']);
     }
 
+    public function test_preview_cannot_read_a_symlink_and_create_rejects_schema_drift(): void
+    {
+        $manager = $this->manager();
+        $spec = $this->spec();
+        $preview = $manager->preview($spec);
+        (new Filesystem())->ensureDirectoryExists($this->outputDirectory);
+        $target = $this->outputDirectory.'/manual.php';
+        file_put_contents($target, 'manual file');
+        symlink($target, $preview['path']);
+
+        try {
+            $manager->preview($spec);
+            self::fail('Preview must not follow symlinks.');
+        } catch (RuntimeException) {
+            self::assertSame('manual file', file_get_contents($target));
+        }
+
+        unlink($preview['path']);
+        $this->database->schema()->table('lazy_filter_option_records', static function (Blueprint $table): void {
+            $table->dropColumn('status_label');
+        });
+
+        try {
+            $manager->create($spec, $preview['proposal_hash']);
+            self::fail('Schema drift must invalidate the preview.');
+        } catch (InvalidArgumentException) {
+            self::assertFileDoesNotExist($preview['path']);
+        }
+    }
+
+    public function test_model_namespace_is_enforced_before_generation(): void
+    {
+        $this->expectException(InvalidArgumentException::class);
+        $this->manager()->preview([...$this->spec(), 'model' => \Illuminate\Database\Eloquent\Model::class]);
+    }
+
     public function test_generator_rejects_invalid_date_filters_metrics_and_enum_casts(): void
     {
         $manager = $this->manager();

@@ -4,11 +4,13 @@ Flashboard's AI Harness lets a coding agent inspect a **host Laravel application
 
 The current project is a demo/alpha-MVP. Test generated Resources in a host application before treating them as ready for use.
 
+> Development documentation: the expanded 13-tool Harness, read-only generation, enum and metric generation, and atomic writer describe the upcoming release. Version 0.2.100 has the original nine local tools. Use get_capabilities when available to check your installed version.
+
 ## 1. Setup in a host Laravel application
 
 Prerequisites: **PHP 8.5+**, **Laravel 13**, an available database/schema, and Flashboard installed following [installation](installation.md). A panel provider must enable discovery with `$this->panelConfig()->discover()` (or discover the `app/Flashboard` resource directory). Opening the UI also requires the host's `accessFlashboard` Gate.
 
-**Do not install `laravel/mcp` a second time.** On current `master`, `flashboard/composer.json` already includes `laravel/mcp:^1.2` in `require`. The dependency is installed with Flashboard; **running the server remains opt-in**.
+**Do not install `laravel/mcp` a second time.** In the current development checkout, `flashboard/composer.json` already includes `laravel/mcp:^1.2` in `require`. The dependency is installed with Flashboard; **running the server remains opt-in**.
 
 In the **host app's** `.env`:
 
@@ -131,19 +133,20 @@ The same spec is sent to `create_resource` or `update_resource`, plus the hashes
 | Field option | Behavior |
 | --- | --- |
 | `name` | Required existing database column; duplicates are refused |
-| `type` | `text` (default), `textarea`, `number`, `date`, `select`, `checkbox`, `toggle` |
+| `type` | `text` (default), `textarea`, `number`, `date`, `select`, `checkbox`, `toggle`, `enum` |
 | `label` | Optional human-readable label |
 | `table` / `detail` | Show in list/detail, both default to `true` |
 | `form` | Default: editable/fillable non-PK and non-timestamp fields; explicit `true` requires fillability |
 | `searchable` / `sortable` | Optional column behavior, default `false` |
 | `filter` | Simple SelectFilter for select, InputFilter otherwise; default `false` |
+| `filter_type` | Explicit input, select or date filter; overrides filter |
 | `required` | Form requirement; default `false` |
-| `options` | Required static value-to-label map for select fields |
+| `options` | Required static value-to-label map for select fields; optional for enum fields |
 | `allow_delete` | Top-level setting; **false by default** |
 
-Constraints: **1–30 fields**, at least one table column and one editable form field, and **1–50 static Select options** for a Select. Hidden fields, suspicious secret-like names and non-fillable form fields are rejected.
+Constraints: **1–30 fields**, at least one table column and (for writable resources) one editable form field, and **1–50 static Select options** for a Select. Hidden fields, suspicious secret-like names and non-fillable form fields are rejected.
 
-The generator now supports basic scalar fields, static Select options, and four existing typed Eloquent relation types: `belongs_to`, `belongs_to_many`, `has_one`, `has_many`. It does not create Eloquent methods, tables, FKs or pivot migrations. Custom fields, uploads, arbitrary PHP, remote APIs, charts and nested layouts remain outside the MCP generator.
+The generator now supports basic scalar fields, static Select options, and four existing typed Eloquent relation types: `belongs_to`, `belongs_to_many`, `has_one`, `has_many`. It does not create Eloquent methods, tables, FKs or pivot migrations. Custom fields, uploads, arbitrary PHP, remote APIs, arbitrary chart definitions and nested layouts remain outside the MCP generator.
 
 ## 5. Safe write/update contract
 
@@ -156,6 +159,10 @@ Every preview returns:
 - `expected_sha`: SHA-256 of the existing file, **required for updates** and `null` for creates
 
 `create_resource` refuses to overwrite an existing path. `update_resource` accepts only unmodified, AI-managed files whose embedded fingerprint is intact and whose current SHA matches the preview. Manual edits intentionally disable AI-managed updates. If `writable=false`, hashes are stale, the schema changed, or a route key conflicts: **stop and re-inspect/re-preview**. Do not strip the fingerprint or force an overwrite.
+
+The file writer serializes Flashboard writers with an exclusive directory lock. Creation publishes a complete staged file without replacing an existing target; updates recheck the expected SHA and managed fingerprint under the lock, recheck content immediately before publication, and atomically replace the file while preserving its permissions. Preview and writes reject symlinked path components and hardlinked or non-regular resource files. The trusted system temporary directory alias is allowed for isolated test hosts.
+
+Use a trusted local filesystem supporting directory locks, hardlinks and atomic rename (verified on macOS; the same regression tests are included in Linux CI). This is an advisory lock between Flashboard writers, not a sandbox against hostile local processes. Do not edit or move the target directory or resource concurrently using unrelated tools. A stale preview or unsupported filesystem fails closed; inspect again before retrying.
 
 **Hashes are consistency checks, not user approval.** An agent should show the proposal and only call write tools after explicit user write intent.
 
@@ -181,7 +188,7 @@ Do not enable delete actions without a request. These tools do not configure aut
 
 **Ask for a feature outside MCP**
 
-> I need a BelongsTo customer field. Inspect the Flashboard typed Resource DSL and propose a minimal manual PHP change. Do not claim the MCP generator supports relation generation.
+> I need a custom domain action with a parameter form. Inspect the Flashboard typed Resource DSL and propose a minimal manual PHP change. The MCP generator does not generate domain handlers.
 
 ## 7. Troubleshooting
 
@@ -243,7 +250,7 @@ Incremental tools **append only**; renames/removals still require a full-spec `p
 
 ### Inspection limits
 
-Resource inspection returns bounded structural metadata, not defaults, option values, rule parameters, records, or executable callbacks. Resource validation uses schema metadata and declared relationships; custom accessor-backed fields may produce warnings. A successful validation does not establish runtime user authorization. Host-owned resource declarations run as trusted PHP; inspect only trusted applications. The capability response distinguishes manually authored DSL from generator support; Writable generation requires an editable field; read-only generation does not. Metrics are supported; domain action handlers remain host-authored.
+Resource inspection returns bounded structural metadata, not defaults, option values, rule parameters, records, or executable callbacks. Resource validation uses schema metadata and declared relationships; custom accessor-backed fields may produce warnings. A successful validation does not establish runtime user authorization. Host-owned resource declarations run as trusted PHP; inspect only trusted applications. The capability response distinguishes manually authored DSL from generator support. Writable generation requires an editable field; read-only generation does not. Metrics are supported; domain action handlers remain host-authored.
 
 ## Read-only resources, enums, typed filters and metrics
 

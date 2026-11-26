@@ -7,15 +7,19 @@ namespace Pepperfm\Flashboard\Ai;
 use Illuminate\Filesystem\Filesystem;
 use Pepperfm\Flashboard\Ai\Generation\FieldCompiler;
 use Pepperfm\Flashboard\Ai\Generation\MetricCompiler;
+use Pepperfm\Flashboard\Ai\Generation\ResourceFileStore;
 use Pepperfm\Flashboard\Core\Registry\ResourceRegistry;
 
 final readonly class ResourceManager
 {
+    private ResourceFileStore $store;
+
     public function __construct(
         private ModelCatalog $catalog,
-        private Filesystem $files,
+        Filesystem $files,
         private ?string $outputDirectory = null,
     ) {
+        $this->store = new ResourceFileStore($files);
     }
 
     /**
@@ -25,8 +29,8 @@ final readonly class ResourceManager
     public function preview(array $spec): array
     {
         [$path, $source] = $this->compile($spec);
-        $exists = $this->files->exists($path);
-        $current = $exists ? $this->files->get($path) : null;
+        $current = $this->store->read($path);
+        $exists = $current !== null;
         $writable = !$exists || $this->isUnmodifiedGeneratedFile($current);
 
         return [
@@ -48,27 +52,7 @@ final readonly class ResourceManager
     {
         [$path, $source, $class] = $this->compile($spec);
         $this->assertProposal($source, $proposalHash);
-        $this->assertLocalPath($path);
-
-        if ($this->files->exists($path)) {
-            throw new \RuntimeException('Resource already exists; preview an update instead.');
-        }
-
-        $this->files->ensureDirectoryExists(dirname($path));
-        // Exclusive creation prevents silently overwriting a file created after preview.
-        $handle = @fopen($path, 'x');
-        if ($handle === false) {
-            throw new \RuntimeException('Unable to create resource exclusively.');
-        }
-
-        try {
-            $length = strlen($source);
-            if (fwrite($handle, $source) !== $length) {
-                throw new \RuntimeException('Unable to write complete resource source.');
-            }
-        } finally {
-            fclose($handle);
-        }
+        $this->store->create($path, $source);
 
         // The stdio server is long-lived; register fresh Resources immediately so
         // subsequent MCP calls can reference them as related Resources.
@@ -88,21 +72,7 @@ final readonly class ResourceManager
     {
         [$path, $source, $class] = $this->compile($spec);
         $this->assertProposal($source, $proposalHash);
-        $this->assertLocalPath($path);
-
-        if (!$this->files->isFile($path) || is_link($path)) {
-            throw new \RuntimeException('Resource does not exist as a regular file.');
-        }
-
-        // Protect both the agent's preview and any manual edits to a generated class.
-        $current = $this->files->get($path);
-        if (!hash_equals(hash('sha256', $current), $expectedSha) || !$this->isUnmodifiedGeneratedFile($current)) {
-            throw new \RuntimeException('Resource changed since preview or contains manual edits. Refusing to overwrite it.');
-        }
-
-        if ($current !== $source) {
-            $this->files->replace($path, $source);
-        }
+        $this->store->update($path, $source, $expectedSha, $this->isUnmodifiedGeneratedFile(...));
 
         return ['path' => $path, 'resource' => 'App\\Flashboard\\Ai\\' . $class];
     }
@@ -115,20 +85,12 @@ final readonly class ResourceManager
         }
     }
 
-    private function assertLocalPath(string $path): void
-    {
-        $root = $this->outputDirectory ?? app_path('Flashboard/Ai');
-        if (is_link($root) || is_link($path) || is_link(dirname($root))) {
-            throw new \RuntimeException('Symlinked resource directories and files are not supported.');
-        }
-    }
-
     /**
      * @return array<string, mixed>
      */
     public function managedSpecification(string $resource): array
     {
-        if (!preg_match('/^[A-Za-z][A-Za-z0-9_]{0,63}$/D', $resource)) {
+        if (!preg_match('/^[A-Za-z]\w{0,63}$/D', $resource)) {
             throw new \InvalidArgumentException('Resource must be a simple class name.');
         }
 
@@ -139,13 +101,11 @@ final readonly class ResourceManager
 
         $root = $this->outputDirectory ?? app_path('Flashboard/Ai');
         $path = rtrim($root, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR . $class . '.php';
-        $this->assertLocalPath($path);
-
-        if (!$this->files->isFile($path) || is_link($path)) {
+        $source = $this->store->read($path);
+        if ($source === null) {
             throw new \RuntimeException('Resource is not an AI-generated file.');
         }
 
-        $source = $this->files->get($path);
         if (!$this->isUnmodifiedGeneratedFile($source)
             || !preg_match('/^\/\/ @flashboard-ai-spec: ([A-Za-z0-9+\/=]+)$/m', $source, $match)) {
             throw new \RuntimeException('Resource is handwritten, manually modified, or predates editable AI specs. Use full-spec preview/update instead.');
