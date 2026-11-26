@@ -67,7 +67,7 @@ final class ResourceRelationAuthorizationTest extends TestCase
 
         $this->expectException(\Symfony\Component\HttpKernel\Exception\HttpException::class);
 
-        $this->recordsController($this->inaccessibleParentRegistry())($request, 'items');
+        $this->recordsController($this->inaccessibleParentRegistry())($request);
     }
 
     public function test_inaccessible_related_resource_cannot_load_attach_options(): void

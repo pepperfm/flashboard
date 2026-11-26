@@ -20,28 +20,31 @@ final readonly class ResourceRelationActionController
     ) {
     }
 
-    public function attach(\Illuminate\Http\Request $request, string $relation): \Illuminate\Http\RedirectResponse
+    public function attach(\Illuminate\Http\Request $request): \Illuminate\Http\RedirectResponse
     {
-        return $this->run($request, $relation, 'attach');
+        return $this->run($request, 'attach');
     }
 
-    public function detach(\Illuminate\Http\Request $request, string $relation): \Illuminate\Http\RedirectResponse
+    public function detach(\Illuminate\Http\Request $request): \Illuminate\Http\RedirectResponse
     {
-        return $this->run($request, $relation, 'detach');
+        return $this->run($request, 'detach');
     }
 
-    public function replace(\Illuminate\Http\Request $request, string $relation): \Illuminate\Http\RedirectResponse
+    public function replace(\Illuminate\Http\Request $request): \Illuminate\Http\RedirectResponse
     {
-        return $this->run($request, $relation, 'replace');
+        return $this->run($request, 'replace');
     }
 
-    public function sync(\Illuminate\Http\Request $request, string $relation): \Illuminate\Http\RedirectResponse
+    public function sync(\Illuminate\Http\Request $request): \Illuminate\Http\RedirectResponse
     {
-        return $this->run($request, $relation, 'sync');
+        return $this->run($request, 'sync');
     }
 
-    private function run(\Illuminate\Http\Request $request, string $relation, string $action): \Illuminate\Http\RedirectResponse
+    private function run(\Illuminate\Http\Request $request, string $action): \Illuminate\Http\RedirectResponse
     {
+        $relation = $request->route('relation');
+        abort_unless(is_string($relation), 404);
+
         $resourceClass = $request->route()?->defaults['flashboard.resource'] ?? null;
         if (!is_string($resourceClass) || !is_subclass_of($resourceClass, Resource::class)) {
             abort(404);

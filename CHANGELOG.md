@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.2.81 - 2026-11-26
+
+- resolve nested relation manager keys by route name rather than positional controller arguments for records, options, attach, detach, replace and sync
+- cover the real HTTP dispatch path with UUID and integer parent keys
+
 ## 0.2.80 - 2026-11-26
 
 - add explicitly scoped collection/record actions and validated modal forms with domain result handling

@@ -20,8 +20,11 @@ final readonly class ResourceRelationAttachOptionsController
     ) {
     }
 
-    public function __invoke(\Illuminate\Http\Request $request, string $relation): \Illuminate\Http\JsonResponse
+    public function __invoke(\Illuminate\Http\Request $request): \Illuminate\Http\JsonResponse
     {
+        $relation = $request->route('relation');
+        abort_unless(is_string($relation), 404);
+
         $resourceClass = $request->route()?->defaults['flashboard.resource'] ?? null;
         if (!is_string($resourceClass) || !is_subclass_of($resourceClass, Resource::class)) {
             abort(404);
