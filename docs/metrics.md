@@ -54,7 +54,7 @@ the main Dashboard if the current user has `viewAny` access to that Resource.
 
 ## Grid layout
 
-Metrics are placed in a responsive **12-column grid** on large screens; on
+On resource index screens, metrics are placed in a responsive **12-column grid** on large screens; on
 smaller screens each card uses the available width. The default widths are
 3 columns for scalar cards (four per row) and 6 columns for charts (two per row).
 
@@ -67,7 +67,7 @@ Metric::trend('verified')->dateColumn('email_verified_at')->span(4), // 1/3
 Metric::breakdown('statuses')->column('status')->chart('donut')->span(12), // full row
 ```
 
-All metrics share one 12-column desktop grid in declaration order. Each card honors span(1–12), wraps to the next row when there is insufficient space, and retains its own height. Below the xl breakpoint cards occupy a single column. No automatic grouping by type, dense packing, explicit row placement or configurable chart height.
+On resource index screens, metrics share one 12-column desktop grid in declaration order. Each card honors span(1–12), wraps to the next row when there is insufficient space, and retains its own height. Below the xl breakpoint cards occupy a single column. The dashboard instead groups scalar metrics, trends and breakdowns into separate responsive grids, preserving declaration order within each group. Dashboard layout ignores resource spans: scalar cards are compact, trends use up to two columns, and breakdowns show labeled counts and bars with shares of the displayed groups (up to 10). Resource charts are unchanged.
 
 ### Output
 

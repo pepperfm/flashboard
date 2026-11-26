@@ -846,7 +846,7 @@ function formatValue(value: unknown): string {
   </template>
 
   <template v-else-if="payload.page?.key === 'dashboard'">
-    <FBMetrics v-if="payload.metrics?.items?.length" :metrics="payload.metrics" />
+    <FBMetrics v-if="payload.metrics?.items?.length" :metrics="payload.metrics" mode="dashboard" />
     <UCard v-else variant="outline">
       <template #header>Dashboard</template>
       Define metrics in your Flashboard Resources to see analytics here.

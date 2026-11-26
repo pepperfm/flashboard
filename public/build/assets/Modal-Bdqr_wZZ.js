@@ -1,0 +1,1 @@
+export{t as default}from"./Screen-BUN4MmBN.js";

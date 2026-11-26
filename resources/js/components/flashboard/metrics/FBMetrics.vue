@@ -2,11 +2,21 @@
 import { router } from '@inertiajs/vue3'
 import { computed } from 'vue'
 import type { MetricItem, MetricsPayload } from './types'
-import { metricValueLabel, isScalarMetric } from './metricValue'
+import { isScalarMetric } from './metricValue'
+import FBMetricCard from './FBMetricCard.vue'
+import { dashboardGroups, type MetricsMode } from './metricsLayout'
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   metrics: MetricsPayload
-}>()
+  mode?: MetricsMode
+}>(), { mode: 'resource' })
+
+const groups = computed(() => dashboardGroups(props.metrics.items))
+const dashboardGrid = {
+  summary: 'grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-6',
+  trends: 'grid-cols-1 lg:grid-cols-2',
+  breakdowns: 'grid-cols-1 md:grid-cols-2 2xl:grid-cols-3',
+} as const
 
 const hasTrends = computed(() => props.metrics.items.some(item => item.kind === 'trend'))
 // Static class names are intentional so Tailwind includes all supported spans.
@@ -46,7 +56,7 @@ function changePeriod(days: number) {
 </script>
 
 <template>
-  <section v-if="metrics.items.length" class="grid gap-4" aria-label="Resource metrics">
+  <section v-if="metrics.items.length" class="grid gap-4" :aria-label="mode === 'dashboard' ? 'Dashboard metrics' : 'Resource metrics'">
     <div class="flex flex-wrap items-center justify-between gap-3">
       <h2 class="text-base font-semibold text-highlighted">Metrics</h2>
       <div v-if="hasTrends" class="flex items-center gap-1" aria-label="Metrics time range">
@@ -64,40 +74,17 @@ function changePeriod(days: number) {
       </div>
     </div>
 
-    <div class="grid grid-cols-1 items-start gap-4 xl:grid-cols-12">
-      <UCard v-for="metric in metrics.items" :key="metric.key" :class="['min-w-0', spanClass(metric)]" variant="outline">
-        <div v-if="isScalarMetric(metric)" class="grid gap-1">
-          <span class="text-xs text-muted">{{ metric.resource }}</span>
-          <span class="text-sm text-default">{{ metric.label }}</span>
-          <strong class="text-2xl font-semibold tabular-nums text-highlighted break-all">
-            {{ metricValueLabel(metric) }}
-          </strong>
+    <template v-if="mode === 'dashboard'">
+      <section v-for="group in groups" :key="group.key" class="grid gap-3">
+        <h3 class="text-sm font-medium text-muted">{{ group.label }}</h3>
+        <div :class="['grid gap-3', dashboardGrid[group.key]]">
+          <FBMetricCard v-for="metric in group.items" :key="metric.key" :metric="metric" compact />
         </div>
-        <template v-if="!isScalarMetric(metric)" #header>
-          <div class="grid gap-1">
-            <span class="text-xs text-muted">{{ metric.resource }}</span>
-            <h3 class="font-medium text-highlighted">{{ metric.label }}</h3>
-          </div>
-        </template>
+      </section>
+    </template>
 
-        <template v-if="!isScalarMetric(metric)">
-          <div v-if="metric.points?.length" class="min-w-0 pb-4">
-            <UChart
-              :type="metric.chart"
-              :data="metric.points"
-              index="label"
-              :categories="[{ key: 'value', label: metric.label }]"
-              class="h-72 min-w-0 w-full"
-            />
-          </div>
-          <UAlert
-            v-else
-            color="neutral"
-            variant="subtle"
-            description="No records for this metric."
-          />
-        </template>
-      </UCard>
+    <div v-else class="grid grid-cols-1 items-start gap-4 xl:grid-cols-12">
+      <FBMetricCard v-for="metric in metrics.items" :key="metric.key" :class="spanClass(metric)" :metric="metric" />
     </div>
   </section>
 </template>

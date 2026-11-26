@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.5.1 - 2026-11-26
+
+- separate the dashboard metric layout from resource spans; group compact counters, trends and labeled breakdowns without changing metric payloads
+
 ## 0.5.0 - 2026-11-26
 
 - isolate table navigation, action dispatch, form hydration and list query/payload assembly without changing public constructor contracts
