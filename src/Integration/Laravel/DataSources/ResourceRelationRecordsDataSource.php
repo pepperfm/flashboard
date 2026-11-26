@@ -163,28 +163,15 @@ final readonly class ResourceRelationRecordsDataSource
                 : [];
         }
 
-        $records = $query
-            ->orderBy($metadata->titleAttribute)
-            ->orderBy($metadata->recordKeyName)
-            ->offset(max(0, ($page - 1) * $perPage))
-            ->limit($perPage + 1)
-            ->get()
-            ->all();
+        $query->orderBy($metadata->orderColumn ?? $metadata->titleAttribute)->orderBy($metadata->recordKeyName);
 
-        $payloads = [];
-
-        foreach ($records as $item) {
-            if (!$item instanceof Model) {
-                continue;
-            }
-
-            $payload = $this->recordPayload($metadata, $item, $user);
-            if ($payload !== null) {
-                $payloads[] = $payload;
-            }
-        }
-
-        return $payloads;
+        return new AuthorizedOptionPage()->resolve(
+            $query,
+            $page,
+            $perPage,
+            fn (Model $item): ?array => $this->recordPayload($metadata, $item, $user),
+            $metadata->relatedResource !== null && $metadata->relatedResource::policy() !== null,
+        );
     }
 
     /**

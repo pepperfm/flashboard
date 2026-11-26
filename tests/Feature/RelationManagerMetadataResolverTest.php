@@ -89,6 +89,23 @@ final class RelationManagerMetadataResolverTest extends TestCase
         self::assertTrue($metadata->syncable);
     }
 
+    public function test_missing_name_column_falls_back_to_record_key(): void
+    {
+        $this->database->schema()->create('relation_manager_profiles', static function (\Illuminate\Database\Schema\Blueprint $table): void {
+            $table->uuid('id')->primary();
+            $table->unsignedBigInteger('order_id');
+        });
+
+        $metadata = $this->resolver()->resolve(
+            RelationManagerOrderResource::class,
+            HasOne::make('profile')->toArray(),
+        );
+
+        self::assertSame('id', $metadata->titleAttribute);
+        self::assertSame('id', $metadata->orderColumn);
+        self::assertSame(['id'], $metadata->searchColumns);
+    }
+
     public function test_rejects_unsupported_relation_types(): void
     {
         $this->expectException(\InvalidArgumentException::class);

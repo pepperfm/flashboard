@@ -96,7 +96,7 @@ final readonly class MetricResolver
                 'kind' => $definition['kind'],
                 'chart' => $definition['chart'],
                 'span' => $definition['span'],
-                ...$this->aggregate($query, $definition, $period),
+                ...$this->aggregate($query, $definition, $period, $metric),
             ];
         }
 
@@ -108,7 +108,7 @@ final readonly class MetricResolver
      *
      * @return array<string, mixed>
      */
-    private function aggregate(Builder $query, array $metric, int $period): array
+    private function aggregate(Builder $query, array $metric, int $period, Metric $definition): array
     {
         if ($metric['kind'] === 'count') {
             return ['value' => $query->count()];
@@ -131,7 +131,7 @@ final readonly class MetricResolver
 
             return [
                 'points' => $rows->map(static fn ($row): array => [
-                    'label' => $row->$column === null ? '—' : (string) $row->$column,
+                    'label' => $definition->resolveBreakdownLabel($row->$column),
                     'value' => (int) $row->aggregate,
                 ])->all(),
             ];

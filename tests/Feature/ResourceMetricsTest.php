@@ -73,6 +73,16 @@ final class ResourceMetricsTest extends TestCase
         self::assertSame([['label' => 'active', 'value' => 2]], $result['items'][2]['points']);
     }
 
+    public function test_breakdown_labels_normalize_backed_enums_and_null(): void
+    {
+        $metric = Metric::breakdown('status')->breakdownLabels(['active' => 'Active', 0 => 'Zero']);
+
+        self::assertSame('Active', $metric->resolveBreakdownLabel(MetricTestStatus::Active));
+        self::assertSame('Zero', $metric->resolveBreakdownLabel(0));
+        self::assertSame('—', $metric->resolveBreakdownLabel(null));
+        self::assertSame('other', $metric->resolveBreakdownLabel('other'));
+    }
+
     public function test_dashboard_skips_unavailable_resources(): void
     {
         $registry = new ResourceRegistry();
@@ -233,4 +243,9 @@ final class ExtendedMetricResource extends MetricRecordResource
     {
         return [new MetricStatusExtension()];
     }
+}
+
+enum MetricTestStatus: string
+{
+    case Active = 'active';
 }

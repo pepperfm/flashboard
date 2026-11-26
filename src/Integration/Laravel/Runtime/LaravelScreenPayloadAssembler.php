@@ -139,10 +139,11 @@ final readonly class LaravelScreenPayloadAssembler
                 $this->assembleActions(
                     array_values(array_filter(
                         $this->resourceSurfaceResolver->actions($resourceClass),
-                        fn(ActionContract $action): bool => $this->screenAccessResolver->canViewAction(
+                        fn(ActionContract $action): bool => $this->screenAccessResolver->canExecuteAction(
                             $resourceClass,
-                            $action->key(),
+                            $action,
                             $user,
+                            $record,
                         ),
                     )),
                     $resourceClass,
@@ -315,21 +316,8 @@ final readonly class LaravelScreenPayloadAssembler
     private function assembleActions(array $actions, string $resourceClass, mixed $recordKey = null): array
     {
         return array_values(array_map(
-            function (ActionContract $action) use ($resourceClass, $recordKey): array {
-                $payload = $this->actionPayloadAssembler->assemble($action)->toArray();
-                $payload['url'] = $recordKey === null
-                    ? route(
-                        config('flashboard.route_name_prefix', 'flashboard.') . 'resources.' . $resourceClass::key() . '.actions.index',
-                        ['action' => $action->key()],
-                    )
-                    : route(
-                        config('flashboard.route_name_prefix', 'flashboard.') . 'resources.' . $resourceClass::key() . '.actions.record',
-                        ['record' => $recordKey, 'action' => $action->key()],
-                    );
-                $payload['method'] = 'post';
-
-                return $payload;
-            },
+            fn (ActionContract $action): array => new ResourceActionPayloadAssembler($this->actionPayloadAssembler)
+                ->assemble($action, $resourceClass, $recordKey),
             $actions,
         ));
     }

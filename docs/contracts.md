@@ -62,3 +62,7 @@ Flashboard currently exposes a beta contract surface.
 - `policy()` opt-in on resources
 - ability maps for actions, fields, relations
 - page access through `canAccess()`
+
+## Optional action capabilities
+
+ActionContract has no new required methods. ContextualActionContract adds actionScope, requiredAbility, isVisible and isAuthorized; FormActionContract adds hasForm and resolveForm. The built-in Action implements both. Record context is resolved server-side and form rules/callbacks never appear in prepared JSON. See resources and forms for the request contract.

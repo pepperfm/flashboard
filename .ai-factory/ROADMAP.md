@@ -17,6 +17,13 @@
 - [x] **11. Documentation, Examples And MCP Surface** — update package docs, examples, docs site content, raw markdown routes, and MCP snippets so users understand when to use `BelongsTo`, `BelongsToMany`, `HasOne`, and `HasMany`
 - [x] **12. QA And Compatibility Gates** — cover public API, metadata resolution, option loading, selected hydration, persistence, authorization, frontend types/build, PHPStan, and backward compatibility for existing relation fields
 
+- [x] **13. Resource Action Runtime Stabilization** — named routing, record/collection scope, record-aware authorization/visibility, metric enum support, typed search and relation title safety.
+- [x] **14. Parameterized Resource Actions** — existing form schema and Nuxt UI renderers, validated input, authorized context, result/feedback and retry lifecycle without host domain logic.
+- [ ] **15. Compatibility and Release** — regression and browser gates, documented public contracts, distribution and consumer upgrade guidance.
+- [ ] **16. Read-only History Resource Presentation (future)** — validate existing resource surfaces and policy controls, read-only nested history and user/event/date range filters; add only missing composable presentation capabilities.
+- [ ] **17. Structured JSON Detail Presentation (future)** — safe escaped structured values, nested objects/arrays and long content with sensible limits; reuse detail renderer, no audit-specific storage.
+- [ ] **18. Timeline Presentation (future)** — generic ordered event rendering with timestamps, labels and optional metadata, scoped/paginated through existing resource data surfaces; no audit/event collection in package.
+
 ## BelongsToMany Implementation Map
 
 This roadmap treats `BelongsToMany` as a form field, not as a relation manager. It edits the membership rows of an Eloquent many-to-many relation for the current resource record. The initial version should sync related record IDs only; pivot attributes belong to a future dedicated pivot editor.

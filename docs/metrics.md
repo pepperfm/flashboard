@@ -112,3 +112,7 @@ Flashboard renders this via Nuxt UI `UCard` and `UChart`; the project depends on
 Custom SQL, query builders in the UI, warehouse connectors, ETL, arbitrary charts,
 cross-database joins, scheduled snapshots, per-user funnel analysis, and events are
 not part of Resource metrics.
+
+## Breakdown labels
+
+Breakdown metrics normalize BackedEnum values to their backing int/string. Use `breakdownLabels(['active' => 'Active', 0 => 'Zero'])` for a display map, or `breakdownLabelUsing(fn ($value): string => ...)` for custom labels. The callback receives the normalized scalar or null. Null displays as an em dash by default; zero and empty values are not treated as null.

@@ -256,6 +256,39 @@ final class ResourceListDataSourceTest extends TestCase
         self::assertSame('/flashboard.resources.detail_aware_records.edit/1', $payload['rows'][0]['actions'][1]['url']);
     }
 
+    public function test_record_actions_are_scoped_and_filtered_per_row(): void
+    {
+        $resourceClass = get_class(new class extends Resource {
+            public static function model(): string
+            {
+                return LazyFilterOptionRecord::class;
+            }
+
+            public static function key(): string
+            {
+                return 'scoped_action_records';
+            }
+
+            public static function actions(): array
+            {
+                return [
+                    EditAction::make(),
+                    \Pepperfm\Flashboard\Core\Actions\Builders\Action::make('grant')
+                        ->scope(\Pepperfm\Flashboard\Contracts\Actions\ActionScope::Record)
+                        ->visibleWhen(static fn (array $context): bool => $context['model']?->getKey() === 1),
+                    \Pepperfm\Flashboard\Core\Actions\Builders\Action::make('collection')
+                        ->scope(\Pepperfm\Flashboard\Contracts\Actions\ActionScope::Collection),
+                ];
+            }
+        });
+        $payload = $this->dataSource()->resolve($resourceClass, \Illuminate\Http\Request::create('/'));
+
+        self::assertSame(['edit', 'grant'], array_column($payload['rows'][0]['actions'], 'key'));
+        self::assertSame(['edit'], array_column($payload['rows'][1]['actions'], 'key'));
+        self::assertSame('post', $payload['rows'][0]['actions'][1]['method']);
+        self::assertSame('/flashboard.resources.scoped_action_records.actions.record/1/grant', $payload['rows'][0]['actions'][1]['url']);
+    }
+
     public function test_resource_lists_omit_row_actions_when_resource_actions_are_empty(): void
     {
         $payload = $this->dataSource()->resolve(

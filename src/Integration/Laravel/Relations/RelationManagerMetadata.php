@@ -38,6 +38,7 @@ final readonly class RelationManagerMetadata
         public bool $showOnDetail,
         public bool $showOnEdit,
         public array $definition,
+        public ?string $orderColumn = null,
     ) {
     }
 }

@@ -276,23 +276,22 @@ final readonly class ResourceRelationOptionsDataSource
         $query = $this->optionsQuery($metadata, $queryModifier);
 
         if ($search !== '' && $metadata->searchColumns !== []) {
-            $query->where(function (Builder $query) use ($metadata, $search): void {
-                foreach ($metadata->searchColumns as $index => $column) {
-                    $method = $index === 0 ? 'where' : 'orWhere';
-                    $query->{$method}($column, 'like', '%' . $search . '%');
-                }
-            });
+            $columns = array_values(array_filter(
+                $metadata->searchColumns,
+                fn (string $column): bool => $metadata->relatedResource === null || $this->screenAccessResolver->canViewField($metadata->relatedResource, $column, $user),
+            ));
+            new TypedColumnSearch()->apply($query, $columns, $search);
         }
 
-        $records = $query
-            ->orderBy($metadata->titleAttribute)
-            ->orderBy($metadata->ownerKey)
-            ->offset(max(0, ($page - 1) * $perPage))
-            ->limit($perPage + 1)
-            ->get()
-            ->all();
+        $query->orderBy($metadata->titleAttribute)->orderBy($metadata->ownerKey);
 
-        return $this->optionsFromRecords($metadata, $records, $user);
+        return new AuthorizedOptionPage()->resolve(
+            $query,
+            $page,
+            $perPage,
+            fn (Model $item): ?array => $this->optionFromRecord($metadata, $item, $user),
+            $metadata->relatedResource !== null && $metadata->relatedResource::policy() !== null,
+        );
     }
 
     /**
@@ -367,13 +366,21 @@ final readonly class ResourceRelationOptionsDataSource
         Model $record,
         ?\Illuminate\Contracts\Auth\Authenticatable $user,
     ): ?array {
+        if ($metadata->relatedResource !== null
+            && !$this->screenAccessResolver->canViewRecord($metadata->relatedResource, $user, $record)) {
+            return null;
+        }
+
         $value = $this->scalarValue(data_get($record, $metadata->ownerKey));
         if ($value === null) {
             return null;
         }
 
         $option = [
-            'label' => (string) ($this->scalarValue(data_get($record, $metadata->titleAttribute)) ?? $value),
+            'label' => $metadata->relatedResource === null
+                || $this->screenAccessResolver->canViewField($metadata->relatedResource, $metadata->titleAttribute, $user)
+                ? (string) ($this->scalarValue(data_get($record, $metadata->titleAttribute)) ?? $value)
+                : (string) $value,
             'value' => $value,
         ];
         $url = $this->detailUrl($metadata, $record, $user);
@@ -418,23 +425,22 @@ final readonly class ResourceRelationOptionsDataSource
         $query = $this->belongsToManyOptionsQuery($metadata, $queryModifier);
 
         if ($search !== '' && $metadata->searchColumns !== []) {
-            $query->where(function (Builder $query) use ($metadata, $search): void {
-                foreach ($metadata->searchColumns as $index => $column) {
-                    $method = $index === 0 ? 'where' : 'orWhere';
-                    $query->{$method}($column, 'like', '%' . $search . '%');
-                }
-            });
+            $columns = array_values(array_filter(
+                $metadata->searchColumns,
+                fn (string $column): bool => $metadata->relatedResource === null || $this->screenAccessResolver->canViewField($metadata->relatedResource, $column, $user),
+            ));
+            new TypedColumnSearch()->apply($query, $columns, $search);
         }
 
-        $records = $query
-            ->orderBy($metadata->titleAttribute)
-            ->orderBy($metadata->relatedKey)
-            ->offset(max(0, ($page - 1) * $perPage))
-            ->limit($perPage + 1)
-            ->get()
-            ->all();
+        $query->orderBy($metadata->titleAttribute)->orderBy($metadata->relatedKey);
 
-        return $this->belongsToManyOptionsFromRecords($metadata, $records, $user);
+        return new AuthorizedOptionPage()->resolve(
+            $query,
+            $page,
+            $perPage,
+            fn (Model $item): ?array => $this->belongsToManyOptionFromRecord($metadata, $item, $user),
+            $metadata->relatedResource !== null && $metadata->relatedResource::policy() !== null,
+        );
     }
 
     /**
@@ -509,13 +515,21 @@ final readonly class ResourceRelationOptionsDataSource
         Model $record,
         ?\Illuminate\Contracts\Auth\Authenticatable $user,
     ): ?array {
+        if ($metadata->relatedResource !== null
+            && !$this->screenAccessResolver->canViewRecord($metadata->relatedResource, $user, $record)) {
+            return null;
+        }
+
         $value = $this->scalarValue(data_get($record, $metadata->relatedKey));
         if ($value === null) {
             return null;
         }
 
         $option = [
-            'label' => (string) ($this->scalarValue(data_get($record, $metadata->titleAttribute)) ?? $value),
+            'label' => $metadata->relatedResource === null
+                || $this->screenAccessResolver->canViewField($metadata->relatedResource, $metadata->titleAttribute, $user)
+                ? (string) ($this->scalarValue(data_get($record, $metadata->titleAttribute)) ?? $value)
+                : (string) $value,
             'value' => $value,
         ];
         $url = $this->belongsToManyDetailUrl($metadata, $record, $user);

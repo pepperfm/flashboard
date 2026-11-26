@@ -172,6 +172,72 @@ Actions and pages are still declared through their dedicated methods, but they n
 
 Table row actions are configured from `Resource::actions()`, not from the table builder. Use `EditAction::make()` and `DeleteAction::make()` when the index table should expose per-record controls; delete is explicit opt-in and remains policy-aware.
 
+
+## Executable resource actions
+
+Use `Action::make()` in `Resource::actions()`. The original `ActionContract`
+remains supported. Opt into the explicit `ActionScope::Collection` for index
+actions or `ActionScope::Record` for row and record-screen actions. Without
+an explicit scope, legacy placement and the original `record` / `payload`
+handler arguments remain unchanged.
+
+```php
+use Pepperfm\Flashboard\Contracts\Actions\ActionScope;
+use Pepperfm\Flashboard\Core\Actions\Builders\Action;
+use Pepperfm\Flashboard\Core\Forms\Builders\Form;
+use Pepperfm\Flashboard\Core\Forms\Fields\NumberInput;
+use Pepperfm\Flashboard\Core\Forms\Fields\Textarea;
+use Pepperfm\Flashboard\Core\Runtime\Actions\ActionExecutionResult;
+
+Action::make('grant-access')
+    ->scope(ActionScope::Record)
+    ->ability('grantAccess')
+    ->modal('Grant temporary access')
+    ->modalDescription('Set the access period and explain the change.')
+    ->form(static fn (array $context): Form => Form::make()
+        ->schema([
+            NumberInput::make('days')->required(),
+            Textarea::make('reason')->required(),
+        ])
+        ->rules([
+            'days' => ['integer', 'min:1', 'max:365'],
+            'reason' => ['string', 'max:1000'],
+        ])
+        ->defaults(['days' => 7]))
+    ->handleUsing(static function (array $context): ActionExecutionResult {
+        // Delegate to the host domain service with model, user, validated payload
+        // and idempotency_key. The host owns atomicity and replay protection.
+        return new ActionExecutionResult(true, 'Access granted.', null);
+    });
+```
+
+The example illustrates the API, not an actual domain mutation. The host
+must implement the operation and register the declared resource policy
+with Laravel Gate. An explicit `ability()` is fail-closed when its policy
+or method is unavailable. `authorizeUsing(fn (array $context): bool => ...)`
+can add a domain-specific authorization check; `visibleWhen(...)` controls
+visibility and also prevents direct invocation when false. Neither
+confirmation nor a client-supplied record ID grants permission.
+
+A form is prepared only after authorization through a protected GET
+endpoint and resolved again on POST. The context includes the scoped
+`model`, its `record` key, authenticated `user`, and `resource` class.
+The handler receives only validated `payload` plus a separate UUID
+`idempotency_key` for form submissions. The library does not write or
+replay an idempotency ledger; use that key in the domain service.
+
+For a simple confirmation use `requiresConfirmation()` without a form.
+For state-dependent cancellation combine `visibleWhen()` with the host's
+domain authorization and current-state check inside the handler.
+Return an `ActionExecutionResult(false, $message, null)` for a business
+failure; legacy array handler results remain successful data results.
+JSON clients receive 200 on success, 409 for a business failure, 422 for
+validation, 403/404 for denied/missing resources. Inertia navigation uses
+the existing success/error flash notification pipeline. Do not rely on
+HTTP success alone to infer that a domain operation succeeded.
+
+Supported fields and transport are described in the forms documentation.
+
 ## Form Relation Fields
 
 `BelongsTo` belongs in `form()` when the create/edit screen should write one local foreign key:
@@ -313,3 +379,17 @@ The command requires only the model class. Resource class, primary field, second
 Generated resources default to `schema([...])` for simple forms. The generator chooses purpose-built form fields for common names: password-like fields become `PasswordInput` with a generated hashing mutation and are omitted from generated table/detail output, date-like fields become `DateInput`, upload-like fields become `FileUpload` with a default storage directory, body/content fields become `RichText`, and notes/description fields become `Textarea`.
 
 When generated into `app/Flashboard`, the resource is auto-discovered by default from your panel provider.
+
+### Relation title resolution
+
+Relation managers use their explicit title attribute for display where available. If no physical title column exists, ordering and search use the related model key instead of emitting SQL for a missing or virtual column. Related options remain scoped and subject to resource visibility.
+
+
+### Action authorization and preparation
+
+GET and HEAD on the form endpoint only prepare the form; execution requires POST.
+An explicitly mapped action ability requires its configured and registered policy,
+including actions with the legacy scope. Unprotected legacy actions retain their
+original handler arguments. Related option pagination counts authorized records;
+when a per-record policy is present, the runtime scans ordered rows in batches.
+For large datasets, apply authorization restrictions in the resource query where possible.

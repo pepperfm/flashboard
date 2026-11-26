@@ -1,6 +1,7 @@
 <script setup lang="ts">
 import { router, useForm } from '@inertiajs/vue3'
 import { useToast } from '@nuxt/ui/composables'
+import FBActionDialog from '@/components/flashboard/FBActionDialog.vue'
 import FBCustomPageRenderer from '@/components/flashboard/custom-pages/FBCustomPageRenderer.vue'
 import FBMetrics from '@/components/flashboard/metrics/FBMetrics.vue'
 import type { MetricsPayload } from '@/components/flashboard/metrics/types'
@@ -17,6 +18,10 @@ import { computed, h, onBeforeUnmount, reactive, ref, resolveComponent, watch } 
 
 type ActionShape = {
   color?: string | null
+  form_url?: string
+  scope?: string
+  modal?: string | null
+  modal_description?: string | null
   icon?: string | null
   kind?: string
   key: string
@@ -294,6 +299,9 @@ onBeforeUnmount(() => {
 })
 
 function rowActionControl(action: ActionShape) {
+  if (action.form_url || (action.scope && action.scope !== "legacy" && action.requires_confirmation)) {
+    return rowActionButton(action, () => runAction(action))
+  }
   if (action.requires_confirmation) {
     return rowActionConfirmationPopover(action)
   }
@@ -1070,8 +1078,15 @@ function showOperationFailureToast(message: string) {
   })
 }
 
+const activeAction = ref<ActionShape | null>(null)
+
 function runAction(action: ActionShape, confirmed = false) {
   if (!action.url) {
+    return
+  }
+
+  if (action.form_url || (action.scope && action.scope !== 'legacy' && action.requires_confirmation)) {
+    if (!activeAction.value) activeAction.value = action
     return
   }
 
@@ -1126,6 +1141,7 @@ function formatValue(value: unknown): string {
 </script>
 
 <template>
+  <FBActionDialog :action="activeAction" @close="activeAction = null" />
   <template v-if="payload.resource?.page === 'index'">
     <FBMetrics v-if="payload.metrics?.items?.length" :metrics="payload.metrics" />
     <UCard variant="outline">

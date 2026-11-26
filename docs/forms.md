@@ -255,3 +255,13 @@ On create screens, visible `Checkbox` and `Toggle` fields default to `false` unl
 - builder-level: `mutateDataUsing()`
 - resource-level: `mutateFormDataBeforeSave()`
 - post-persist: `afterSave()`
+
+## Action forms
+
+Action forms reuse FormContract and the existing schema tree/renderers; they are not CRUD forms. Supported fields: TextInput (text, email, numeric variants), NumberInput, Textarea, DateInput, Checkbox, Toggle, and static single-value Select. Sections/tabs use the existing form node renderer. Defaults are recomputed from authorized context; never put secrets into public defaults, labels, or options.
+
+Use simple scalar field keys and explicit Laravel rules for domain bounds (integer, min/max, date comparisons, custom validation rules). Null, false and zero remain distinct. Omitted values can use declared defaults. Unknown fields, nested arrays, hidden/disabled field submissions and reserved context keys are rejected; hidden/disabled defaults are not exposed. Static Select validates membership of declared scalar options.
+
+FileUpload, PasswordInput, RichText, BelongsTo, BelongsToMany, relation managers, nested value objects and multi-selects are intentionally not supported in action forms. These require additional transport or scoped persistence semantics; attempting to configure them fails explicitly. CRUD support is unchanged.
+
+Prepare with `GET {action URL}/form`; submit POST JSON with `payload` (object) and `idempotency_key` (UUID). Validation rules remain server-side. No mutateDataUsing, afterSave, model saving, pivot syncing or automatic transaction is performed by the action form runtime.

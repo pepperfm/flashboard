@@ -6,9 +6,13 @@ namespace Pepperfm\Flashboard\Core\Authorization\Visibility;
 
 use Illuminate\Container\Attributes\Singleton;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Arr;
+use Pepperfm\Flashboard\Contracts\Actions\ActionContract;
+use Pepperfm\Flashboard\Contracts\Actions\ContextualActionContract;
 use Pepperfm\Flashboard\Contracts\Authorization\ResourcePolicyGateContract;
 use Pepperfm\Flashboard\Contracts\Pages\PageDefinitionContract;
 use Pepperfm\Flashboard\Contracts\Resources\Resource;
+use Pepperfm\Flashboard\Core\Runtime\Actions\ActionContext;
 
 #[Singleton]
 final readonly class ScreenAccessResolver
@@ -124,11 +128,41 @@ final readonly class ScreenAccessResolver
     public function canViewAction(
         string $resourceClass,
         string $actionKey,
-        ?\Illuminate\Contracts\Auth\Authenticatable $user
+        ?\Illuminate\Contracts\Auth\Authenticatable $user,
+        ?Model $record = null,
     ): bool {
         $ability = $this->abilityForKey($resourceClass::actionAbilityMap(), $actionKey);
 
-        return $ability === null || $this->policyGate->allows($resourceClass, $ability, $user);
+        return $ability === null || $this->allowsExplicitActionAbility($resourceClass, $ability, $user, $record);
+    }
+
+    /**
+     * @param class-string<Resource> $resourceClass
+     */
+    public function canExecuteAction(
+        string $resourceClass,
+        ActionContract $action,
+        ?\Illuminate\Contracts\Auth\Authenticatable $user,
+        ?Model $record = null,
+    ): bool {
+        $allowed = $record === null
+            ? $this->canAccessResource($resourceClass, $user)
+            : $this->canViewRecord($resourceClass, $user, $record);
+
+        if (!$allowed || !$this->canViewAction($resourceClass, $action->key(), $user, $record)) {
+            return false;
+        }
+        if (!$action instanceof ContextualActionContract) {
+            return (bool) Arr::get($action->toArray(), 'visible', true);
+        }
+
+        $context = new ActionContext($resourceClass, $user, $record)->toArray();
+        $ability = $action->requiredAbility();
+
+        return $action->actionScope()->acceptsRecord($record !== null)
+            && ($ability === null || $this->allowsExplicitActionAbility($resourceClass, $ability, $user, $record))
+            && $action->isVisible($context)
+            && $action->isAuthorized($context);
     }
 
     /**
@@ -142,6 +176,20 @@ final readonly class ScreenAccessResolver
         $ability = $this->abilityForKey($resourceClass::relationAbilityMap(), $relationKey);
 
         return $ability === null || $this->policyGate->allows($resourceClass, $ability, $user);
+    }
+
+    /** @param class-string<Resource> $resourceClass */
+    private function allowsExplicitActionAbility(
+        string $resourceClass,
+        string $ability,
+        ?\Illuminate\Contracts\Auth\Authenticatable $user,
+        ?Model $record,
+    ): bool {
+        $policy = $resourceClass::policy();
+
+        return $policy !== null
+            && method_exists($policy, str_contains($ability, '-') ? str($ability)->camel()->value() : $ability)
+            && $this->policyGate->allows($resourceClass, $ability, $user, $record);
     }
 
     /**

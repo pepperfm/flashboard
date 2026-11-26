@@ -6,6 +6,8 @@ namespace Pepperfm\Flashboard\Integration\Laravel\DataSources;
 
 use Illuminate\Container\Attributes\Singleton;
 use Illuminate\Support\Arr;
+use Pepperfm\Flashboard\Contracts\Actions\ActionScope;
+use Pepperfm\Flashboard\Contracts\Actions\ContextualActionContract;
 use Pepperfm\Flashboard\Contracts\Resources\Resource;
 use Pepperfm\Flashboard\Contracts\Tables\TableActionContract;
 use Pepperfm\Flashboard\Core\Authorization\Visibility\ScreenAccessResolver;
@@ -18,12 +20,11 @@ use Pepperfm\Flashboard\Core\Tables\Columns\DateColumn;
 use Pepperfm\Flashboard\Core\Tables\Filters\DateFilter;
 use Pepperfm\Flashboard\Core\Tables\Filters\InputFilter;
 use Pepperfm\Flashboard\Integration\Laravel\Auth\PanelAuthenticator;
+use Pepperfm\Flashboard\Integration\Laravel\Runtime\ResourceActionPayloadAssembler;
 
 #[Singleton]
 final readonly class ResourceListDataSource
 {
-    private const string LIKE_ESCAPE_CHARACTER = '\\';
-
     private const string ISO_DATE_PATTERN = '/^\d{4}-\d{2}-\d{2}$/';
 
     private const int MAX_FILTER_VALUES = 200;
@@ -126,6 +127,11 @@ final readonly class ResourceListDataSource
         $hasDetailSurface = $this->resourceSurfaceResolver->hasDetailSurfaceForResource($resourceClass);
         $configuredRowActions = $this->configuredRowActions($this->resourceRowActions($resourceClass));
 
+        $recordActions = array_filter(
+            $this->resourceSurfaceResolver->actions($resourceClass),
+            static fn ($action): bool => $action instanceof ContextualActionContract
+                && $action->actionScope() === ActionScope::Record,
+        );
         $rows = [];
 
         foreach ($paginator->items() as $record) {
@@ -144,6 +150,23 @@ final readonly class ResourceListDataSource
                 $canViewRecord,
                 $canEditRecord,
             );
+
+            $executableRowActions = [];
+            foreach ($recordActions as $action) {
+                if (!$this->screenAccessResolver->canExecuteAction($resourceClass, $action, $user, $record)) {
+                    continue;
+                }
+
+                $payload = app(ResourceActionPayloadAssembler::class)
+                    ->assemble($action, $resourceClass, $record->getKey());
+                if (!in_array($action->key(), array_column($rowActions, 'key'), true)) {
+                    $executableRowActions[] = $payload;
+                }
+            }
+            $rowActions = array_merge($rowActions, array_values(array_filter(
+                $this->extensionRegistry->extendActions($resourceClass, $executableRowActions),
+                static fn (array $action): bool => Arr::get($action, 'visible', true) !== false,
+            )));
 
             $row = [
                 'id' => $record->getKey(),
@@ -701,10 +724,7 @@ final readonly class ResourceListDataSource
         string $column,
         string $value,
     ): void {
-        $query->whereRaw(
-            $this->likeExpression($query, $column),
-            ['%' . $this->escapeLikeValue($value) . '%'],
-        );
+        new TypedColumnSearch()->apply($query, [$column], $value);
     }
 
     /**
@@ -715,46 +735,7 @@ final readonly class ResourceListDataSource
         array $columns,
         string $value,
     ): void {
-        $search = '%' . $this->escapeLikeValue($value) . '%';
-
-        $query->where(function (\Illuminate\Database\Eloquent\Builder $builder) use ($columns, $search): void {
-            foreach ($columns as $index => $column) {
-                $builder->whereRaw(
-                    $this->likeExpression($builder, $column),
-                    [$search],
-                    $index === 0 ? 'and' : 'or',
-                );
-            }
-        });
-    }
-
-    private function likeExpression(\Illuminate\Database\Eloquent\Builder $query, string $column): string
-    {
-        return $query->getQuery()->getGrammar()->wrap($column)
-            . ' like ? escape '
-            . $this->quotedLikeEscapeCharacter($query);
-    }
-
-    private function quotedLikeEscapeCharacter(\Illuminate\Database\Eloquent\Builder $query): string
-    {
-        $connection = $query->getModel()->getConnection();
-
-        if (!$connection instanceof \Illuminate\Database\Connection) {
-            return "'\\\\'";
-        }
-
-        $quoted = $connection->getPdo()->quote(self::LIKE_ESCAPE_CHARACTER);
-
-        return is_string($quoted) ? $quoted : "'\\\\'";
-    }
-
-    private function escapeLikeValue(string $value): string
-    {
-        return strtr($value, [
-            self::LIKE_ESCAPE_CHARACTER => self::LIKE_ESCAPE_CHARACTER . self::LIKE_ESCAPE_CHARACTER,
-            '%' => self::LIKE_ESCAPE_CHARACTER . '%',
-            '_' => self::LIKE_ESCAPE_CHARACTER . '_',
-        ]);
+        new TypedColumnSearch()->apply($query, $columns, $value);
     }
 
     /**

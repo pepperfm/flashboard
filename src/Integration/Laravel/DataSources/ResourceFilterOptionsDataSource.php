@@ -169,20 +169,20 @@ final readonly class ResourceFilterOptionsDataSource
         string $optionLabelColumn,
         SelectFilterOptionsQuery $optionsQuery,
     ): array {
-        $query = $this->extensionRegistry->extendQuery($resourceClass, $resourceClass::query())
-            ->select([
+        $query = $this->extensionRegistry->extendQuery($resourceClass, $resourceClass::query());
+        $query->select([
                 $optionValueColumn . ' as flashboard_option_value',
                 $optionLabelColumn . ' as flashboard_option_label',
             ])
-            ->whereNotNull($optionValueColumn)
-            ->distinct();
+            ->whereNotNull($optionValueColumn);
+        $query->distinct();
 
         if ($optionLabelColumn !== $optionValueColumn) {
             $query->whereNotNull($optionLabelColumn);
         }
 
         if ($optionsQuery->search !== '') {
-            $query->where($optionLabelColumn, 'like', '%' . $optionsQuery->search . '%');
+            new TypedColumnSearch()->apply($query, [$optionLabelColumn], $optionsQuery->search);
         }
 
         return $query

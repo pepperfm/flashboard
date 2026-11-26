@@ -14,6 +14,36 @@ final class Metric
     private string $chart = 'line';
     private ?int $span = null;
 
+    /** @var array<int|string, string> */
+    private array $breakdownLabels = [];
+
+    private ?\Closure $breakdownLabel = null;
+
+    /** @param array<int|string, string> $labels */
+    public function breakdownLabels(array $labels): self
+    {
+        $this->breakdownLabels = $labels;
+
+        return $this;
+    }
+
+    public function breakdownLabelUsing(callable $label): self
+    {
+        $this->breakdownLabel = $label(...);
+
+        return $this;
+    }
+
+    public function resolveBreakdownLabel(mixed $value): string
+    {
+        $value = $value instanceof \BackedEnum ? $value->value : $value;
+        if ($this->breakdownLabel !== null) {
+            return (string) ($this->breakdownLabel)($value);
+        }
+
+        return $value === null ? '—' : ($this->breakdownLabels[(string) $value] ?? (string) $value);
+    }
+
     private function __construct(
         private readonly string $kind,
         private readonly string $key,

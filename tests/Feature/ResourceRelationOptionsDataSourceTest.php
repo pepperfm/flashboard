@@ -168,6 +168,30 @@ final class ResourceRelationOptionsDataSourceTest extends TestCase
         self::assertNull($searchedPayload['meta']['next_page']);
     }
 
+    public function test_policy_filtered_options_paginate_visible_rows(): void
+    {
+        $gate = new \Illuminate\Auth\Access\Gate($this->app, static fn () => null);
+        $gate->policy(BelongsToCategory::class, PagedRelationCategoryPolicy::class);
+        $this->app->instance(Gate::class, $gate);
+        for ($i = 0; $i < 12; ++$i) {
+            BelongsToCategory::query()->create(['name' => 'A denied ' . $i, 'visible' => false]);
+        }
+        $registry = $this->defaultRegistry();
+        $registry->register(PagedRelationCategoryResource::class);
+        $registry->register(PagedRelationProductResource::class);
+        $dataSource = $this->dataSource($registry);
+        $first = $dataSource->resolve(PagedRelationProductResource::class, 'category_id',
+            \Illuminate\Http\Request::create('/', 'GET', ['page' => 1, 'per_page' => 1, 'selected' => $this->hidden->getKey()]));
+        $second = $dataSource->resolve(PagedRelationProductResource::class, 'category_id',
+            \Illuminate\Http\Request::create('/', 'GET', ['page' => 2, 'per_page' => 1]));
+
+        self::assertSame(['Hardware'], array_column($first['items'], 'label'));
+        self::assertTrue($first['meta']['has_more']);
+        self::assertSame(2, $first['meta']['next_page']);
+        self::assertSame(['Software'], array_column($second['items'], 'label'));
+        self::assertFalse($second['meta']['has_more']);
+    }
+
     public function test_relation_options_reject_non_belongs_to_fields(): void
     {
         $this->expectException(\Symfony\Component\HttpKernel\Exception\NotFoundHttpException::class);
@@ -892,5 +916,47 @@ final class VisibleRelationOptionsCategoryQueryExtension implements QueryExtensi
     public function extend(\Illuminate\Database\Eloquent\Builder $query): \Illuminate\Database\Eloquent\Builder
     {
         return $query->where('visible', true);
+    }
+}
+
+final class PagedRelationCategoryResource extends Resource
+{
+    public static function model(): string
+    {
+        return BelongsToCategory::class;
+    }
+
+    public static function policy(): string
+    {
+        return PagedRelationCategoryPolicy::class;
+    }
+}
+
+final class PagedRelationProductResource extends Resource
+{
+    public static function model(): string
+    {
+        return BelongsToProduct::class;
+    }
+
+    public static function form(FormContract $form): FormContract
+    {
+        return $form->schema([
+            BelongsTo::make('category_id', 'Category', 'category')
+                ->resource(PagedRelationCategoryResource::class)->titleAttribute('name'),
+        ]);
+    }
+}
+
+final class PagedRelationCategoryPolicy
+{
+    public function viewAny(?\Illuminate\Contracts\Auth\Authenticatable $user): bool
+    {
+        return true;
+    }
+
+    public function view(?\Illuminate\Contracts\Auth\Authenticatable $user, BelongsToCategory $record): bool
+    {
+        return (bool) $record->getAttribute('visible');
     }
 }

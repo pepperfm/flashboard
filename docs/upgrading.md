@@ -156,3 +156,21 @@ Migration rules:
 - payload shape change
 - policy mapping behavior change
 - builder API signature change
+
+## Resource action runtime upgrade
+
+Existing ActionContract implementations and legacy array handlers continue to work. Previously visible=false actions and actions denied by record policies can no longer be executed directly. New explicit collection/record scopes do not accept cross-scope requests. For custom JSON clients, use the new form_url only when present and treat successful=false as a domain failure (HTTP 409). Legacy direct payloads keep their original handler shape.
+
+After updating the Composer package, refresh the precompiled assets:
+
+```sh
+php artisan vendor:publish --tag=flashboard-assets --force
+```
+
+Check public/vendor/flashboard/build/manifest.json and the files referenced by its entries. If you have published custom Blade overrides, update the panel view to include the CSRF meta tag used by the action dialog:
+
+```blade
+<meta name="csrf-token" content="{{ csrf_token() }}">
+```
+
+Review policy maps, then smoke-test list/detail actions and validation failures. To roll back, restore the previous Composer version and republish that version's compiled assets. No schema migration is required.

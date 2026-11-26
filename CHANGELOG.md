@@ -2,6 +2,12 @@
 
 ## Unreleased — Resource analytics and integration hardening
 
+- add explicitly scoped collection/record actions and validated modal forms, with server-side authorization and domain result handling
+- normalize backed enum metric breakdowns and support PostgreSQL UUID search without invalid LIKE queries
+- resolve missing relation title columns safely and protect related-record options with resource visibility rules
+- include HTTP integration tests in the default PHPUnit suite and rebuild the bundled UI assets
+
+
 - allow per-metric `span(1..12)` in a responsive 12-column dashboard grid, preserving previous default widths
 - add chart body spacing to reduce clipping against card boundaries
 

@@ -312,3 +312,9 @@ Use JSON responses on resource routes to inspect:
 - dataset rows
 - pagination metadata
 - filtered action visibility
+
+## Native PostgreSQL UUID search
+
+Native UUID columns use bound equality for full UUID values. Partial or invalid UUID terms and non-text PostgreSQL column types are skipped; if no searchable column can match, the search returns zero rows. Text matching retains literal wildcard escaping and visible-column/scoped queries. Record-scoped executable actions appear in row controls alongside CRUD actions.
+
+PostgreSQL search resolves qualified columns against the actual query tables and named aliases. Ambiguous or unknown derived-table columns are skipped rather than guessed. Schema metadata is cached for the current request.

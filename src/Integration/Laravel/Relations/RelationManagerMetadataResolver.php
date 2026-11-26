@@ -13,6 +13,7 @@ use Pepperfm\Flashboard\Core\Registry\ResourceRegistry;
 use Pepperfm\Flashboard\Core\Relations\HasMany;
 use Pepperfm\Flashboard\Core\Relations\HasOne;
 use Pepperfm\Flashboard\Core\Relations\RelationManagerDefinition;
+use Pepperfm\Flashboard\Integration\Laravel\DataSources\ColumnMetadata;
 
 final readonly class RelationManagerMetadataResolver
 {
@@ -36,7 +37,15 @@ final readonly class RelationManagerMetadataResolver
         $relatedModel = $this->relatedModel($definition, $relation);
         $relatedResource = $this->relatedResource($definition, $relatedModel);
         $relatedModelInstance = new $relatedModel();
+        $columns = array_keys(app(ColumnMetadata::class)->types($relatedModelInstance->getConnection(), $relatedModelInstance->getTable()));
+        $recordKey = $this->stringValue($definition, RelationManagerDefinition::ATTRIBUTE_RECORD_KEY_NAME)
+            ?? $relatedModelInstance->getKeyName();
         $titleAttribute = $this->stringValue($definition, RelationManagerDefinition::ATTRIBUTE_TITLE_ATTRIBUTE) ?? 'name';
+        if ($columns !== [] && !in_array($titleAttribute, $columns, true) && !$relatedModelInstance->hasGetMutator($titleAttribute)
+            && !$relatedModelInstance->hasAttributeGetMutator($titleAttribute)) {
+            $titleAttribute = $recordKey;
+        }
+        $orderColumn = $columns === [] || in_array($titleAttribute, $columns, true) ? $titleAttribute : $recordKey;
         $readOnly = (bool) Arr::get($definition, RelationManagerDefinition::ATTRIBUTE_READ_ONLY, false);
 
         return new RelationManagerMetadata(
@@ -55,7 +64,9 @@ final readonly class RelationManagerMetadataResolver
             recordKeyName: $this->stringValue($definition, RelationManagerDefinition::ATTRIBUTE_RECORD_KEY_NAME)
                 ?? $relatedModelInstance->getKeyName(),
             titleAttribute: $titleAttribute,
-            searchColumns: $this->searchColumns($definition, $titleAttribute),
+            searchColumns: $columns === [] ? $this->searchColumns($definition, $orderColumn)
+                : array_values(array_filter($this->searchColumns($definition, $orderColumn),
+                    static fn (string $column): bool => str_contains($column, '.') || in_array($column, $columns, true))),
             perPage: $this->positiveIntegerValue($definition, RelationManagerDefinition::ATTRIBUTE_PER_PAGE)
                 ?? RelationManagerDefinition::DEFAULT_PER_PAGE,
             readOnly: $readOnly,
@@ -66,6 +77,7 @@ final readonly class RelationManagerMetadataResolver
             showOnDetail: (bool) Arr::get($definition, RelationManagerDefinition::ATTRIBUTE_SHOW_ON_DETAIL, true),
             showOnEdit: (bool) Arr::get($definition, RelationManagerDefinition::ATTRIBUTE_SHOW_ON_EDIT, false),
             definition: $definition,
+            orderColumn: $orderColumn,
         );
     }
 

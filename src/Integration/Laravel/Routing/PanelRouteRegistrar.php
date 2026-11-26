@@ -171,12 +171,22 @@ final readonly class PanelRouteRegistrar
                 ->defaults('flashboard.resource', $resourceClass)
                 ->name('resources.' . $resourceClass::key() . '.destroy');
 
-            Route::post("$base/actions/{action}", ActionController::class)
+            Route::get("$base/actions/{action}/form", [ActionController::class, 'prepare'])
+                ->middleware($resourceClass::middleware())
+                ->defaults('flashboard.resource', $resourceClass)
+                ->name('resources.' . $resourceClass::key() . '.actions.index.form');
+
+            Route::post("$base/actions/{action}", [ActionController::class, 'execute'])
                 ->middleware($resourceClass::middleware())
                 ->defaults('flashboard.resource', $resourceClass)
                 ->name('resources.' . $resourceClass::key() . '.actions.index');
 
-            Route::post("$base/{record}/actions/{action}", ActionController::class)
+            Route::get("$base/{record}/actions/{action}/form", [ActionController::class, 'prepare'])
+                ->middleware($resourceClass::middleware())
+                ->defaults('flashboard.resource', $resourceClass)
+                ->name('resources.' . $resourceClass::key() . '.actions.record.form');
+
+            Route::post("$base/{record}/actions/{action}", [ActionController::class, 'execute'])
                 ->middleware($resourceClass::middleware())
                 ->defaults('flashboard.resource', $resourceClass)
                 ->name('resources.' . $resourceClass::key() . '.actions.record');
