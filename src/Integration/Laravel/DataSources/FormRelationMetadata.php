@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace Pepperfm\Flashboard\Integration\Laravel\DataSources;
 
-use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Arr;
 use Pepperfm\Flashboard\Contracts\Forms\FormContract;
@@ -21,20 +20,23 @@ use Pepperfm\Flashboard\Core\Forms\Relations\BelongsToRelationMetadata;
 use Pepperfm\Flashboard\Core\Forms\Relations\BelongsToRelationMetadataResolver;
 use Pepperfm\Flashboard\Core\Registry\ResourceRegistry;
 use Pepperfm\Flashboard\Core\Resources\ResourceSurfaceResolver;
-use Pepperfm\Flashboard\Integration\Laravel\Relations\RelationQueryModifier;
+use Pepperfm\Flashboard\Integration\Laravel\Relations\RelationOptionAccess;
 
 /*
  * Hydrates relation field metadata and selected options for resource forms.
  */
 final readonly class FormRelationMetadata
 {
+    private RelationOptionAccess $optionAccess;
+
     public function __construct(
         private FormFieldState $fieldState,
         private ScreenAccessResolver $screenAccessResolver,
-        private ExtensionRegistry $extensionRegistry,
+        ExtensionRegistry $extensionRegistry,
         private ResourceSurfaceResolver $resourceSurfaceResolver,
         private ResourceRegistry $resourceRegistry,
     ) {
+        $this->optionAccess = new RelationOptionAccess($extensionRegistry, $screenAccessResolver);
     }
 
     /**
@@ -139,11 +141,11 @@ final readonly class FormRelationMetadata
         ?\Closure $queryModifier,
     ): ?array {
         $selectedValue = $this->optionValue(data_get($record, $metadata->foreignKey));
-        if ($selectedValue === null || !$this->canQueryOptions($metadata, $user)) {
+        if ($selectedValue === null || !$this->optionAccess->canQuery($metadata, $user)) {
             return null;
         }
 
-        $relatedRecord = $this->optionsQuery($metadata, $queryModifier)
+        $relatedRecord = $this->optionAccess->query($metadata, $queryModifier)
             ->where($metadata->ownerKey, $selectedValue)
             ->first();
         if (!$relatedRecord instanceof Model) {
@@ -151,36 +153,6 @@ final readonly class FormRelationMetadata
         }
 
         return $this->belongsToOptionFromRecord($metadata, $relatedRecord, $user);
-    }
-
-    private function canQueryOptions(
-        BelongsToRelationMetadata|BelongsToManyRelationMetadata $metadata,
-        ?\Illuminate\Contracts\Auth\Authenticatable $user,
-    ): bool {
-        if ($metadata->relatedResource === null) {
-            return $metadata->allowModelFallback;
-        }
-
-        return $this->screenAccessResolver->canAccessResource($metadata->relatedResource, $user);
-    }
-
-    private function optionsQuery(
-        BelongsToRelationMetadata|BelongsToManyRelationMetadata $metadata,
-        ?\Closure $queryModifier,
-    ): Builder
-    {
-        if ($metadata->relatedResource !== null) {
-            $query = $this->extensionRegistry->extendQuery(
-                $metadata->relatedResource,
-                $metadata->relatedResource::query(),
-            );
-
-            return RelationQueryModifier::apply($queryModifier, $query, $metadata->fieldKey);
-        }
-
-        $modelClass = $metadata->relatedModel;
-
-        return RelationQueryModifier::apply($queryModifier, $modelClass::query(), $metadata->fieldKey);
     }
 
     /**
@@ -212,13 +184,20 @@ final readonly class FormRelationMetadata
         Model $record,
         ?\Illuminate\Contracts\Auth\Authenticatable $user,
     ): ?array {
+        if (!$this->optionAccess->canView($metadata, $record, $user)) {
+            return null;
+        }
+
         $value = $this->optionValue(data_get($record, $metadata->ownerKey));
         if ($value === null) {
             return null;
         }
 
         $option = [
-            'label' => (string) ($this->optionValue(data_get($record, $metadata->titleAttribute)) ?? $value),
+            'label' => $metadata->relatedResource === null
+                || $this->screenAccessResolver->canViewField($metadata->relatedResource, $metadata->titleAttribute, $user)
+                ? (string) ($this->optionValue(data_get($record, $metadata->titleAttribute)) ?? $value)
+                : (string) $value,
             'value' => $value,
         ];
         $url = $this->detailUrl($metadata, $record, $user);
@@ -331,7 +310,7 @@ final readonly class FormRelationMetadata
         ?\Illuminate\Contracts\Auth\Authenticatable $user,
         ?\Closure $queryModifier,
     ): array {
-        if (!$this->canQueryOptions($metadata, $user) || !method_exists($record, $metadata->relationship)) {
+        if (!$this->optionAccess->canQuery($metadata, $user) || !method_exists($record, $metadata->relationship)) {
             return [];
         }
 
@@ -356,7 +335,7 @@ final readonly class FormRelationMetadata
             return [];
         }
 
-        $records = $this->optionsQuery($metadata, $queryModifier)
+        $records = $this->optionAccess->query($metadata, $queryModifier)
             ->whereIn($metadata->relatedTable . '.' . $metadata->relatedKey, array_values($selectedValues))
             ->get()
             ->all();
@@ -365,7 +344,7 @@ final readonly class FormRelationMetadata
     }
 
     /**
-     * @param array $records
+     * @param iterable $records
      *
      * @return list<array{label: string, value: string|int|bool, url?: string}>
      */
@@ -398,13 +377,20 @@ final readonly class FormRelationMetadata
         Model $record,
         ?\Illuminate\Contracts\Auth\Authenticatable $user,
     ): ?array {
+        if (!$this->optionAccess->canView($metadata, $record, $user)) {
+            return null;
+        }
+
         $value = $this->optionValue(data_get($record, $metadata->relatedKey));
         if ($value === null) {
             return null;
         }
 
         $option = [
-            'label' => (string) ($this->optionValue(data_get($record, $metadata->titleAttribute)) ?? $value),
+            'label' => $metadata->relatedResource === null
+                || $this->screenAccessResolver->canViewField($metadata->relatedResource, $metadata->titleAttribute, $user)
+                ? (string) ($this->optionValue(data_get($record, $metadata->titleAttribute)) ?? $value)
+                : (string) $value,
             'value' => $value,
         ];
         $url = $this->detailUrl($metadata, $record, $user);

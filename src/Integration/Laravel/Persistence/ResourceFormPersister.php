@@ -19,6 +19,7 @@ use Pepperfm\Flashboard\Core\Forms\Fields\BelongsTo;
 use Pepperfm\Flashboard\Core\Forms\Fields\BelongsToMany;
 use Pepperfm\Flashboard\Core\Forms\Fields\Field;
 use Pepperfm\Flashboard\Core\Forms\Fields\FileUpload;
+use Pepperfm\Flashboard\Core\Forms\Relations\BelongsToManyRelationMetadata;
 use Pepperfm\Flashboard\Core\Forms\Relations\BelongsToManyRelationMetadataResolver;
 use Pepperfm\Flashboard\Core\Forms\Relations\BelongsToRelationMetadataResolver;
 use Pepperfm\Flashboard\Core\Hooks\RuntimeHookDispatcher;
@@ -34,6 +35,8 @@ final readonly class ResourceFormPersister
     private const string SYNC_FIELD_KEY = 'field_key';
     private const string SYNC_IDS = 'ids';
     private const string SYNC_RELATIONSHIP = 'relationship';
+    private const string SYNC_METADATA = 'metadata';
+    private const string SYNC_MODIFIER = 'modifier';
 
     private RelationSelectionValidator $selectionValidator;
 
@@ -80,11 +83,11 @@ final readonly class ResourceFormPersister
         $modelClass = $resourceClass::model();
         $record = new $modelClass();
 
-        return $record->getConnection()->transaction(function () use ($record, $data, $belongsToManySyncs, $form, $resourceClass, $fields): Model {
+        return $record->getConnection()->transaction(function () use ($record, $data, $belongsToManySyncs, $form, $resourceClass, $fields, $user): Model {
             $record->forceFill($data);
             $record->save();
 
-            $this->syncBelongsToManyRelations($record, $belongsToManySyncs);
+            $this->syncBelongsToManyRelations($record, $belongsToManySyncs, $user);
 
             $form->runAfterSave($record, $data);
             $resourceClass::afterSave($record, $data);
@@ -126,11 +129,11 @@ final readonly class ResourceFormPersister
         );
         $data = $this->normalizeFileFieldData($data, $fields, isUpdate: true);
 
-        return $record->getConnection()->transaction(function () use ($record, $data, $belongsToManySyncs, $form, $resourceClass, $fields): Model {
+        return $record->getConnection()->transaction(function () use ($record, $data, $belongsToManySyncs, $form, $resourceClass, $fields, $user): Model {
             $record->forceFill($data);
             $record->save();
 
-            $this->syncBelongsToManyRelations($record, $belongsToManySyncs);
+            $this->syncBelongsToManyRelations($record, $belongsToManySyncs, $user);
 
             $form->runAfterSave($record, $data);
             $resourceClass::afterSave($record, $data);
@@ -377,7 +380,7 @@ final readonly class ResourceFormPersister
      * @param array<string, mixed> $data
      * @param list<array<string, mixed>> $fields
      *
-     * @return array{0: array<string, mixed>, 1: list<array{field_key: string, relationship: string, ids: list<string|int|bool>}>}
+     * @return array{0: array<string, mixed>, 1: list<array{field_key: string, relationship: string, ids: list<string|int|bool>, metadata: BelongsToManyRelationMetadata, modifier: \Closure|null}>}
      */
     private function extractBelongsToManySyncs(
         string $resourceClass,
@@ -407,6 +410,8 @@ final readonly class ResourceFormPersister
             $syncs[] = [
                 self::SYNC_FIELD_KEY => $key,
                 self::SYNC_RELATIONSHIP => $metadata->relationship,
+                self::SYNC_METADATA => $metadata,
+                self::SYNC_MODIFIER => $queryModifiers[$key] ?? null,
                 self::SYNC_IDS => $this->selectionValidator->authorizedIds(
                     $metadata,
                     $values,
@@ -456,9 +461,9 @@ final readonly class ResourceFormPersister
     }
 
     /**
-     * @param list<array{field_key: string, relationship: string, ids: list<string|int|bool>}> $syncs
+     * @param list<array{field_key: string, relationship: string, ids: list<string|int|bool>, metadata: BelongsToManyRelationMetadata, modifier: \Closure|null}> $syncs
      */
-    private function syncBelongsToManyRelations(Model $record, array $syncs): void
+    private function syncBelongsToManyRelations(Model $record, array $syncs, ?Authenticatable $user): void
     {
         foreach ($syncs as $sync) {
             if (!method_exists($record, $sync[self::SYNC_RELATIONSHIP])) {
@@ -474,7 +479,21 @@ final readonly class ResourceFormPersister
                 ]);
             }
 
-            $relation->sync($sync[self::SYNC_IDS]);
+            // A filtered-out or denied membership is absent from the editable
+            // selection. Never detach it as a side effect of submitting the form.
+            $current = $relation->allRelatedIds()->all();
+            $visible = $this->selectionValidator->visibleIds(
+                $sync[self::SYNC_METADATA],
+                $current,
+                $sync[self::SYNC_MODIFIER],
+                $user,
+            );
+            $detach = array_diff($visible, $sync[self::SYNC_IDS]);
+            if ($detach !== []) {
+                $relation->detach(array_values($detach));
+            }
+
+            $relation->syncWithoutDetaching($sync[self::SYNC_IDS]);
         }
     }
 

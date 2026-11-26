@@ -14,6 +14,11 @@ final class RelationSelectionPolicy
         return $user->getAuthIdentifier() === 1;
     }
 
+    public function viewName(GenericUser $user): bool
+    {
+        return $user->getAuthIdentifier() === 1 && !($user->hide_name ?? false);
+    }
+
     public function view(GenericUser $user, Model $record): bool
     {
         return $this->viewAny($user) && $record->getAttribute('slug') !== 'policy-denied';

@@ -76,6 +76,44 @@ final class ResourceMetricsTest extends TestCase
         self::assertSame([['label' => 'active', 'value' => 2]], $result['items'][2]['points']);
     }
 
+    public function test_metric_query_count_and_payload_size_do_not_grow_with_record_count(): void
+    {
+        $connection = $this->database->getConnection();
+        $request = Request::create('/admin/resources/metrics', 'GET', ['metric_period' => '7']);
+        $resolver = $this->resolver();
+        $connection->enableQueryLog();
+        try {
+            $small = $resolver->resource(MetricRecordResource::class, $request, null);
+            $smallCount = count($connection->getQueryLog());
+            $connection->disableQueryLog();
+            MetricRecord::query()->insert(array_fill(0, 100, [
+                'status' => 'active',
+                'created_at' => '2026-11-15 09:00:00',
+                'amount' => '1.00',
+            ]));
+            MetricRecord::query()->insert(array_fill(0, 100, [
+                'status' => 'hidden',
+                'created_at' => '2026-11-15 09:00:00',
+                'amount' => '999.00',
+            ]));
+            $connection->flushQueryLog();
+            $connection->enableQueryLog();
+            $large = $resolver->resource(MetricRecordResource::class, $request, null);
+            $largeCount = count($connection->getQueryLog());
+        } finally {
+            $connection->disableQueryLog();
+            $connection->flushQueryLog();
+        }
+
+        self::assertSame(2, $small['items'][0]['value']);
+        self::assertSame(102, $large['items'][0]['value']);
+        self::assertCount(7, $large['items'][1]['points']);
+        self::assertSame([['label' => 'active', 'value' => 102]], $large['items'][2]['points']);
+        self::assertSame($smallCount, $largeCount);
+        self::assertLessThanOrEqual(7, $largeCount);
+        self::assertLessThanOrEqual(750, strlen(json_encode($large, JSON_THROW_ON_ERROR)));
+    }
+
     public function test_breakdown_labels_normalize_backed_enums_and_null(): void
     {
         $metric = Metric::breakdown('status')->breakdownLabels(['active' => 'Active', 0 => 'Zero']);

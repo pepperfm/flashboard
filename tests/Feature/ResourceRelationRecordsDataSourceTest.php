@@ -120,6 +120,45 @@ final class ResourceRelationRecordsDataSourceTest extends TestCase
         self::assertFalse($payload['pagination']['has_more']);
     }
 
+    public function test_relation_page_query_count_does_not_grow_with_record_count(): void
+    {
+        $connection = $this->database->getConnection();
+        $request = \Illuminate\Http\Request::create('/', 'GET', ['per_page' => 25]);
+        $source = $this->recordsDataSource();
+        // Warm relation metadata before comparing page queries.
+        $source->resolve(RelationManagerOrderResource::class, $this->order, 'items', $request);
+        $connection->flushQueryLog();
+        $connection->enableQueryLog();
+        try {
+            $small = $source->resolve(RelationManagerOrderResource::class, $this->order, 'items', $request);
+            $smallCount = count($connection->getQueryLog());
+            $connection->disableQueryLog();
+            foreach (range(2, 25) as $number) {
+                RelationManagerOrderItem::query()->create([
+                    'order_id' => $this->order->getKey(),
+                    'name' => "Item $number",
+                    'sku' => "A-$number",
+                ]);
+            }
+            $connection->flushQueryLog();
+            $connection->enableQueryLog();
+            $large = $source->resolve(RelationManagerOrderResource::class, $this->order, 'items', $request);
+            $largeCount = count($connection->getQueryLog());
+        } finally {
+            $connection->disableQueryLog();
+            $connection->flushQueryLog();
+        }
+
+        self::assertCount(1, $small['records']);
+        self::assertCount(5, $large['records']);
+        self::assertTrue($large['pagination']['has_more']);
+        self::assertSame(5, $large['pagination']['per_page']);
+        self::assertNotContains($this->orphanItem->getKey(), array_column($large['records'], 'id'));
+        self::assertSame($smallCount, $largeCount);
+        self::assertSame(1, $largeCount, 'A warm relation page is loaded with one query.');
+        self::assertLessThanOrEqual(5000, strlen(json_encode($large, JSON_THROW_ON_ERROR)));
+    }
+
     public function test_attach_options_exclude_currently_attached_records_and_support_search(): void
     {
         $payload = $this->attachOptionsDataSource()->resolve(

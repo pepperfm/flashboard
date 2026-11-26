@@ -44,11 +44,34 @@ final readonly class RelationSelectionValidator
         ?\Closure $modifier,
         ?Authenticatable $user,
     ): array {
-        if ($values === []) {
-            return [];
+        $allowed = $this->visibleIds($metadata, $values, $modifier, $user);
+
+        $result = [];
+
+        foreach ($values as $value) {
+            if (!array_key_exists((string) $value, $allowed)) {
+                throw $this->invalid($metadata->fieldKey);
+            }
+
+            $result[] = $allowed[(string) $value];
         }
-        if (!$this->options->canQuery($metadata, $user)) {
-            throw $this->invalid($metadata->fieldKey);
+
+        return $result;
+    }
+
+    /**
+     * @param list<string|int|bool> $values
+     *
+     * @return array<string|int, string|int|bool>
+     */
+    public function visibleIds(
+        BelongsToRelationMetadata|BelongsToManyRelationMetadata $metadata,
+        array $values,
+        ?\Closure $modifier,
+        ?Authenticatable $user,
+    ): array {
+        if ($values === [] || !$this->options->canQuery($metadata, $user)) {
+            return [];
         }
 
         $key = $metadata instanceof BelongsToRelationMetadata
@@ -80,17 +103,7 @@ final readonly class RelationSelectionValidator
             }
         }
 
-        $result = [];
-
-        foreach ($values as $value) {
-            if (!array_key_exists((string) $value, $allowed)) {
-                throw $this->invalid($metadata->fieldKey);
-            }
-
-            $result[] = $allowed[(string) $value];
-        }
-
-        return $result;
+        return $allowed;
     }
 
     private function invalid(string $field): ValidationException

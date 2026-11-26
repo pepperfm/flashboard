@@ -135,6 +135,87 @@ final class RelationSelectionHttpTest extends TestCase
         self::assertSame(0, $product->tags()->count());
     }
 
+    public function test_selected_form_options_respect_record_and_title_policy_across_users(): void
+    {
+        $allowed = BelongsToCategory::query()->create(['name' => 'Allowed category', 'slug' => 'allowed']);
+        $denied = BelongsToCategory::query()->create(['name' => 'Private category', 'slug' => 'policy-denied']);
+        $product = BelongsToProduct::query()->create(['name' => 'Product', 'category_id' => $denied->getKey()]);
+        $tag = BelongsToManyTag::query()->create(['name' => 'Allowed tag', 'slug' => 'allowed']);
+        $privateTag = BelongsToManyTag::query()->create(['name' => 'Private tag', 'slug' => 'policy-denied']);
+        $tagged = BelongsToManyProduct::query()->create(['name' => 'Tagged']);
+        $tagged->tags()->attach([$tag->getKey(), $privateTag->getKey()]);
+        $source = $this->app->make(\Pepperfm\Flashboard\Integration\Laravel\DataSources\ResourceFormDataSource::class);
+        $single = $source->resolve(SelectionProductResource::class, $product);
+        self::assertNull(array_column($single['fields'], null, 'key')['category_id']['selected_option']);
+        self::assertStringNotContainsString('Private category', json_encode($single, JSON_THROW_ON_ERROR));
+        $many = $source->resolve(SelectionTaggedProductResource::class, $tagged);
+        self::assertSame([$tag->getKey()], $many['state']['tags']);
+        self::assertStringNotContainsString('Private tag', json_encode($many, JSON_THROW_ON_ERROR));
+        self::assertSame('Allowed tag', array_column($many['fields'], null, 'key')['tags']['selected_options'][0]['label']);
+
+        $product->update(['category_id' => $allowed->getKey()]);
+        $this->actingAs(new GenericUser(['id' => 1, 'hide_name' => true]));
+        $single = $source->resolve(SelectionProductResource::class, $product);
+        self::assertSame((string) $allowed->getKey(), array_column($single['fields'], null, 'key')['category_id']['selected_option']['label']);
+        self::assertStringNotContainsString('Allowed category', json_encode($single, JSON_THROW_ON_ERROR));
+        $many = $source->resolve(SelectionTaggedProductResource::class, $tagged);
+        self::assertSame((string) $tag->getKey(), array_column($many['fields'], null, 'key')['tags']['selected_options'][0]['label']);
+        self::assertStringNotContainsString('Allowed tag', json_encode($many, JSON_THROW_ON_ERROR));
+
+        $this->actingAs(new GenericUser(['id' => 2]));
+        $single = $source->resolve(SelectionProductResource::class, $product);
+        self::assertNull(array_column($single['fields'], null, 'key')['category_id']['selected_option']);
+        $many = $source->resolve(SelectionTaggedProductResource::class, $tagged);
+        self::assertSame([], $many['state']['tags']);
+        self::assertSame([], array_column($many['fields'], null, 'key')['tags']['selected_options']);
+    }
+
+    public function test_many_to_many_form_sync_preserves_invisible_existing_membership(): void
+    {
+        $allowed = BelongsToManyTag::query()->create(['name' => 'Allowed', 'slug' => 'allowed']);
+        $hidden = [];
+        foreach (['outside', 'filtered', 'policy-denied'] as $slug) {
+            $hidden[] = BelongsToManyTag::query()->create(['name' => $slug, 'slug' => $slug])->getKey();
+        }
+        $product = BelongsToManyProduct::query()->create(['name' => 'Original']);
+        $product->tags()->attach([$allowed->getKey(), ...$hidden]);
+        $base = '/admin/resources/selection_tagged_product/'.$product->getKey();
+
+        $this->patchJson($base, ['name' => 'Changed', 'tags' => []])->assertRedirect();
+        self::assertSame('Changed', $product->refresh()->getAttribute('name'));
+        self::assertSame($hidden, $product->tags()->orderBy('belongs_to_many_tags.id')->pluck('belongs_to_many_tags.id')->all());
+
+        $this->patchJson($base, ['name' => 'Changed again', 'tags' => [$allowed->getKey()]])->assertRedirect();
+        self::assertSame([$allowed->getKey(), ...$hidden], $product->tags()->orderBy('belongs_to_many_tags.id')->pluck('belongs_to_many_tags.id')->all());
+
+        $this->actingAs(new GenericUser(['id' => 2]));
+        $this->patchJson($base, ['name' => 'No access to tags', 'tags' => []])->assertRedirect();
+        self::assertSame([$allowed->getKey(), ...$hidden], $product->tags()->orderBy('belongs_to_many_tags.id')->pluck('belongs_to_many_tags.id')->all());
+    }
+
+    public function test_column_metadata_is_isolated_by_connection_and_request_lifetime(): void
+    {
+        $metadata = $this->app->make(\Pepperfm\Flashboard\Integration\Laravel\DataSources\ColumnMetadata::class);
+        $first = \Illuminate\Support\Facades\DB::connection('testing');
+        $this->app['config']->set('database.connections.other_test', ['driver' => 'sqlite', 'database' => ':memory:']);
+        $second = \Illuminate\Support\Facades\DB::connection('other_test');
+        $second->getSchemaBuilder()->create('belongs_to_categories', static function (Blueprint $table): void {
+            $table->id();
+            $table->integer('tenant_marker');
+        });
+        self::assertArrayHasKey('name', $metadata->types($first, 'belongs_to_categories'));
+        self::assertArrayNotHasKey('name', $metadata->types($second, 'belongs_to_categories'));
+        self::assertArrayHasKey('tenant_marker', $metadata->types($second, 'belongs_to_categories'));
+        Schema::table('belongs_to_categories', static function (Blueprint $table): void {
+            $table->string('new_column')->nullable();
+        });
+        self::assertArrayNotHasKey('new_column', $metadata->types($first, 'belongs_to_categories'));
+        $this->app->forgetScopedInstances();
+        $next = $this->app->make(\Pepperfm\Flashboard\Integration\Laravel\DataSources\ColumnMetadata::class);
+        self::assertNotSame($metadata, $next);
+        self::assertArrayHasKey('new_column', $next->types($first, 'belongs_to_categories'));
+    }
+
     public function test_denied_related_resource_rejects_direct_form_submission(): void
     {
         $allowed = BelongsToCategory::query()->create(['name' => 'Allowed', 'slug' => 'allowed']);

@@ -21,6 +21,11 @@ final class SelectionCategoryResource extends Resource
         return RelationSelectionPolicy::class;
     }
 
+    public static function fieldAbilityMap(): array
+    {
+        return ['name' => 'view-name'];
+    }
+
     public static function query(): Builder
     {
         return parent::query()->where('slug', '!=', 'outside');

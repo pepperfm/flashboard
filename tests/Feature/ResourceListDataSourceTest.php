@@ -732,6 +732,9 @@ final class ResourceListDataSourceTest extends TestCase
         $payload = $this->dataSource()->resolve($resource, \Illuminate\Http\Request::create('/'));
 
         $queries = $connection->getQueryLog();
+        $connection->disableQueryLog();
+        self::assertLessThanOrEqual(5, count($queries), 'The 25-row fixture uses at most five queries.');
+        self::assertLessThanOrEqual(5000, strlen(json_encode($payload, JSON_THROW_ON_ERROR)));
         $categoryQueries = array_filter(
             $queries,
             static fn (array $query): bool => str_starts_with(strtolower((string) $query['query']), 'select * from "belongs_to_categories"'),

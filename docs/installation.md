@@ -2,7 +2,7 @@
 
 ## Preparing a source release (maintainers)
 
-This demo-alpha package keeps compiled assets in Git and has no release CI. Before committing a release, run the frontend checks and rebuild the package distribution locally:
+This beta package keeps compiled assets in Git; CI verifies the PHP and frontend distribution. Before committing a release, run the frontend checks and rebuild the package distribution locally:
 
 ```sh
 bun install --frozen-lockfile
@@ -15,8 +15,9 @@ The Vite build replaces `public/build` contents, and `git add -A` also stages de
 
 ## Requirements
 
-- PHP 8.5+
-- Laravel 13 host application
+- PHP `^8.5` with `mbstring` and the appropriate PDO database driver
+- Laravel `^13` host application, Inertia Laravel `^3.0` and Laravel MCP `^1.2` (Composer dependencies)
+- SQLite and PostgreSQL are covered by package tests; MySQL/MariaDB are not currently verified.
 - Session-based authentication in the host app
 
 ## Composer
@@ -91,7 +92,7 @@ If an older installation already has `resources/views/vendor/flashboard/*`,
 those copies override package views until removed or updated. Do not delete
 customized views blindly.
 
-The host application does not need to add Flashboard's Vue, Inertia, or Nuxt UI dependencies to its own frontend build. Those dependencies belong to the package build, which `flashboard:install` and `flashboard:build-assets` run from the installed package directory.
+The host application does not need to add Flashboard's Vue, Inertia, or Nuxt UI dependencies to its own frontend build. Those dependencies belong to the package build. Tagged distributions ship the compiled assets; the host only needs a JS toolchain when explicitly building from source without those assets.
 
 ## Configure Flashboard
 

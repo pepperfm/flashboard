@@ -182,3 +182,24 @@ Review policy maps, then smoke-test list/detail actions and validation failures.
 ## Upgrade to 0.3.0
 
 Refresh the bundled assets after upgrading: `php artisan vendor:publish --tag=flashboard-assets --force` and run `php artisan flashboard:doctor`. No package database migration is required. Review explicit read-only resource declarations and relation policies; denied create/edit links are now omitted and contextual creation through read-only relationships is forbidden. HasMany sync in the panel submits an expected membership snapshot; legacy clients without that snapshot retain full-replacement semantics. Numeric inputs now submit numbers or null, not empty strings. The opt-in local MCP server reports the installed Composer version; existing JSON text responses remain compatible. Re-preview any outstanding managed-file changes after upgrading.
+
+
+## Runtime maintainability (next release)
+
+Initial form relation options now apply the same record policy and title-field
+visibility as the options endpoint. A hidden title falls back to the record key;
+a denied record is omitted from selected options. A BelongsTo foreign key is
+still an attribute of the owning record: restrict the owning field as well if
+that identifier must not be exposed.
+
+BelongsToMany form updates replace only memberships visible under the related
+resource query, field query modifier and record policy. Existing memberships
+outside those constraints are preserved, including when an empty array is
+submitted. Submitted IDs are still validated; omit the field to leave all
+memberships unchanged. Review this if host code previously relied on the
+form to remove relations outside its visible scope. Privileged whole-membership
+operations belong in explicit, authorized host actions.
+
+The package lock file was updated for Symfony security advisories. Consumer
+applications resolve their own Composer dependencies; run `composer audit`
+and apply supported security updates in each host separately.
