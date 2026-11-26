@@ -61,6 +61,12 @@ The project remains a **demo/alpha-MVP**. Work from the current implementation r
 | `src/Core/Runtime/Resolvers/ScreenResolver.php` | Resolves the current route into a page or resource screen |
 | `src/Integration/Laravel/Routing/PanelRouteRegistrar.php` | Registers auth, page, and resource panel routes from runtime registries |
 | `src/Integration/Laravel/DataSources/ResourceListDataSource.php` | Executes Eloquent-backed list resource queries for table screens |
+| `src/Integration/Laravel/DataSources/ResourceListFilters.php` | Resolves visible filter definitions, applies constraints and normalizes active filter values |
+| `src/Integration/Laravel/DataSources/ResourceListRows.php` | Projects paginated records, formatted columns, authorized links and row actions |
+| `src/Integration/Laravel/DataSources/FormFieldState.php` | Hydrates model state and normalizes authorized form values and implicit defaults |
+| `src/Integration/Laravel/DataSources/FormRelationMetadata.php` | Resolves relation field metadata and selected options through existing scoped queries |
+| `resources/js/components/flashboard/table/useTableState.ts` | Owns list filter, search, sort, URL, pagination and draft timer state |
+| `resources/js/components/flashboard/useScreenActions.ts` | Dispatches screen actions or opens a parameterized/confirmation dialog |
 | `src/Integration/Laravel/DataSources/ResourceFilterOptionsDataSource.php` | Serves lazy backend-loaded select filter options with search, pagination, and selected-value hydration |
 | `src/Integration/Laravel/Http/Controllers/ResourceFilterOptionsController.php` | Protected JSON endpoint for resource table filter option requests |
 | `src/Core/Resources/ResourceSurfaceResolver.php` | Resolves resource surface availability, accessible resource-owned pages, and shared surface metadata |
