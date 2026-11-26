@@ -6,11 +6,13 @@ namespace Pepperfm\Flashboard\Ai;
 
 use Illuminate\Database\Eloquent\Model;
 
-final class ModelCatalog
+use Pepperfm\Flashboard\Ai\Generation\EnumOptions;
+
+final readonly class ModelCatalog
 {
     public function __construct(
-        private readonly ?string $modelsDirectory = null,
-        private readonly string $modelNamespace = 'App\\Models\\',
+        private ?string $modelsDirectory = null,
+        private string $modelNamespace = 'App\\Models\\',
     ) {
     }
 
@@ -83,7 +85,7 @@ final class ModelCatalog
 
         foreach ($columns as $column) {
             $name = (string) $column['name'];
-            $fields[] = [
+            $field = [
                 'name' => $name,
                 'type' => (string) ($column['type_name'] ?? $column['type'] ?? 'unknown'),
                 'nullable' => (bool) ($column['nullable'] ?? true),
@@ -91,6 +93,25 @@ final class ModelCatalog
                 'fillable' => $model->isFillable($name),
                 'hidden' => in_array($name, $model->getHidden(), true),
             ];
+            if (!$field['hidden'] && !preg_match('/password|secret|token|api_key|private_key/i', $name)) {
+                $enum = new EnumOptions()->inspect($model, $name);
+                if ($enum !== null) {
+                    $field['enum'] = [
+                        'class' => $enum['class'],
+                        'backing' => $enum['backing'],
+                        'cases' => array_map(
+                            static fn(int|string $value, string $label): array => [
+                                'value' => $enum['backing'] === 'int' ? (int) $value : (string) $value,
+                                'label' => $label,
+                            ],
+                            array_keys($enum['options']),
+                            array_values($enum['options']),
+                        ),
+                    ];
+                }
+            }
+
+            $fields[] = $field;
         }
 
         $relations = [];

@@ -1,7 +1,7 @@
 # Project: Flashboard
 
 ## Overview
-Flashboard is a PHP 8.4 package for Laravel 13 applications that provides a backend-driven admin runtime for internal panels.
+Flashboard is a PHP 8.5+ package for Laravel 13 applications that provides a backend-driven admin runtime for internal panels.
 The package is intended to turn declarative resource definitions into a ready-to-use `/admin` experience with consistent UX, predictable contracts, and strong escape hatches for custom workflows.
 
 ## Current Project State
@@ -27,7 +27,7 @@ The package is intended to turn declarative resource definitions into a ready-to
 - Support for both classic CRUD resources and custom operator workspaces such as queues, review screens, and processing flows
 
 ## Tech Stack
-- **Language:** PHP 8.4
+- **Language:** PHP 8.5+
 - **Framework:** Laravel package targeting Laravel 13 host applications
 - **Database:** Host application database; the package should avoid owning a mandatory database schema by default
 - **ORM:** Eloquent in the consuming Laravel application

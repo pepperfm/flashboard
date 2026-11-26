@@ -190,7 +190,7 @@ final readonly class ResourceListDataSource
             'columns' => $columns,
             'rows' => $rows,
             'routes' => [
-                'create' => route(
+                'create' => $resourceClass::isReadOnly() ? null : route(
                     config('flashboard.route_name_prefix', 'flashboard.')
                     . 'resources.' . $resourceClass::key() . '.create',
                 ),

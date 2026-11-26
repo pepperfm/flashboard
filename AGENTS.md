@@ -49,8 +49,11 @@ The project remains a **demo/alpha-MVP**. Work from the current implementation r
 | `config/flashboard.php` | Panel bootstrap configuration and `ai.mcp_enabled` flag |
 | `src/Ai/ModelCatalog.php` | Discovers Eloquent models and inspects DB columns / typed relations |
 | `src/Ai/ResourceManager.php` | Validates resource specs, previews diffs, creates/updates managed PHP files |
-| `src/Ai/Mcp/FlashboardMcpServer.php` | Registers six trusted local MCP tools |
+| `src/Ai/Mcp/FlashboardMcpServer.php` | Registers thirteen trusted local MCP tools |
 | `docs/ai-harness.md` | User-facing MCP installation, prompts, write safety and troubleshooting |
+| `src/Integration/Laravel/Diagnostics/PanelDoctor.php` | Read-only panel, resource, policy and published-asset diagnostics shared by CLI and MCP tools |
+| `src/Integration/Laravel/Console/DoctorCommand.php` | Human and JSON diagnostics via flashboard:doctor |
+| `src/UI/Assets/AssetManifestInspector.php` | Shared distribution and published manifest graph verification |
 | `src/Integration/Laravel/FlashboardServiceProvider.php` | Laravel package entrypoint and publish registration |
 | `src/Core/Registry/PanelRegistry.php` | Runtime registry for discovered panel providers |
 | `src/Integration/Laravel/Discovery/PanelDiscovery.php` | Discovery layer that loads configured panel providers, resources, and pages |
@@ -125,7 +128,7 @@ Read [docs/ai-harness.md](docs/ai-harness.md) before operating Flashboard MCP to
 ### Supported MCP contract
 
 - This is a **local stdio** MCP server enabled by `FLASHBOARD_AI_MCP=true` in the **host app**. The current Flashboard `composer.json` already requires `laravel/mcp:^1.2`; do not tell users to install it again by default.
-- There are nine tools: `list_models`, `inspect_model`, `list_resources`, `preview_resource`, `create_resource`, `update_resource`, `get_resource_spec`, `add_field` and `add_relation`. `list_models`, `inspect_model`, `list_resources`, `preview_resource`, and `get_resource_spec` are read-only. `create_resource` / `update_resource` write PHP; `add_field` / `add_relation` only write with `apply=true` and both hashes. None reads or mutates model records through MCP.
+- The nine original tools remain: `list_models`, `inspect_model`, `list_resources`, `preview_resource`, `create_resource`, `update_resource`, `get_resource_spec`, `add_field` and `add_relation`. `list_models`, `inspect_model`, `list_resources`, `preview_resource`, and `get_resource_spec` are read-only. `create_resource` / `update_resource` write PHP; `add_field` / `add_relation` only write with `apply=true` and both hashes. None reads or mutates model records through MCP. Four additional read-only tools are `get_capabilities`, `inspect_resource`, `validate_resource` and `inspect_panel`. Consult capabilities before generation; do not treat static validation as runtime authorization.
 - Model discovery is currently limited to concrete autoloadable `App\Models` Eloquent classes. Model inspection reads table metadata and declared typed relation methods, not business rows.
 - The generator creates Resources only under the host app's `app/Flashboard/Ai`; normal provider discovery must be configured. It accepts existing database columns, scalar fields (`text`, `textarea`, `number`, `date`, `select`, `checkbox`, `toggle`) and existing typed Eloquent relations (`belongs_to`, `belongs_to_many`, `has_one`, `has_many`) with registered related Resources. Select options are static.
 - Flashboard's **PHP Resource DSL** supports more than this generator. Relations can now be generated from existing Eloquent methods; MCP does not create database relationships, migrations or new Eloquent methods. Do not claim support for REST APIs, charts, uploads, complex layouts or arbitrary PHP generation through MCP.

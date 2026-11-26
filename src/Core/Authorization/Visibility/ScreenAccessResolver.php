@@ -72,7 +72,7 @@ final readonly class ScreenAccessResolver
      */
     public function canCreateRecord(string $resourceClass, ?\Illuminate\Contracts\Auth\Authenticatable $user): bool
     {
-        return $resourceClass::canAccess($user) && $this->policyGate->canCreate($resourceClass, $user);
+        return !$resourceClass::isReadOnly() && $resourceClass::canAccess($user) && $this->policyGate->canCreate($resourceClass, $user);
     }
 
     /**
@@ -83,7 +83,7 @@ final readonly class ScreenAccessResolver
         ?\Illuminate\Contracts\Auth\Authenticatable $user,
         ?Model $record
     ): bool {
-        return $resourceClass::canAccess($user) && $this->policyGate->canUpdate($resourceClass, $user, $record);
+        return !$resourceClass::isReadOnly() && $resourceClass::canAccess($user) && $this->policyGate->canUpdate($resourceClass, $user, $record);
     }
 
     /**
@@ -94,7 +94,7 @@ final readonly class ScreenAccessResolver
         ?\Illuminate\Contracts\Auth\Authenticatable $user,
         ?Model $record
     ): bool {
-        return $resourceClass::canAccess($user) && $this->policyGate->canDelete($resourceClass, $user, $record);
+        return !$resourceClass::isReadOnly() && $resourceClass::canAccess($user) && $this->policyGate->canDelete($resourceClass, $user, $record);
     }
 
     /**
@@ -145,6 +145,10 @@ final readonly class ScreenAccessResolver
         ?\Illuminate\Contracts\Auth\Authenticatable $user,
         ?Model $record = null,
     ): bool {
+        if ($resourceClass::isReadOnly()) {
+            return false;
+        }
+
         $allowed = $record === null
             ? $this->canAccessResource($resourceClass, $user)
             : $this->canViewRecord($resourceClass, $user, $record);

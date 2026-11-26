@@ -151,6 +151,11 @@ abstract class Resource
         return true;
     }
 
+    public static function isReadOnly(): bool
+    {
+        return false;
+    }
+
     public static function policy(): ?string
     {
         return null;

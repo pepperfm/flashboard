@@ -19,5 +19,5 @@ Use this playground guide when validating package slices locally.
 
 ## Notes
 
-- The package currently ships runtime scaffolding, not a polished production UI.
+- The package ships precompiled Inertia/Vue/Nuxt UI assets. Validate install and upgrade in a separate Laravel 13 / PHP 8.5+ host; this guide is not a runnable application.
 - Use the JSON responses on panel routes to inspect payload evolution while building features.

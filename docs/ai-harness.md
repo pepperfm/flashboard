@@ -1,6 +1,6 @@
 # AI Harness (alpha)
 
-Flashboard's AI Harness lets a coding agent inspect a **host Laravel application's Eloquent schema** and generate basic Flashboard Resources using nine **local MCP tools**. It generates ordinary PHP for the existing Flashboard UI; it is **not** a built-in AI chatbot, a REST service connector, or a way to query or mutate application records via MCP.
+Flashboard's AI Harness lets a coding agent inspect a **host Laravel application's Eloquent schema** and generate basic Flashboard Resources using thirteen **local MCP tools**. It generates ordinary PHP for the existing Flashboard UI; it is **not** a built-in AI chatbot, a REST service connector, or a way to query or mutate application records via MCP.
 
 The current project is a demo/alpha-MVP. Test generated Resources in a host application before treating them as ready for use.
 
@@ -54,6 +54,10 @@ Use a PHP 8.5+ executable with the host application's database access. For a Sai
 | `list_models` | Discover concrete Eloquent model classes under `App\Models` | No |
 | `inspect_model` | Inspect table columns, types, primary key, `fillable` / `hidden` flags, and explicitly typed relation methods | No |
 | `list_resources` | List registered Resource classes, route keys and backing models | No |
+| `get_capabilities` | Installed package version, schema and actual generator/DSL support | No |
+| `inspect_resource` | Structural declarations of any registered resource (class or route key) | No |
+| `validate_resource` | Check route registration, policy metadata, relation definitions and physical form columns | No |
+| `inspect_panel` | Registered resources and shared doctor checks | No |
 | `preview_resource` | Validate spec; return PHP source diff, `operation`, `writable`, `reason`, `proposal_hash` and `expected_sha` | No |
 | `create_resource` | Create an AI-generated Resource with the exact `proposal_hash` | **Yes** |
 | `update_resource` | Update an untouched, AI-generated Resource with matching `expected_sha` and `proposal_hash` | **Yes** |
@@ -69,7 +73,7 @@ Start with a read-only prompt:
 
 > Inspect the Eloquent models in this Laravel app, list existing Flashboard Resources and suggest the smallest useful admin interface. Check real database columns and fillable/hidden status. Do not write files or query application records.
 
-The agent should call `list_models`, `inspect_model` and `list_resources`, then explain what exists and what it proposes. Next ask for a specific preview:
+The agent should call `get_capabilities`, `list_models`, `inspect_model` and `list_resources`, then explain what exists and what it proposes. Next ask for a specific preview:
 
 > Preview an Orders Resource. Show ID, total and status in the table; make status a Select with a filter. Only use actual columns. Show the diff. Do not create anything yet.
 
@@ -236,3 +240,34 @@ Incremental tools **append only**; renames/removals still require a full-spec `p
 > Preview adding a numeric priority field to OrdersResource without changing its other fields. Do not apply yet.
 
 **Scope:** this generates **Flashboard PHP definitions**, not database relations, migrations or authorization policies. Host policies, resource query scoping, permissions and the underlying schema remain the host application's responsibility.
+
+### Inspection limits
+
+Resource inspection returns bounded structural metadata, not defaults, option values, rule parameters, records, or executable callbacks. Resource validation uses schema metadata and declared relationships; custom accessor-backed fields may produce warnings. A successful validation does not establish runtime user authorization. Host-owned resource declarations run as trusted PHP; inspect only trusted applications. The capability response distinguishes manually authored DSL from generator support; Writable generation requires an editable field; read-only generation does not. Metrics are supported; domain action handlers remain host-authored.
+
+## Read-only resources, enums, typed filters and metrics
+
+Read-only generation uses `read_only: true`, omits editable form fields and standard mutation routes, and denies mutation authorization checks. Read-only relation managers remain available.
+
+```json
+{
+  "resource": "OrderHistory",
+  "model": "App\\Models\\Order",
+  "read_only": true,
+  "fields": [
+    {"name": "number"},
+    {"name": "status", "type": "enum", "filter": true},
+    {"name": "ordered_on", "type": "date", "filter_type": "date"}
+  ],
+  "relations": [{"name": "events", "type": "has_many"}],
+  "metrics": [
+    {"key": "total", "kind": "count"},
+    {"key": "activity", "kind": "trend", "column": "ordered_on"},
+    {"key": "statuses", "kind": "breakdown", "column": "status", "chart": "donut"}
+  ]
+}
+```
+
+The example requires existing columns, enum casts and a registered related resource. Enum metadata preserves backing values and derives labels from case names, without invoking custom enum methods. Optional options override valid case labels. Writable enum fields validate allowed backing values. Explicit filter_type supports input, select and date; the legacy boolean filter is unchanged. Date filters and trend metrics require date/timestamp columns. Metrics validate keys, columns, charts and spans.
+
+Read-only is a standard Flashboard surface restriction, not a database write lock or tenant scope. Host policies and query scopes still require review. The legacy allow_delete flag controls the generated delete action; host policies enforce deletion permissions for writable resources.

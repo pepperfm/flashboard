@@ -91,16 +91,9 @@ final readonly class PanelRouteRegistrar
                 ->defaults('flashboard.resource_page', 'index')
                 ->name('resources.' . $resourceClass::key() . '.index');
 
-            Route::get("$base/create", PanelScreenController::class)
-                ->middleware($resourceClass::middleware())
-                ->defaults('flashboard.resource', $resourceClass)
-                ->defaults('flashboard.resource_page', 'create')
-                ->name('resources.' . $resourceClass::key() . '.create');
-
-            Route::post($base, [ResourceFormController::class, 'store'])
-                ->middleware($resourceClass::middleware())
-                ->defaults('flashboard.resource', $resourceClass)
-                ->name('resources.' . $resourceClass::key() . '.store');
+            if (!$resourceClass::isReadOnly()) {
+                $this->registerWritableResourceRoutes($resourceClass, $base);
+            }
 
             Route::get("$base/_options/{filter}", ResourceFilterOptionsController::class)
                 ->middleware($resourceClass::middleware())
@@ -127,26 +120,6 @@ final readonly class PanelRouteRegistrar
                 ->defaults('flashboard.resource', $resourceClass)
                 ->name('resources.' . $resourceClass::key() . '.relations.attach-options');
 
-            Route::post("$base/{record}/_relations/{relation}/attach", [ResourceRelationActionController::class, 'attach'])
-                ->middleware($resourceClass::middleware())
-                ->defaults('flashboard.resource', $resourceClass)
-                ->name('resources.' . $resourceClass::key() . '.relations.attach');
-
-            Route::delete("$base/{record}/_relations/{relation}/detach", [ResourceRelationActionController::class, 'detach'])
-                ->middleware($resourceClass::middleware())
-                ->defaults('flashboard.resource', $resourceClass)
-                ->name('resources.' . $resourceClass::key() . '.relations.detach');
-
-            Route::patch("$base/{record}/_relations/{relation}/replace", [ResourceRelationActionController::class, 'replace'])
-                ->middleware($resourceClass::middleware())
-                ->defaults('flashboard.resource', $resourceClass)
-                ->name('resources.' . $resourceClass::key() . '.relations.replace');
-
-            Route::patch("$base/{record}/_relations/{relation}/sync", [ResourceRelationActionController::class, 'sync'])
-                ->middleware($resourceClass::middleware())
-                ->defaults('flashboard.resource', $resourceClass)
-                ->name('resources.' . $resourceClass::key() . '.relations.sync');
-
             if ($this->resourceSurfaceResolver->hasDetailSurfaceForResource($resourceClass)) {
                 Route::get("$base/{record}", PanelScreenController::class)
                     ->middleware($resourceClass::middleware())
@@ -154,42 +127,79 @@ final readonly class PanelRouteRegistrar
                     ->defaults('flashboard.resource_page', 'detail')
                     ->name('resources.' . $resourceClass::key() . '.detail');
             }
-
-            Route::get("$base/{record}/edit", PanelScreenController::class)
-                ->middleware($resourceClass::middleware())
-                ->defaults('flashboard.resource', $resourceClass)
-                ->defaults('flashboard.resource_page', 'edit')
-                ->name('resources.' . $resourceClass::key() . '.edit');
-
-            Route::match(['PUT', 'PATCH'], "$base/{record}", [ResourceFormController::class, 'update'])
-                ->middleware($resourceClass::middleware())
-                ->defaults('flashboard.resource', $resourceClass)
-                ->name('resources.' . $resourceClass::key() . '.update');
-
-            Route::delete("$base/{record}", [ResourceFormController::class, 'destroy'])
-                ->middleware($resourceClass::middleware())
-                ->defaults('flashboard.resource', $resourceClass)
-                ->name('resources.' . $resourceClass::key() . '.destroy');
-
-            Route::get("$base/actions/{action}/form", [ActionController::class, 'prepare'])
-                ->middleware($resourceClass::middleware())
-                ->defaults('flashboard.resource', $resourceClass)
-                ->name('resources.' . $resourceClass::key() . '.actions.index.form');
-
-            Route::post("$base/actions/{action}", [ActionController::class, 'execute'])
-                ->middleware($resourceClass::middleware())
-                ->defaults('flashboard.resource', $resourceClass)
-                ->name('resources.' . $resourceClass::key() . '.actions.index');
-
-            Route::get("$base/{record}/actions/{action}/form", [ActionController::class, 'prepare'])
-                ->middleware($resourceClass::middleware())
-                ->defaults('flashboard.resource', $resourceClass)
-                ->name('resources.' . $resourceClass::key() . '.actions.record.form');
-
-            Route::post("$base/{record}/actions/{action}", [ActionController::class, 'execute'])
-                ->middleware($resourceClass::middleware())
-                ->defaults('flashboard.resource', $resourceClass)
-                ->name('resources.' . $resourceClass::key() . '.actions.record');
         }
+    }
+
+    /**
+     * @param class-string<\Pepperfm\Flashboard\Contracts\Resources\Resource> $resourceClass
+     */
+    private function registerWritableResourceRoutes(string $resourceClass, string $base): void
+    {
+        Route::get("$base/create", PanelScreenController::class)
+            ->middleware($resourceClass::middleware())
+            ->defaults('flashboard.resource', $resourceClass)
+            ->defaults('flashboard.resource_page', 'create')
+            ->name('resources.' . $resourceClass::key() . '.create');
+
+        Route::post($base, [ResourceFormController::class, 'store'])
+            ->middleware($resourceClass::middleware())
+            ->defaults('flashboard.resource', $resourceClass)
+            ->name('resources.' . $resourceClass::key() . '.store');
+
+        Route::post("$base/{record}/_relations/{relation}/attach", [ResourceRelationActionController::class, 'attach'])
+            ->middleware($resourceClass::middleware())
+            ->defaults('flashboard.resource', $resourceClass)
+            ->name('resources.' . $resourceClass::key() . '.relations.attach');
+
+        Route::delete("$base/{record}/_relations/{relation}/detach", [ResourceRelationActionController::class, 'detach'])
+            ->middleware($resourceClass::middleware())
+            ->defaults('flashboard.resource', $resourceClass)
+            ->name('resources.' . $resourceClass::key() . '.relations.detach');
+
+        Route::patch("$base/{record}/_relations/{relation}/replace", [ResourceRelationActionController::class, 'replace'])
+            ->middleware($resourceClass::middleware())
+            ->defaults('flashboard.resource', $resourceClass)
+            ->name('resources.' . $resourceClass::key() . '.relations.replace');
+
+        Route::patch("$base/{record}/_relations/{relation}/sync", [ResourceRelationActionController::class, 'sync'])
+            ->middleware($resourceClass::middleware())
+            ->defaults('flashboard.resource', $resourceClass)
+            ->name('resources.' . $resourceClass::key() . '.relations.sync');
+
+        Route::get("$base/{record}/edit", PanelScreenController::class)
+            ->middleware($resourceClass::middleware())
+            ->defaults('flashboard.resource', $resourceClass)
+            ->defaults('flashboard.resource_page', 'edit')
+            ->name('resources.' . $resourceClass::key() . '.edit');
+
+        Route::match(['PUT', 'PATCH'], "$base/{record}", [ResourceFormController::class, 'update'])
+            ->middleware($resourceClass::middleware())
+            ->defaults('flashboard.resource', $resourceClass)
+            ->name('resources.' . $resourceClass::key() . '.update');
+
+        Route::delete("$base/{record}", [ResourceFormController::class, 'destroy'])
+            ->middleware($resourceClass::middleware())
+            ->defaults('flashboard.resource', $resourceClass)
+            ->name('resources.' . $resourceClass::key() . '.destroy');
+
+        Route::get("$base/actions/{action}/form", [ActionController::class, 'prepare'])
+            ->middleware($resourceClass::middleware())
+            ->defaults('flashboard.resource', $resourceClass)
+            ->name('resources.' . $resourceClass::key() . '.actions.index.form');
+
+        Route::post("$base/actions/{action}", [ActionController::class, 'execute'])
+            ->middleware($resourceClass::middleware())
+            ->defaults('flashboard.resource', $resourceClass)
+            ->name('resources.' . $resourceClass::key() . '.actions.index');
+
+        Route::get("$base/{record}/actions/{action}/form", [ActionController::class, 'prepare'])
+            ->middleware($resourceClass::middleware())
+            ->defaults('flashboard.resource', $resourceClass)
+            ->name('resources.' . $resourceClass::key() . '.actions.record.form');
+
+        Route::post("$base/{record}/actions/{action}", [ActionController::class, 'execute'])
+            ->middleware($resourceClass::middleware())
+            ->defaults('flashboard.resource', $resourceClass)
+            ->name('resources.' . $resourceClass::key() . '.actions.record');
     }
 }

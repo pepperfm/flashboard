@@ -46,7 +46,7 @@ final readonly class RelationManagerMetadataResolver
             $titleAttribute = $recordKey;
         }
         $orderColumn = $columns === [] || in_array($titleAttribute, $columns, true) ? $titleAttribute : $recordKey;
-        $readOnly = (bool) Arr::get($definition, RelationManagerDefinition::ATTRIBUTE_READ_ONLY, false);
+        $readOnly = $resourceClass::isReadOnly() || (bool) Arr::get($definition, RelationManagerDefinition::ATTRIBUTE_READ_ONLY, false);
 
         return new RelationManagerMetadata(
             type: $type,

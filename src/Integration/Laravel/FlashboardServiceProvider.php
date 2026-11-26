@@ -18,6 +18,7 @@ use Pepperfm\Flashboard\Integration\Laravel\Discovery\PanelDiscovery;
 use Pepperfm\Flashboard\Integration\Laravel\Discovery\PanelConfigurationResolver;
 use Pepperfm\Flashboard\Integration\Laravel\Http\Middleware\AuthenticatePanelUser;
 use Pepperfm\Flashboard\UI\Assets\PublishedAssetManager;
+use Laravel\Mcp\Facades\Mcp;
 
 final class FlashboardServiceProvider extends \Illuminate\Support\ServiceProvider
 {
@@ -65,11 +66,13 @@ final class FlashboardServiceProvider extends \Illuminate\Support\ServiceProvide
         $this->app['router']->aliasMiddleware('flashboard.auth', AuthenticatePanelUser::class);
 
         // Opt-in local stdio only: do not expose MCP over HTTP.
-        if ($this->app->runningInConsole()
+        if (
+            class_exists(Mcp::class)
+            && $this->app->runningInConsole()
             && config('flashboard.ai.mcp_enabled', false)
-            && class_exists('Laravel\\Mcp\\Facades\\Mcp')) {
-            // The MCP package is optional; avoid requiring it in normal installations.
-            call_user_func(['Laravel\\Mcp\\Facades\\Mcp', 'local'], 'flashboard', FlashboardMcpServer::class);
+        ) {
+            // The dependency is installed with Flashboard; the local server remains opt-in.
+            call_user_func([Mcp::class, 'local'], 'flashboard', FlashboardMcpServer::class);
         }
 
         $this->loadRoutesFrom($this->routesPath());

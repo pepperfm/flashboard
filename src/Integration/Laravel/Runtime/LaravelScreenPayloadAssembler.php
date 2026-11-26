@@ -335,7 +335,7 @@ final readonly class LaravelScreenPayloadAssembler
             'index' => route(
                 config('flashboard.route_name_prefix', 'flashboard.') . 'resources.' . $resourceClass::key() . '.index',
             ),
-            'create' => route(
+            'create' => $resourceClass::isReadOnly() ? null : route(
                 config('flashboard.route_name_prefix', 'flashboard.') . 'resources.' . $resourceClass::key() . '.create',
             ),
             'detail' => $recordKey === null || !$hasDetailSurface
@@ -344,7 +344,7 @@ final readonly class LaravelScreenPayloadAssembler
                     config('flashboard.route_name_prefix', 'flashboard.') . 'resources.' . $resourceClass::key() . '.detail',
                     ['record' => $recordKey],
                 ),
-            'edit' => $recordKey === null
+            'edit' => $recordKey === null || $resourceClass::isReadOnly()
                 ? null
                 : route(
                     config('flashboard.route_name_prefix', 'flashboard.') . 'resources.' . $resourceClass::key() . '.edit',

@@ -1,6 +1,6 @@
 # Project Roadmap
 
-> Add `BelongsToMany::make` as a backend-driven many-to-many form field that edits pivot membership through a lazy, authorization-aware multi-select while preserving the existing `BelongsTo`, `HasOne`, and `HasMany` semantics.
+> A focused, backend-driven Laravel admin library: reliable resource runtime, predictable public contracts, fast developer onboarding and guarded AI-assisted generation. Host applications own business logic and data.
 
 ## Milestones
 
@@ -19,12 +19,40 @@
 
 - [x] **13. Resource Action Runtime Stabilization** — named routing, record/collection scope, record-aware authorization/visibility, metric enum support, typed search and relation title safety.
 - [x] **14. Parameterized Resource Actions** — existing form schema and Nuxt UI renderers, validated input, authorized context, result/feedback and retry lifecycle without host domain logic.
-- [ ] **15. Compatibility and Release** — regression and browser gates, documented public contracts, distribution and consumer upgrade guidance.
-- [ ] **16. Read-only History Resource Presentation (future)** — validate existing resource surfaces and policy controls, read-only nested history and user/event/date range filters; add only missing composable presentation capabilities.
-- [ ] **17. Structured JSON Detail Presentation (future)** — safe escaped structured values, nested objects/arrays and long content with sensible limits; reuse detail renderer, no audit-specific storage.
-- [ ] **18. Timeline Presentation (future)** — generic ordered event rendering with timestamps, labels and optional metadata, scoped/paginated through existing resource data surfaces; no audit/event collection in package.
+- [ ] **15. Compatibility and Release** — P0: independent host upgrade and browser acceptance, reproducible CI/release gates, verified asset distribution. Target: before 0.3.0.
+- [x] **19. Panel Diagnostics and Developer Experience** — P1: shared read-only diagnostic service, Artisan doctor and actionable diagnostics. Target: 0.3.0.
+- [ ] **20. AI Harness Capability and Safety** — P1: inspect arbitrary Resource definitions, capability-aware safe generation, read-only resources, enum/filter/metric DSL parity, MCP transport tests and synchronized docs. Target: 0.3.0.
+- [ ] **16. Read-only History Resource Presentation (future)** — P2: validate existing resource surfaces and policy controls, read-only nested history and user/event/date range filters; add only missing composable presentation capabilities. Target: 0.4.0.
+- [ ] **17. Structured JSON Detail Presentation (future)** — P2: safe escaped structured values, nested objects/arrays and long content with sensible limits; reuse detail renderer, no audit-specific storage. Target: 0.4.0.
+- [ ] **18. Timeline Presentation (future)** — P2, conditional on host use case: generic ordered event rendering with timestamps, labels and optional metadata, scoped/paginated through existing resource data surfaces; no audit/event collection in package. Target: 0.4.0.
+- [ ] **21. Scoped Analytics and Date Ranges** — P2: explicit date-range filter, sum/average and custom metric resolver with scoped query and numeric semantics. Target: 0.4.0.
+- [ ] **22. Runtime Maintainability** — ongoing, P1/P2: resolve existing static analysis debt, incrementally separate frontend screen and large data-source responsibilities without changing public contracts.
+- [ ] **23. Stable Beta Readiness** — P1: compatibility matrix, documented supported stack, performance/security regression gates and lean release process. Target: 0.5.0; 1.0 only after evidence.
 
-## BelongsToMany Implementation Map
+## Execution sequence and plan index
+
+Baseline: 0.2.80 (7d1120e), 2026-11-26. Release tag exists; independent host acceptance remains open. Plans are prepared, not active implementation. Existing PLAN.md and in-flight relation changes are intentionally untouched. The sibling playground host is user-owned; do not create or modify it without explicit authorization.
+
+| Order | Target | Milestones | Plan | Dependency |
+|---|---|---|---|---|
+| A | Before 0.3.0 | 15 | plans/chore-release-foundation.md | Existing 0.2.80 release and current fixes |
+| B | 0.3.0 | 19 | plans/feature-panel-doctor.md | A baseline checks |
+| C | 0.3.0 | 20 | plans/feature-ai-harness-dx.md | B diagnostics; A release gates |
+| D | 0.4.0 | 21 | plans/feature-scoped-analytics.md | A; stable query contracts |
+| E | 0.4.0 | 16, 17, 18 | plans/feature-history-presentation.md | D date range; actual playground need |
+| F | Ongoing / 0.5.0 | 22, 23 | plans/refactor-runtime-stability.md | A early PHPStan; incremental during B–E; final gate after E |
+
+Version targets are proposals, not automatic releases. Do not mark any milestone done from a tag alone. Run A first; begin targeted refactoring only when it reduces a proven problem or supports the current slice. Re-evaluate the timeline after a real read-only history resource; if existing components suffice, document that instead of adding a new renderer.
+
+### Global scope and gates
+
+- PHP 8.5+, Laravel 13, Inertia 3, Vue 3, Nuxt UI 4, Bun (composer.json/package.json are authoritative). Historical context files mentioning PHP 8.4 need correction as part of A.
+- Preserve host-owned policies, tenant scopes, Eloquent queries, domain actions and audit storage. No mandatory DB schema, queue, AI provider, runtime chatbot, remote write MCP, generic SQL executor or arbitrary PHP generation.
+- Keep existing public interfaces and schema version compatible; additive contracts preferred. Do not make optional capabilities mandatory.
+- Tests mandatory, minimal logging (unexpected WARN/ERROR only, no business record content/secrets), docs checkpoint mandatory including companion docs MCP/raw routes, Nuxt UI MCP for component decisions.
+- Release only after user approval, green gates and tagged asset manifest verification. No unrelated consumer projects or deployments.
+
+## Historical implementation map: BelongsToMany (completed)
 
 This roadmap treats `BelongsToMany` as a form field, not as a relation manager. It edits the membership rows of an Eloquent many-to-many relation for the current resource record. The initial version should sync related record IDs only; pivot attributes belong to a future dedicated pivot editor.
 
@@ -317,6 +345,19 @@ Compatibility checks:
 | Milestone | Date |
 |-----------|------|
 | 01. Relation Field Foundation For BelongsToMany | 2026-05-29 |
+| 02. Product Boundary And DX Contract | 2026-05-29 |
+| 03. Public Field API And Typed Node | 2026-05-29 |
+| 04. Payload And Renderer Contract | 2026-05-29 |
+| 05. Laravel BelongsToMany Metadata Resolution | 2026-05-29 |
+| 06. Lazy Options, Search And Selected Hydration | 2026-05-29 |
+| 07. Form State, Validation And Normalization | 2026-05-29 |
+| 08. Pivot Persistence And Transaction Safety | 2026-05-29 |
+| 09. Frontend Multi-Select UX | 2026-05-29 |
+| 10. Authorization, Tenant Scope And Failure Policy | 2026-05-29 |
+| 11. Documentation, Examples And MCP Surface | 2026-05-29 |
+| 12. QA And Compatibility Gates | 2026-05-29 |
+| 13. Resource Action Runtime Stabilization | 2026-11-26 |
+| 14. Parameterized Resource Actions | 2026-11-26 |
 | Legacy: BelongsTo Relation Field Baseline | 2026-05-28 |
 | Legacy: Inverse Relation Product Boundary | 2026-05-29 |
 | Legacy: Public Relation Definition API | 2026-05-29 |
@@ -329,3 +370,4 @@ Compatibility checks:
 | Legacy: Authorization, Tenant Scope And Failure Policy | 2026-05-29 |
 | Legacy: Documentation, Examples And MCP Surface | 2026-05-29 |
 | Legacy: QA And Compatibility Gates | 2026-05-29 |
+| 19. Panel Diagnostics and Developer Experience | 2026-11-26 |

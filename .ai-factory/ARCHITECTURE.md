@@ -9,7 +9,7 @@ Using a modular monolith lets us preserve that layering without introducing depl
 
 ## Decision Rationale
 - **Project type:** Reusable Laravel admin panel package
-- **Tech stack:** PHP 8.4, Composer library, Laravel host integration
+- **Tech stack:** PHP 8.5+, Composer library, Laravel host integration
 - **Key factor:** The product needs one package with strict module boundaries, stable public contracts, and extensibility for both CRUD resources and custom operator workflows
 
 ## Folder Structure
@@ -64,6 +64,7 @@ Using a modular monolith lets us preserve that layering without introducing depl
 │   │   └── Laravel/
 │   │       ├── Auth/
 │   │       ├── DataSources/
+│   │       ├── Diagnostics/     # Read-only panel configuration, resources and asset checks
 │   │       ├── Discovery/
 │   │       ├── Http/
 │   │       ├── Persistence/

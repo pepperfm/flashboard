@@ -74,7 +74,7 @@ final readonly class ResourceDetailDataSource
             'record' => $record === null ? null : [$record->getKeyName() => $record->getKey()],
             'relations' => $relations,
             'routes' => [
-                'edit' => $record === null
+                'edit' => $record === null || $resourceClass::isReadOnly()
                     ? null
                     : route(
                         config('flashboard.route_name_prefix', 'flashboard.')

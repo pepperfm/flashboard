@@ -187,6 +187,28 @@ final class AiResourceManagerTest extends TestCase
         $manager->update($spec, hash('sha256', '<?php // handwritten resource'), $preview['proposal_hash']);
     }
 
+    public function test_generator_rejects_invalid_date_filters_metrics_and_enum_casts(): void
+    {
+        $manager = $this->manager();
+        $spec = $this->spec();
+        $invalidSpecs = [
+            [...$spec, 'metrics' => [['key' => 'broken', 'kind' => 'trend', 'column' => 'status']]],
+            [...$spec, 'metrics' => [['key' => 'secret', 'kind' => 'breakdown', 'column' => 'password']]],
+            [...$spec, 'fields' => [['name' => 'status', 'type' => 'enum']]],
+            [...$spec, 'fields' => [['name' => 'status', 'filter_type' => 'date']]],
+            [...$spec, 'read_only' => true, 'allow_delete' => true],
+        ];
+
+        foreach ($invalidSpecs as $invalid) {
+            try {
+                $manager->preview($invalid);
+                self::fail('Invalid generation specification was accepted.');
+            } catch (InvalidArgumentException $exception) {
+                self::assertNotSame('', $exception->getMessage());
+            }
+        }
+    }
+
     /**
      * @return array<string, mixed>
      */

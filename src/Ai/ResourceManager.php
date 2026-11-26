@@ -5,14 +5,16 @@ declare(strict_types=1);
 namespace Pepperfm\Flashboard\Ai;
 
 use Illuminate\Filesystem\Filesystem;
+use Pepperfm\Flashboard\Ai\Generation\FieldCompiler;
+use Pepperfm\Flashboard\Ai\Generation\MetricCompiler;
 use Pepperfm\Flashboard\Core\Registry\ResourceRegistry;
 
-final class ResourceManager
+final readonly class ResourceManager
 {
     public function __construct(
-        private readonly ModelCatalog $catalog,
-        private readonly Filesystem $files,
-        private readonly ?string $outputDirectory = null,
+        private ModelCatalog $catalog,
+        private Filesystem $files,
+        private ?string $outputDirectory = null,
     ) {
     }
 
@@ -211,145 +213,56 @@ final class ResourceManager
         }
 
         $model = $this->catalog->model($modelClass);
-        $columns = $model->getConnection()->getSchemaBuilder()->getColumnListing($model->getTable());
-        $available = array_fill_keys($columns, true);
+        $columns = $model->getConnection()->getSchemaBuilder()->getColumns($model->getTable());
+        $available = [];
+        foreach ($columns as $column) {
+            $available[$column['name']] = strtolower($column['type_name'] ?? $column['type']);
+        }
         $relations = $spec['relations'] ?? [];
         if (!is_array($relations) || !array_is_list($relations)) {
             throw new \InvalidArgumentException('relations must be a list.');
         }
         $compiledRelations = app(RelationCompiler::class)->compile($model, $relations);
-        $hidden = $model->getHidden();
-        $primary = $model->getKeyName();
+        $readOnly = $spec['read_only'] ?? false;
+        if (!is_bool($readOnly)) {
+            throw new \InvalidArgumentException('read_only must be a boolean.');
+        }
 
-        $table = [];
-        $form = [];
-        $detail = [];
-        $filters = [];
-        $rules = [];
-        $seen = [];
+        if ($readOnly && $compiledRelations['forms'] !== []) {
+            throw new \InvalidArgumentException('Read-only resources cannot declare editable relation fields.');
+        }
 
-        foreach ($fields as $item) {
-            if (!is_array($item)) {
-                throw new \InvalidArgumentException('Each field must be an object.');
-            }
-
-            $name = $item['name'] ?? null;
-            $type = $item['type'] ?? 'text';
-            if (!is_string($name) || !preg_match('/^[a-zA-Z_][a-zA-Z0-9_]*$/D', $name)
-                || !isset($available[$name]) || isset($seen[$name])
-                || !is_string($type) || !in_array($type, ['text', 'textarea', 'number', 'date', 'select', 'checkbox', 'toggle'], true)) {
-                throw new \InvalidArgumentException('Field names must be unique, valid database columns with supported types.');
-            }
-
-            $seen[$name] = true;
-            if (in_array($name, $hidden, true)
-                || preg_match('/(?:password|secret|token|api_key|private_key|remember_token)/i', $name)) {
-                throw new \InvalidArgumentException("Sensitive field [$name] cannot be generated automatically.");
-            }
-
-            $label = $item['label'] ?? str($name)->headline()->value();
-            if (!is_string($label) || strlen($label) > 100) {
-                throw new \InvalidArgumentException('Field labels must be strings up to 100 bytes.');
-            }
-
-            $labelPhp = var_export($label, true);
-            $namePhp = var_export($name, true);
-            $showTable = $item['table'] ?? true;
-            $showForm = $item['form'] ?? ($name !== $primary && $model->isFillable($name) && !in_array($name, [$model->getCreatedAtColumn(), $model->getUpdatedAtColumn()], true));
-            $showDetail = $item['detail'] ?? true;
-            $required = $item['required'] ?? false;
-            $searchable = $item['searchable'] ?? false;
-            $sortable = $item['sortable'] ?? false;
-            $filter = $item['filter'] ?? false;
-
-            foreach (compact('showTable', 'showForm', 'showDetail', 'required', 'searchable', 'sortable', 'filter') as $flag) {
-                if (!is_bool($flag)) {
-                    throw new \InvalidArgumentException('Field visibility and behavior flags must be booleans.');
+        if ($readOnly) {
+            foreach ($relations as $relation) {
+                if (($relation['read_only'] ?? true) !== true || ($relation['show_on_edit'] ?? false) !== false) {
+                    throw new \InvalidArgumentException('Read-only resources require read-only relation managers.');
                 }
-            }
-
-            if ($showForm && ($name === $primary || !$model->isFillable($name))) {
-                throw new \InvalidArgumentException("Field [$name] is not fillable or is the primary key.");
-            }
-
-            $options = [];
-            if ($type === 'select') {
-                $options = $item['options'] ?? null;
-                if (!is_array($options) || array_is_list($options) || count($options) === 0 || count($options) > 50) {
-                    throw new \InvalidArgumentException("Select field [$name] needs an options map of up to 50 entries.");
-                }
-                foreach ($options as $optionLabel) {
-                    if (!is_string($optionLabel) || strlen($optionLabel) > 100) {
-                        throw new \InvalidArgumentException('Select options require scalar keys and string labels.');
-                    }
-                }
-            }
-
-            $optionsPhp = '[' . implode(', ', array_map(
-                static fn (string|int $key, string $value): string => var_export($key, true) . ' => ' . var_export($value, true),
-                array_keys($options),
-                array_values($options),
-            )) . ']';
-
-            if ($showTable) {
-                $columnType = $type === 'select' ? 'BadgeColumn' : 'TextColumn';
-                $line = "                $columnType::make($namePhp, $labelPhp)";
-                if ($searchable && !in_array($type, ['checkbox', 'toggle'], true)) {
-                    $line .= '->searchable()';
-                }
-                if ($sortable) {
-                    $line .= '->sortable()';
-                }
-                $table[] = $line . ',';
-            }
-
-            if ($showForm && !isset($compiledRelations['foreign_keys'][$name])) {
-                $fieldType = match ($type) {
-                    'textarea' => 'Textarea',
-                    'number' => 'NumberInput',
-                    'date' => 'DateInput',
-                    'select' => 'Select',
-                    'checkbox' => 'Checkbox',
-                    'toggle' => 'Toggle',
-                    default => 'TextInput',
-                };
-                $line = "                $fieldType::make($namePhp, $labelPhp)";
-                if ($type === 'select') {
-                    $line .= "->options($optionsPhp)";
-                }
-                if ($required) {
-                    $line .= '->required()';
-                }
-                $form[] = $line . ',';
-                $validation = $required ? 'required' : 'nullable';
-                $validationType = match ($type) {
-                    'date' => 'date_format:Y-m-d',
-                    'number' => 'numeric',
-                    'checkbox', 'toggle' => 'boolean',
-                    default => 'string',
-                };
-                $rules[] = "                $namePhp => ['$validation', '$validationType'],";
-            }
-
-            if ($showDetail) {
-                $detail[] = "                TextEntry::make($namePhp, $labelPhp),";
-            }
-
-            if ($filter && $showTable) {
-                $filters[] = $type === 'select'
-                    ? "                SelectFilter::make($namePhp, $labelPhp)->options($optionsPhp),"
-                    : "                InputFilter::make($namePhp, $labelPhp),";
             }
         }
 
+        $metrics = $spec['metrics'] ?? [];
+        if (!is_array($metrics) || !array_is_list($metrics)) {
+            throw new \InvalidArgumentException('metrics must be a list.');
+        }
+        $metricLines = new MetricCompiler()->compile($model, $metrics, $available);
+        $metricsMethod = $metricLines === [] ? '' : "\n    public static function metrics(): array\n    {\n        return [\n"
+            . implode("\n", $metricLines) . "\n        ];\n    }\n";
+
+        $compiledFields = new FieldCompiler()->compile($model, $fields, $available, $compiledRelations['foreign_keys'], $readOnly);
+        $table = $compiledFields['table'];
+        $form = $compiledFields['form'];
+        $detail = $compiledFields['detail'];
+        $filters = $compiledFields['filters'];
+        $rules = $compiledFields['rules'];
+
         $form = [...$form, ...$compiledRelations['forms']];
-        if ($table === [] || $form === []) {
-            throw new \InvalidArgumentException('At least one table column and one editable form field are required.');
+        if ($table === [] || (!$readOnly && $form === [])) {
+            throw new \InvalidArgumentException('At least one table column and, for writable resources, one editable form field are required.');
         }
 
         $delete = $spec['allow_delete'] ?? false;
-        if (!is_bool($delete)) {
-            throw new \InvalidArgumentException('allow_delete must be a boolean.');
+        if (!is_bool($delete) || ($readOnly && $delete)) {
+            throw new \InvalidArgumentException('allow_delete must be a boolean and cannot be enabled on read-only resources.');
         }
 
         $detailMethod = $detail === [] ? '' : "\n    public static function infolist(DetailContract \$detail): DetailContract\n    {\n        return \$detail->entries([\n"
@@ -363,6 +276,12 @@ final class ResourceManager
             'relations' => $relations,
             'allow_delete' => $delete,
         ];
+        if ($readOnly) {
+            $manifest['read_only'] = true;
+        }
+        if ($metrics !== []) {
+            $manifest['metrics'] = $metrics;
+        }
         $manifestEncoded = base64_encode(json_encode($manifest, JSON_THROW_ON_ERROR));
         $relationsMethod = $compiledRelations['managers'] === [] ? ''
             : "\n    public static function relations(): array\n    {\n        return [\n"
@@ -394,6 +313,7 @@ final class ResourceManager
             . "use Pepperfm\\Flashboard\\Core\\Forms\\Fields\\BelongsToMany;\n"
             . "use Pepperfm\\Flashboard\\Core\\Relations\\HasOne;\n"
             . "use Pepperfm\\Flashboard\\Core\\Relations\\HasMany;\n"
+            . ($metricLines === [] ? '' : "use Pepperfm\\Flashboard\\Core\\Metrics\\Metric;\n")
             . "use Pepperfm\\Flashboard\\Core\\Detail\\Entries\\TextEntry;\n\n"
             . "final class $class extends Resource\n{\n"
             . "    public static function model(): string\n    {\n        return \\" . ltrim($modelClass, '\\') . "::class;\n    }\n\n"
@@ -401,14 +321,16 @@ final class ResourceManager
             . "        return \$table->columns([\n" . implode("\n", $table) . "\n        ])"
             . ($filters === [] ? '' : "->filters([\n" . implode("\n", $filters) . "\n        ])")
             . ";\n    }\n\n"
-            . "    public static function form(FormContract \$form): FormContract\n    {\n"
+            . ($readOnly ? "    public static function isReadOnly(): bool\n    {\n        return true;\n    }\n"
+                : "    public static function form(FormContract \$form): FormContract\n    {\n"
             . "        return \$form->schema([\n" . implode("\n", $form) . "\n        ])->rules([\n"
-            . implode("\n", $rules) . "\n        ]);\n    }\n"
+            . implode("\n", $rules) . "\n        ]);\n    }\n")
             . $detailMethod
             . $relationsMethod
-            . "\n    public static function actions(): array\n    {\n        return [\n            EditAction::make(),"
+            . $metricsMethod
+            . ($readOnly ? '' : "\n    public static function actions(): array\n    {\n        return [\n            EditAction::make(),"
             . ($delete ? "\n            DeleteAction::make()," : '')
-            . "\n        ];\n    }\n}\n";
+            . "\n        ];\n    }\n") . "}\n";
 
         $unsigned = $source;
         $fingerprint = hash('sha256', $unsigned);

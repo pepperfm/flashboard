@@ -393,3 +393,7 @@ including actions with the legacy scope. Unprotected legacy actions retain their
 original handler arguments. Related option pagination counts authorized records;
 when a per-record policy is present, the runtime scans ordered rows in batches.
 For large datasets, apply authorization restrictions in the resource query where possible.
+
+### Explicit read-only resources
+
+Override `public static function isReadOnly(): bool` to return true. Flashboard omits standard create/edit/store/update/delete, relation mutation and custom action routes and denies mutation authorization checks. Table, detail, metrics and read-only relation managers remain available. Host-owned query scopes and policies still determine record visibility.
