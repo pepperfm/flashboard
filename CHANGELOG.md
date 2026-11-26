@@ -1,12 +1,17 @@
 # Changelog
 
-## Unreleased — Resource analytics and integration hardening
+## 0.2.80 - 2026-11-26
 
-- add explicitly scoped collection/record actions and validated modal forms, with server-side authorization and domain result handling
-- normalize backed enum metric breakdowns and support PostgreSQL UUID search without invalid LIKE queries
-- resolve missing relation title columns safely and protect related-record options with resource visibility rules
+- add explicitly scoped collection/record actions and validated modal forms with domain result handling
+- enforce action visibility and authorization, separate GET/HEAD form preparation from POST execution, and preserve legacy ActionContract implementations
+- validate action inputs and support an idempotency key for host domain services
+- normalize backed enum metric breakdowns and support custom display labels
+- support PostgreSQL UUID equality search and type-aware qualified JOIN columns; reject invalid UUID action lookups with 404
+- resolve missing relation title columns and paginate authorized related records and options correctly
 - include HTTP integration tests in the default PHPUnit suite and rebuild the bundled UI assets
+- update package and companion documentation, including upgrade instructions
 
+## 0.2.72 and earlier 0.2.x runtime updates
 
 - allow per-metric `span(1..12)` in a responsive 12-column dashboard grid, preserving previous default widths
 - add chart body spacing to reduce clipping against card boundaries
