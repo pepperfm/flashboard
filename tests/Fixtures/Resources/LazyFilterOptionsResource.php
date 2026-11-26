@@ -11,6 +11,7 @@ use Pepperfm\Flashboard\Contracts\Tables\TableContract;
 use Pepperfm\Flashboard\Core\Tables\Columns\DateColumn;
 use Pepperfm\Flashboard\Core\Tables\Columns\TextColumn;
 use Pepperfm\Flashboard\Core\Tables\Filters\DateFilter;
+use Pepperfm\Flashboard\Core\Tables\Filters\DateRangeFilter;
 use Pepperfm\Flashboard\Core\Tables\Filters\InputFilter;
 use Pepperfm\Flashboard\Core\Tables\Filters\SelectFilter;
 use Pepperfm\Flashboard\Tests\Fixtures\Models\LazyFilterOptionRecord;
@@ -50,6 +51,8 @@ final class LazyFilterOptionsResource extends Resource
                 DateFilter::make('reviewed_date')
                     ->label('Reviewed date')
                     ->queryColumn('reviewed_at'),
+                DateRangeFilter::make('published_range', 'Published range')->queryColumn('published_on'),
+                DateRangeFilter::make('reviewed_range', 'Reviewed range')->queryColumn('reviewed_at'),
                 SelectFilter::make('status_id')
                     ->label('Status by ID')
                     ->lazy(perPage: 2)

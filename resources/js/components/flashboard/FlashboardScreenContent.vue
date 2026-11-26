@@ -9,6 +9,8 @@ import FBHasManyRelationManager from '@/components/flashboard/relations/FBHasMan
 import FBHasOneRelationManager from '@/components/flashboard/relations/FBHasOneRelationManager.vue'
 import SimpleFormShell from '@/components/flashboard/forms/layout/SimpleFormShell.vue'
 import DatePickerFilter from '@/components/flashboard/table/DatePickerFilter.vue'
+import DateRangePickerFilter from '@/components/flashboard/table/DateRangePickerFilter.vue'
+import { isDateRange, writeDateRangeQuery, type DateRangeValue } from '@/components/flashboard/table/dateRangeFilter'
 import LazySelectFilter from '@/components/flashboard/table/LazySelectFilter.vue'
 import type { FormContainerLayoutShape } from '@/components/flashboard/forms/layout/resolveFormLayout'
 import type { FormFieldShape, FormNodeShape } from '@/components/flashboard/forms/renderers/resolveFormFieldRenderer'
@@ -122,7 +124,7 @@ type PayloadShape = {
   actions?: ActionShape[]
   table?: {
     dataset?: {
-      active_filters?: Record<string, TableFilterModelValue>
+      active_filters?: Record<string, TableFilterModelValue | DateRangeValue>
       columns?: TableColumnShape[]
       direction?: TableSortDirection | string
       filters?: TableFilterShape[]
@@ -255,7 +257,7 @@ const tableFilters = computed(() => tableDataset.value?.filters ?? [])
 const hasTableFilters = computed(() => tableFilters.value.length > 0)
 const hasActiveTableFilters = computed(() =>
   Object.values(tableDataset.value?.active_filters ?? {})
-    .some((value) => tableFilterModelHasValue(value)),
+    .some((value) => isDateRange(value) || tableFilterModelHasValue(value as TableFilterModelValue)),
 )
 const hasActiveTableSearch = computed(() => activeTableSearch.value.trim() !== '')
 
@@ -617,11 +619,26 @@ function visitPage(page: number) {
 function activeTableFilterValue(filterKey: string): TableFilterModelValue {
   const value = tableDataset.value?.active_filters?.[filterKey]
 
-  if (!tableFilterModelHasValue(value)) {
+  if (isDateRange(value) || !tableFilterModelHasValue(value)) {
     return null
   }
 
   return value
+}
+
+function activeDateRange(filterKey: string): DateRangeValue | null {
+  const value = tableDataset.value?.active_filters?.[filterKey]
+  return isDateRange(value) ? value : null
+}
+
+function updateDateRange(filterKey: string, value: DateRangeValue | null) {
+  const url = tableStateUrl()
+  if (url === null) {
+    return
+  }
+
+  writeDateRangeQuery(url, filterKey, value)
+  visitTableState(url)
 }
 
 function activeTableFilterScalarValue(filterKey: string): TableFilterOptionValue | null {
@@ -1234,6 +1251,13 @@ function formatValue(value: unknown): string {
             :filter="filter"
             :model-value="activeTableFilterScalarValue(filter.key)"
             @update:model-value="updateTableFilter(filter.key, $event)"
+          />
+
+          <DateRangePickerFilter
+            v-else-if="filter.type === 'date_range'"
+            :label="filter.label ?? filter.key"
+            :model-value="activeDateRange(filter.key)"
+            @update:model-value="updateDateRange(filter.key, $event)"
           />
 
           <LazySelectFilter

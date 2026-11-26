@@ -181,7 +181,20 @@ Use `queryColumn()` when the public filter key should differ from the database c
     ->queryColumn('reviewed_at');
 ```
 
-`DateFilter` is intentionally single-date only. Date ranges should use a separate API, such as a future `DateRangeFilter`, so the URL shape and query behavior stay explicit.
+`DateFilter` remains single-date only.
+
+### Date-range filters (upcoming 0.4.0)
+
+```php
+\Pepperfm\Flashboard\Core\Tables\Filters\DateRangeFilter::make('period', 'Period')
+    ->queryColumn('created_at');
+```
+
+The range picker sends both bounds as `filters[period][start]=2026-03-01&filters[period][end]=2026-03-31`. The table payload exposes `active_filters.period` as an object with `start` and `end` ISO calendar dates. Both bounds are mandatory; clearing removes the entire filter. Invalid, reversed or incomplete ranges return HTTP 422 rather than silently widening results.
+
+Both calendar dates are inclusive. The SQL constraint is a half-open interval, from the start date to (but not including) the day after the end date. Dates use UTC, including explicit UTC offsets for PostgreSQL timezone-aware timestamps. Naive timestamps must be stored in UTC. Date columns use calendar-date bounds. Only physical date/timestamp columns on the resource model are supported; joined columns are not accepted. The filter is suppressed when its key or underlying model field is denied by the field policy or the underlying field is hidden by the model. The resource query and extensions still define the row scope. Other table filters are preserved, and updating or clearing a range resets pagination.
+
+Table filters do not currently constrain resource/dashboard metric aggregates; metrics retain their own scope and period.
 
 ## Searchable Select Filters
 

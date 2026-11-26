@@ -7,6 +7,7 @@ namespace Pepperfm\Flashboard\Tests\Fixtures\Resources;
 use Pepperfm\Flashboard\Contracts\Resources\Resource;
 use Pepperfm\Flashboard\Contracts\Tables\TableContract;
 use Pepperfm\Flashboard\Core\Tables\Columns\TextColumn;
+use Pepperfm\Flashboard\Core\Tables\Filters\DateRangeFilter;
 use Pepperfm\Flashboard\Tests\Fixtures\Models\LazyFilterOptionRecord;
 
 final class VisibilityRestrictedListResource extends Resource
@@ -25,6 +26,7 @@ final class VisibilityRestrictedListResource extends Resource
     {
         return [
             'status_label' => 'view-hidden',
+            'reviewed_at' => 'view-hidden',
         ];
     }
 
@@ -35,6 +37,6 @@ final class VisibilityRestrictedListResource extends Resource
                 TextColumn::make('id')->label('ID')->sortable(),
                 TextColumn::make('status')->label('Status')->searchable()->sortable(),
                 TextColumn::make('status_label')->label('Status label')->searchable()->sortable(),
-            ]);
+            ])->filters([DateRangeFilter::make('reviewed_range')->queryColumn('reviewed_at')]);
     }
 }

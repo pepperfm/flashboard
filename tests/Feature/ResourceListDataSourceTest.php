@@ -523,6 +523,66 @@ final class ResourceListDataSourceTest extends TestCase
         self::assertSame('published', $payload['rows'][0]['attributes']['status']);
     }
 
+    public function test_date_range_filters_use_inclusive_calendar_days_and_keep_other_filters(): void
+    {
+        $range = ['start' => '2026-05-21', 'end' => '2026-05-22'];
+        $payload = $this->dataSource()->resolve(
+            LazyFilterOptionsResource::class,
+            \Illuminate\Http\Request::create('/', 'GET', [
+                'filters' => ['published_range' => $range, 'status' => 'published'],
+            ]),
+        );
+
+        self::assertSame(['published_range' => $range, 'status' => 'published'], $payload['active_filters']);
+        self::assertSame(1, $payload['pagination']['total']);
+        self::assertSame('published', $payload['rows'][0]['attributes']['status']);
+        $payload = $this->dataSource()->resolve(
+            LazyFilterOptionsResource::class,
+            \Illuminate\Http\Request::create('/', 'GET', [
+                'filters' => ['reviewed_range' => $range],
+            ]),
+        );
+
+        self::assertSame(1, $payload['pagination']['total']);
+        self::assertSame('published', $payload['rows'][0]['attributes']['status']);
+    }
+
+    public function test_invalid_date_ranges_are_rejected_instead_of_ignored(): void
+    {
+        foreach ([
+            '2026-05-22',
+            ['start' => '2026-05-22'],
+            ['start' => '2026-05-23', 'end' => '2026-05-22'],
+            ['start' => '2026-02-30', 'end' => '2026-03-01'],
+            ['start' => '2026-05-22', 'end' => '2026-05-22', 'extra' => 'x'],
+        ] as $range) {
+            try {
+                $this->dataSource()->resolve(
+                    LazyFilterOptionsResource::class,
+                    \Illuminate\Http\Request::create('/', 'GET', ['filters' => ['reviewed_range' => $range]]),
+                );
+                self::fail('Invalid range was accepted.');
+            } catch (\Symfony\Component\HttpKernel\Exception\HttpException $exception) {
+                self::assertSame(422, $exception->getStatusCode());
+            }
+        }
+    }
+
+    public function test_denied_range_filter_is_neither_exposed_nor_applied(): void
+    {
+        $this->bindGateDenying('view-hidden');
+        $payload = $this->dataSource()->resolve(
+            VisibilityRestrictedListResource::class,
+            \Illuminate\Http\Request::create('/', 'GET', [
+                'filters' => ['reviewed_range' => ['start' => '2026-05-22', 'end' => '2026-05-22']],
+            ]),
+        );
+
+        self::assertSame([], $payload['filters']);
+        self::assertSame([], $payload['active_filters']);
+        self::assertSame(2, $payload['pagination']['total']);
+    }
+
     public function test_resource_lists_ignore_invalid_date_filter_values(): void
     {
         $payload = $this->dataSource()->resolve(

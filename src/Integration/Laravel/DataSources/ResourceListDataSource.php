@@ -18,6 +18,7 @@ use Pepperfm\Flashboard\Core\Runtime\Assemblers\TablePayloadAssembler;
 use Pepperfm\Flashboard\Core\Tables\Actions\TableAction;
 use Pepperfm\Flashboard\Core\Tables\Columns\DateColumn;
 use Pepperfm\Flashboard\Core\Tables\Filters\DateFilter;
+use Pepperfm\Flashboard\Core\Tables\Filters\DateRangeFilter;
 use Pepperfm\Flashboard\Core\Tables\Filters\InputFilter;
 use Pepperfm\Flashboard\Integration\Laravel\Auth\PanelAuthenticator;
 use Pepperfm\Flashboard\Integration\Laravel\Runtime\ResourceActionPayloadAssembler;
@@ -65,6 +66,10 @@ final readonly class ResourceListDataSource
         $searchableColumns = $this->searchableColumns($columns);
         $sortableColumns = $this->sortableColumns($columns);
         $tableFilters = $this->tableFilters($resourceClass, $table->filters());
+        $tableFilters = array_values(array_filter(
+            $tableFilters,
+            fn (array $filter): bool => $this->canViewRangeFilter($resourceClass, $filter, $user),
+        ));
         $filterDefinitions = $this->filterDefinitions($tableFilters);
 
         if ($search !== '' && $searchableColumns !== []) {
@@ -78,6 +83,12 @@ final readonly class ResourceListDataSource
                 }
 
                 $filterDefinition = $filterDefinitions[$key];
+                if ($filterDefinition['type'] === DateRangeFilter::TYPE) {
+                    $constraint = new DateRangeConstraint();
+                    $constraint->apply($query, $filterDefinition['column'], $constraint->normalize($value));
+
+                    continue;
+                }
 
                 if ($this->usesDateFilter($filterDefinition)) {
                     $dateValue = $this->filterDateValue($value);
@@ -564,6 +575,35 @@ final readonly class ResourceListDataSource
     }
 
     /**
+     * @param class-string<Resource> $resourceClass
+     * @param array<string, mixed> $filter
+     */
+    private function canViewRangeFilter(
+        string $resourceClass,
+        array $filter,
+        ?\Illuminate\Contracts\Auth\Authenticatable $user,
+    ): bool {
+        if ($this->filterType($filter) !== DateRangeFilter::TYPE) {
+            return true;
+        }
+
+        $key = Arr::get($filter, 'key');
+        $column = Arr::get($filter, 'query_column', $key);
+
+        if (!is_string($key) || !is_string($column)) {
+            return false;
+        }
+
+        $modelClass = $resourceClass::model();
+        $model = new $modelClass();
+        $field = str($column)->afterLast('.')->value();
+
+        return !in_array($field, $model->getHidden(), true)
+            && $this->screenAccessResolver->canViewField($resourceClass, $key, $user)
+            && $this->screenAccessResolver->canViewField($resourceClass, $field, $user);
+    }
+
+    /**
      * @param array<string, mixed> $filter
      */
     private function filterMatch(array $filter): string
@@ -626,6 +666,11 @@ final readonly class ResourceListDataSource
 
         foreach ($filters as $key => $value) {
             if (!is_string($key) || !array_key_exists($key, $filterDefinitions)) {
+                continue;
+            }
+            if ($filterDefinitions[$key]['type'] === DateRangeFilter::TYPE) {
+                $activeFilters[$key] = new DateRangeConstraint()->normalize($value);
+
                 continue;
             }
 

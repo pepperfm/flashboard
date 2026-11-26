@@ -21,7 +21,7 @@
 - [x] **14. Parameterized Resource Actions** — existing form schema and Nuxt UI renderers, validated input, authorized context, result/feedback and retry lifecycle without host domain logic.
 - [ ] **15. Compatibility and Release** — P0: independent host upgrade and browser acceptance, reproducible CI/release gates, verified asset distribution. Target: before 0.3.0.
 - [x] **19. Panel Diagnostics and Developer Experience** — P1: shared read-only diagnostic service, Artisan doctor and actionable diagnostics. Target: 0.3.0.
-- [ ] **20. AI Harness Capability and Safety** — P1: inspect arbitrary Resource definitions, capability-aware safe generation, read-only resources, enum/filter/metric DSL parity, MCP transport tests and synchronized docs. Target: 0.3.0.
+- [x] **20. AI Harness Capability and Safety** — P1: inspect arbitrary Resource definitions, capability-aware safe generation, read-only resources, enum/filter/metric DSL parity, MCP transport tests and synchronized docs. Target: 0.3.0.
 - [ ] **16. Read-only History Resource Presentation (future)** — P2: validate existing resource surfaces and policy controls, read-only nested history and user/event/date range filters; add only missing composable presentation capabilities. Target: 0.4.0.
 - [ ] **17. Structured JSON Detail Presentation (future)** — P2: safe escaped structured values, nested objects/arrays and long content with sensible limits; reuse detail renderer, no audit-specific storage. Target: 0.4.0.
 - [ ] **18. Timeline Presentation (future)** — P2, conditional on host use case: generic ordered event rendering with timestamps, labels and optional metadata, scoped/paginated through existing resource data surfaces; no audit/event collection in package. Target: 0.4.0.
@@ -31,7 +31,7 @@
 
 ## Execution sequence and plan index
 
-Baseline: 0.2.80 (7d1120e), 2026-11-26. Release tag exists; independent host acceptance remains open. Plans are prepared, not active implementation. Existing PLAN.md and in-flight relation changes are intentionally untouched. The sibling playground host is user-owned; do not create or modify it without explicit authorization.
+Baseline: 0.3.0 (2026-11-26), published after explicit manual host acceptance. B and C delivered; A has remaining comprehensive browser automation and remote CI evidence (15 stays open for this coverage). D–F remain queued; existing PLAN.md is preserved.
 
 | Order | Target | Milestones | Plan | Dependency |
 |---|---|---|---|---|
