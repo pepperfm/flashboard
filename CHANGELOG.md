@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.5.0 - 2026-11-26
 
 - isolate table navigation, action dispatch, form hydration and list query/payload assembly without changing public constructor contracts
 - apply related-record and title-field authorization to initial form options; preserve non-visible existing BelongsToMany memberships on update

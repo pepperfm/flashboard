@@ -184,7 +184,7 @@ Review policy maps, then smoke-test list/detail actions and validation failures.
 Refresh the bundled assets after upgrading: `php artisan vendor:publish --tag=flashboard-assets --force` and run `php artisan flashboard:doctor`. No package database migration is required. Review explicit read-only resource declarations and relation policies; denied create/edit links are now omitted and contextual creation through read-only relationships is forbidden. HasMany sync in the panel submits an expected membership snapshot; legacy clients without that snapshot retain full-replacement semantics. Numeric inputs now submit numbers or null, not empty strings. The opt-in local MCP server reports the installed Composer version; existing JSON text responses remain compatible. Re-preview any outstanding managed-file changes after upgrading.
 
 
-## Runtime maintainability (next release)
+## Runtime maintainability (0.5.0)
 
 Initial form relation options now apply the same record policy and title-field
 visibility as the options endpoint. A hidden title falls back to the record key;
