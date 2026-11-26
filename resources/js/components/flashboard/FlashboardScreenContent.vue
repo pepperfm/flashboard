@@ -3,8 +3,10 @@ import { router, useForm } from '@inertiajs/vue3'
 import { useToast } from '@nuxt/ui/composables'
 import FBActionDialog from '@/components/flashboard/FBActionDialog.vue'
 import FBCustomPageRenderer from '@/components/flashboard/custom-pages/FBCustomPageRenderer.vue'
+import FBJsonEntry from '@/components/flashboard/detail/FBJsonEntry.vue'
 import FBMetrics from '@/components/flashboard/metrics/FBMetrics.vue'
 import type { MetricsPayload } from '@/components/flashboard/metrics/types'
+import FBTimeline from '@/components/flashboard/relations/FBTimeline.vue'
 import FBHasManyRelationManager from '@/components/flashboard/relations/FBHasManyRelationManager.vue'
 import FBHasOneRelationManager from '@/components/flashboard/relations/FBHasOneRelationManager.vue'
 import SimpleFormShell from '@/components/flashboard/forms/layout/SimpleFormShell.vue'
@@ -549,7 +551,8 @@ function renderTableHeader(column: TableColumnShape) {
 
 const tableColumns = computed(() => {
   const columns: Array<Record<string, unknown>> = dataTableColumns.value.map((column) => ({
-      accessorKey: column.key,
+      id: column.key,
+      accessorFn: (row: Record<string, unknown>) => row[column.key],
       enableSorting: false,
       header: () => renderTableHeader(column),
       meta: {
@@ -1460,8 +1463,12 @@ function formatValue(value: unknown): string {
         v-for="relation in screenRelationManagers"
         :key="relation.key"
       >
+        <FBTimeline
+          v-if="relation.type === 'has_many' && relation.presentation === 'timeline'"
+          :relation="relation"
+        />
         <FBHasOneRelationManager
-          v-if="relation.type === 'has_one'"
+          v-else-if="relation.type === 'has_one'"
           :relation="relation"
         />
         <FBHasManyRelationManager
@@ -1506,6 +1513,7 @@ function formatValue(value: unknown): string {
               v-for="entry in section.schema ?? []"
               :key="entry.key"
               class="detail-row"
+              :class="{ 'detail-row-json': entry.type === 'json' }"
             >
               <div>
                 <span class="detail-label">{{ entry.label ?? entry.key }}</span>
@@ -1513,7 +1521,8 @@ function formatValue(value: unknown): string {
                   {{ entry.help }}
                 </p>
               </div>
-              <span class="detail-value">{{ formatValue(entry.value) }}</span>
+              <FBJsonEntry v-if="entry.type === 'json'" :value="entry.value" />
+              <span v-else class="detail-value">{{ formatValue(entry.value) }}</span>
             </div>
           </div>
         </UCard>
@@ -1524,6 +1533,7 @@ function formatValue(value: unknown): string {
           v-for="entry in standaloneDetailEntries"
           :key="entry.key"
           class="detail-row"
+          :class="{ 'detail-row-json': entry.type === 'json' }"
         >
           <div>
             <span class="detail-label">{{ entry.label ?? entry.key }}</span>
@@ -1531,7 +1541,8 @@ function formatValue(value: unknown): string {
               {{ entry.help }}
             </p>
           </div>
-          <span class="detail-value">{{ formatValue(entry.value) }}</span>
+          <FBJsonEntry v-if="entry.type === 'json'" :value="entry.value" />
+          <span v-else class="detail-value">{{ formatValue(entry.value) }}</span>
         </div>
       </div>
 
@@ -1595,8 +1606,12 @@ function formatValue(value: unknown): string {
         v-for="relation in detailRelationManagers"
         :key="relation.key"
       >
+        <FBTimeline
+          v-if="relation.type === 'has_many' && relation.presentation === 'timeline'"
+          :relation="relation"
+        />
         <FBHasOneRelationManager
-          v-if="relation.type === 'has_one'"
+          v-else-if="relation.type === 'has_one'"
           :relation="relation"
         />
         <FBHasManyRelationManager
@@ -1778,6 +1793,10 @@ function formatValue(value: unknown): string {
   gap: 1rem;
   padding-bottom: 0.75rem;
   border-bottom: 1px solid var(--ui-border);
+}
+
+.detail-row-json {
+  flex-direction: column;
 }
 
 .detail-label {

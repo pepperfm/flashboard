@@ -331,3 +331,12 @@ Use JSON responses on resource routes to inspect:
 Native UUID columns use bound equality for full UUID values. Partial or invalid UUID terms and non-text PostgreSQL column types are skipped; if no searchable column can match, the search returns zero rows. Text matching retains literal wildcard escaping and visible-column/scoped queries. Record-scoped executable actions appear in row controls alongside CRUD actions.
 
 PostgreSQL search resolves qualified columns against the actual query tables and named aliases. Ambiguous or unknown derived-table columns are skipped rather than guessed. Schema metadata is cached for the current request.
+
+### Related text fields (development)
+
+```php
+TextColumn::make('user.name', 'User')->searchable()->sortable();
+TextEntry::make('user.name', 'User');
+```
+
+Declared text fields may traverse ordinary same-connection BelongsTo and HasOne relations, up to four relation hops, ending at a physical scalar column. Related display, global search and sorting share a correlated scalar query; no automatic joins or per-row relation loads. The configured parent field and relation abilities, model hidden/visible fields, relation constraints/global scopes and (when uniquely registered) related resource access, field abilities and query extensions are respected. Related row authorization must be represented by query scopes; individual PHP view policies are not a SQL filter. Missing or out-of-scope related records produce null. Ambiguous registered resources, to-many, morph, one-of-many and unsupported grouped/limited/aliased relationship membership queries are not projected. Related values are database values rather than accessor output. Ordinary columns and explicitly joined SQL fields keep their existing behavior.

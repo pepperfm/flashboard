@@ -57,6 +57,33 @@ final readonly class ResourceListDataSource
         ]);
         $user = $this->authenticator->user();
         $columns = $this->visibleColumns($resourceClass, $table->columns(), $user);
+        $relatedPaths = new RelatedTextPath($this->screenAccessResolver, $this->extensionRegistry);
+        $relatedColumns = [];
+        $columns = array_values(array_filter($columns, static function (array $column) use ($relatedPaths, $resourceClass, $query, $user, &$relatedColumns): bool {
+            $key = $column['key'];
+            if (($column['type'] ?? null) !== 'text' || !$relatedPaths->isRelationPath($query->getModel(), $key)) {
+                return true;
+            }
+
+            $subquery = $relatedPaths->query($resourceClass, $query, $key, $user);
+            if ($subquery === null) {
+                return false;
+            }
+
+            $relatedColumns[$key] = $subquery;
+
+            return true;
+        }));
+
+        if ($relatedColumns !== []) {
+            if ($query->getQuery()->columns === null) {
+                $query->select($query->getModel()->qualifyColumn('*'));
+            }
+
+            foreach ($relatedColumns as $key => $subquery) {
+                $query->selectSub($subquery, RelatedTextPath::alias($key));
+            }
+        }
         $search = trim((string) $request->query('search', ''));
         $sort = (string) $request->query('sort', '');
         $direction = strtolower((string) $request->query('direction', 'asc')) === 'desc' ? 'desc' : 'asc';
@@ -73,7 +100,7 @@ final readonly class ResourceListDataSource
         $filterDefinitions = $this->filterDefinitions($tableFilters);
 
         if ($search !== '' && $searchableColumns !== []) {
-            $this->applyGlobalSearch($query, $searchableColumns, $search);
+            $this->applyGlobalSearch($query, $searchableColumns, $search, $relatedColumns);
         }
 
         if (is_array($filters)) {
@@ -131,7 +158,7 @@ final readonly class ResourceListDataSource
         }
 
         if ($sort !== '' && in_array($sort, $sortableColumns, true)) {
-            $query->orderBy($sort, $direction);
+            $query->orderBy($relatedColumns[$sort] ?? $sort, $direction);
         }
 
         $paginator = $query->paginate($perPage);
@@ -191,7 +218,9 @@ final readonly class ResourceListDataSource
 
             foreach ($columns as $column) {
                 $key = (string) $column['key'];
-                $row['attributes'][$key] = $this->columnValue($record, $column);
+                $row['attributes'][$key] = isset($relatedColumns[$key])
+                    ? $record->getAttribute(RelatedTextPath::alias($key))
+                    : $this->columnValue($record, $column);
             }
 
             $rows[] = $row;
@@ -774,13 +803,44 @@ final readonly class ResourceListDataSource
 
     /**
      * @param list<string> $columns
+     * @param array<string, \Illuminate\Database\Query\Builder> $relatedColumns
      */
     private function applyGlobalSearch(
         \Illuminate\Database\Eloquent\Builder $query,
         array $columns,
         string $value,
+        array $relatedColumns,
     ): void {
-        new TypedColumnSearch()->apply($query, $columns, $value);
+        $direct = $relatedColumns
+            |> array_keys(...)
+            |> (static fn($x) => array_diff($columns, $x))
+            |> array_values(...);
+        $related = array_intersect_key($relatedColumns, array_fill_keys($columns, true));
+
+        if ($related === []) {
+            new TypedColumnSearch()->apply($query, $direct, $value);
+
+            return;
+        }
+
+        $query->where(function (\Illuminate\Database\Eloquent\Builder $builder) use ($direct, $related, $value, $query): void {
+            if ($direct !== []) {
+                new TypedColumnSearch()->apply($builder, $direct, $value, metadataQuery: $query);
+            }
+
+            $cast = match ($builder->getModel()->getConnection()->getDriverName()) {
+                'mysql', 'mariadb' => 'CHAR',
+                'sqlsrv' => 'VARCHAR(MAX)',
+                default => 'TEXT',
+            };
+            $escaped = strtr($value, ['!' => '!!', '%' => '!%', '_' => '!_']);
+            foreach ($related as $subquery) {
+                $builder->orWhereRaw(
+                    "CAST(({$subquery->toSql()}) AS $cast) like ? escape '!'",
+                    [...$subquery->getBindings(), '%' . $escaped . '%'],
+                );
+            }
+        });
     }
 
     /**

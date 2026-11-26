@@ -16,6 +16,7 @@ use Pepperfm\Flashboard\Contracts\Resources\Resource;
 use Pepperfm\Flashboard\Core\Registry\ResourceRegistry;
 use Pepperfm\Flashboard\Core\Relations\HasMany;
 use Pepperfm\Flashboard\Core\Relations\HasOne;
+use Pepperfm\Flashboard\Core\Relations\Timeline;
 use Pepperfm\Flashboard\Integration\Laravel\FlashboardServiceProvider;
 use Pepperfm\Flashboard\Integration\Laravel\Routing\PanelRouteRegistrar;
 
@@ -49,6 +50,10 @@ final class RelationManagerHttpTest extends TestCase
             $table->id();
             $table->string('parent_id')->nullable();
             $table->string('name');
+            $table->timestamp('created_at')->nullable();
+            $table->timestamp('private_date')->nullable();
+            $table->text('description')->nullable();
+            $table->text('private_description')->nullable();
         });
         Schema::create('relation_http_profiles', static function (Blueprint $table): void {
             $table->id();
@@ -108,6 +113,55 @@ final class RelationManagerHttpTest extends TestCase
             ->assertJsonValidationErrors('name');
         $this->postJson($base.'?'.$query, ['name' => 'Nested child'])->assertRedirect();
         $this->assertDatabaseHas('relation_http_children', ['parent_id' => 'nested-validation', 'name' => 'Nested child']);
+    }
+
+    public function test_timeline_is_read_only_scoped_and_paginated_in_chronological_order(): void
+    {
+        $parent = RelationHttpParent::query()->create(['id' => 'timeline-probe']);
+        $older = RelationHttpChild::query()->create([
+            'parent_id' => $parent->getKey(), 'name' => 'Older', 'created_at' => '2026-11-25 12:00:00',
+        ]);
+        $first = RelationHttpChild::query()->create([
+            'parent_id' => $parent->getKey(), 'name' => 'Same date A', 'created_at' => '2026-11-26 12:00:00',
+        ]);
+        $second = RelationHttpChild::query()->create([
+            'parent_id' => $parent->getKey(), 'name' => 'Same date B', 'created_at' => '2026-11-26 12:00:00',
+            'description' => '<script>timeline-probe</script>', 'private_description' => 'hidden-timeline-marker', 'private_date' => '2026-11-26 12:00:00',
+        ]);
+        RelationHttpChild::query()->create([
+            'parent_id' => $parent->getKey(), 'name' => 'Excluded', 'created_at' => '2026-11-27 12:00:00',
+        ]);
+        RelationHttpChild::query()->create(['parent_id' => $parent->getKey(), 'name' => 'Undated']);
+        $orphan = RelationHttpChild::query()->create(['name' => 'Orphan', 'created_at' => '2026-11-28 12:00:00']);
+        $base = '/admin/resources/relation_http_parent/'.$parent->getKey().'/_relations/history';
+
+        $this->getJson($base)->assertOk()
+            ->assertJsonPath('presentation', 'timeline')
+            ->assertJsonPath('read_only', true)
+            ->assertJsonPath('actions', [])
+            ->assertJsonPath('options_url', null)
+            ->assertJsonPath('records.0.key', $second->getKey())
+            ->assertJsonPath('records.0.description', '<script>timeline-probe</script>')
+            ->assertJsonPath('records.0.date', '2026-11-26 12:00:00')
+            ->assertJsonPath('records.0.links.edit', null)
+            ->assertJsonPath('records.1.key', $first->getKey())
+            ->assertJsonPath('pagination.next_page', 2)
+            ->assertDontSee('hidden-timeline-marker')
+            ->assertDontSee('Excluded');
+        $this->getJson($base.'?page=2')->assertOk()
+            ->assertJsonCount(1, 'records')->assertJsonPath('records.0.key', $older->getKey())
+            ->assertJsonPath('pagination.has_more', false);
+        $this->getJson(str_replace('/history', '/hidden_history', $base))->assertOk()
+            ->assertJsonPath('records.0.description', null)->assertDontSee('hidden-timeline-marker');
+        $this->getJson(str_replace('/history', '/hidden_date', $base))->assertOk()
+            ->assertJsonCount(0, 'records');
+        $this->getJson($base.'/options')->assertForbidden();
+        $this->postJson($base.'/attach', ['related' => $orphan->getKey()])->assertForbidden();
+        $this->deleteJson($base.'/detach', ['related' => [$second->getKey()]])->assertForbidden();
+        $this->patchJson($base.'/replace', ['related' => $orphan->getKey()])->assertForbidden();
+        $this->patchJson($base.'/sync', ['related' => []])->assertForbidden();
+        self::assertSame($parent->getKey(), $second->refresh()->parent_id);
+        self::assertNull($orphan->refresh()->parent_id);
     }
 
     public function test_nested_routes_resolve_relation_key_for_uuid_and_numeric_parent_keys(): void
@@ -175,6 +229,8 @@ final class RelationHttpChild extends Model
 
     protected $guarded = [];
 
+    protected $hidden = ['private_description', 'private_date'];
+
     public $timestamps = false;
 }
 
@@ -204,6 +260,20 @@ final class RelationHttpParentResource extends Resource
                 ->attachable()
                 ->detachable()
                 ->syncable(),
+            Timeline::make('history', 'History', 'items')
+                ->resource(RelationHttpChildResource::class)
+                ->descriptionAttribute('description')
+                ->perPage(2)
+                ->readOnly(false)
+                ->attachable()
+                ->syncable()
+                ->modifyRecordsQueryUsing(static fn ($query) => $query->where('name', '!=', 'Excluded')),
+            Timeline::make('hidden_history', 'Hidden description', 'items')
+                ->resource(RelationHttpChildResource::class)
+                ->descriptionAttribute('private_description'),
+            Timeline::make('hidden_date', 'Hidden date', 'items')
+                ->resource(RelationHttpChildResource::class)
+                ->dateAttribute('private_date'),
             HasOne::make('profile')
                 ->resource(RelationHttpProfileResource::class)
                 ->attachable()

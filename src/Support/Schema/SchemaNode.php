@@ -17,6 +17,7 @@ abstract class SchemaNode implements KeyedSchemaNodeContract
      * @var array<string, mixed>
      */
     private array $meta = [];
+
     final protected function __construct(
         private readonly string $key,
         private ?string $label = null,

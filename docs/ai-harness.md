@@ -283,3 +283,7 @@ Read-only is a standard Flashboard surface restriction, not a database write loc
 ### Analytics generation (since 0.3.1)
 
 Since 0.3.1, the local Harness supports field filter_type: date_range for physical date/timestamp fields and metrics with kind: sum or avg on physical numeric columns. For example, use {"name":"ordered_on","type":"date","filter_type":"date_range"} and {"key":"total_value","kind":"sum","column":"total"}. Use get_capabilities to verify the installed package supports these features. Existing filter and metric specs retain their behavior. The generator does not generate arbitrary callbacks or host-specific tenant scopes.
+
+### History presentation (upcoming 0.4.0)
+
+The manual DSL supports JsonEntry and the permanently read-only Timeline presentation of HasMany. The capabilities catalog advertises these as manual DSL features; inspect_resource reports timeline configuration without loading event records. The generator does not generate timelines or collect audit events.

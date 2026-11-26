@@ -78,3 +78,11 @@ Metric items of kind sum or avg carry value as a database-produced string or nul
 ### Server-only form validation
 
 Resource form payloads expose an empty rules array for compatibility, not Laravel validation definitions. FormPayload::rules() is deprecated and returns an empty array. All rule execution remains on the server. Action preparation responses omit rules. Resource form schema and screen extensions are projected before serialization; custom page authors must publish safe metadata, not raw server form definitions.
+
+### Structured JSON detail entry (development)
+
+The json detail entry value contains status (ok, invalid or truncated) and text (string or null). The server provides bounded pretty text. The client must render as text, not HTML, and copy only complete values. Related text attribute keys in list rows are literal dotted keys; the column ID/accessor does not reinterpret them as nested JSON.
+
+### Timeline presentation (development)
+
+Timeline retains the has_many relation contract with presentation: timeline, date_attribute and optional description_attribute. Records expose bounded date and description text or null; no arbitrary attributes. Read-only is enforced regardless of mutation options. Pagination uses existing relation records URLs; date descending then record key descending.

@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.4.0 - 2026-11-26
+
+- add bounded, escaped structured JSON detail entries with collapsible presentation and safe copy behavior
+- add scoped, read-only relation timelines with deterministic ordering and paginated event loading
+- support scoped related text paths in table search, sort and detail presentation
+- render resource metrics in one responsive grid in declared order, respecting configured spans
+- document the new resource APIs and expose manual DSL capabilities through AI inspection
+- declare ext-mbstring and refresh bundled frontend assets
+
 ## 0.3.2 - 2026-11-26
 
 - keep Laravel validation rules server-side in CRUD forms; fix Inertia closure rule serialization and preserve rule objects in relation validation

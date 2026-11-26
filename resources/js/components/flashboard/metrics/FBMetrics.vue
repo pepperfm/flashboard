@@ -8,8 +8,6 @@ const props = defineProps<{
   metrics: MetricsPayload
 }>()
 
-const scalars = computed(() => props.metrics.items.filter(isScalarMetric))
-const charts = computed(() => props.metrics.items.filter(item => !isScalarMetric(item)))
 const hasTrends = computed(() => props.metrics.items.some(item => item.kind === 'trend'))
 // Static class names are intentional so Tailwind includes all supported spans.
 const spanClasses = [
@@ -66,42 +64,39 @@ function changePeriod(days: number) {
       </div>
     </div>
 
-    <div v-if="scalars.length" class="grid grid-cols-1 gap-3 xl:grid-cols-12">
-      <UCard v-for="metric in scalars" :key="metric.key" :class="['min-w-0', spanClass(metric)]" variant="outline">
-        <div class="grid gap-1">
+    <div class="grid grid-cols-1 items-start gap-4 xl:grid-cols-12">
+      <UCard v-for="metric in metrics.items" :key="metric.key" :class="['min-w-0', spanClass(metric)]" variant="outline">
+        <div v-if="isScalarMetric(metric)" class="grid gap-1">
           <span class="text-xs text-muted">{{ metric.resource }}</span>
           <span class="text-sm text-default">{{ metric.label }}</span>
           <strong class="text-2xl font-semibold tabular-nums text-highlighted break-all">
             {{ metricValueLabel(metric) }}
           </strong>
         </div>
-      </UCard>
-    </div>
-
-    <div v-if="charts.length" class="grid grid-cols-1 gap-4 xl:grid-cols-12">
-      <UCard v-for="metric in charts" :key="metric.key" :class="['min-w-0', spanClass(metric)]" variant="outline">
-        <template #header>
+        <template v-if="!isScalarMetric(metric)" #header>
           <div class="grid gap-1">
             <span class="text-xs text-muted">{{ metric.resource }}</span>
             <h3 class="font-medium text-highlighted">{{ metric.label }}</h3>
           </div>
         </template>
 
-        <div v-if="metric.points?.length" class="min-w-0 pb-4">
-          <UChart
-            :type="metric.chart"
-            :data="metric.points"
-            index="label"
-            :categories="[{ key: 'value', label: metric.label }]"
-            class="h-72 min-w-0 w-full"
+        <template v-if="!isScalarMetric(metric)">
+          <div v-if="metric.points?.length" class="min-w-0 pb-4">
+            <UChart
+              :type="metric.chart"
+              :data="metric.points"
+              index="label"
+              :categories="[{ key: 'value', label: metric.label }]"
+              class="h-72 min-w-0 w-full"
+            />
+          </div>
+          <UAlert
+            v-else
+            color="neutral"
+            variant="subtle"
+            description="No records for this metric."
           />
-        </div>
-        <UAlert
-          v-else
-          color="neutral"
-          variant="subtle"
-          description="No records for this metric."
-        />
+        </template>
       </UCard>
     </div>
   </section>

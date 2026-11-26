@@ -39,6 +39,7 @@ final readonly class RelationManagerMetadata
         public bool $showOnEdit,
         public array $definition,
         public ?string $orderColumn = null,
+        public ?TimelinePresentation $timeline = null,
     ) {
     }
 }

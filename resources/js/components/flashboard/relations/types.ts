@@ -20,6 +20,8 @@ export type RelationRecordShape = {
     edit?: string | null
   }
   title: string
+  date?: string | null
+  description?: string | null
 }
 
 export type RelationPaginationShape = {
@@ -42,6 +44,7 @@ export type RelationManagerPayload = {
   options_url?: string | null
   pagination?: RelationPaginationShape | null
   per_page?: number
+  presentation?: string
   read_only?: boolean
   records?: RelationRecordShape[]
   records_url?: string | null

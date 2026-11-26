@@ -28,6 +28,7 @@
     ],
     "require": {
         "php": "^8.5",
+        "ext-mbstring": "*",
         "illuminate/config": "^13",
         "illuminate/console": "^13",
         "illuminate/contracts": "^13",

@@ -37,7 +37,8 @@ final readonly class RelationManagerMetadataResolver
         $relatedModel = $this->relatedModel($definition, $relation);
         $relatedResource = $this->relatedResource($definition, $relatedModel);
         $relatedModelInstance = new $relatedModel();
-        $columns = array_keys(app(ColumnMetadata::class)->types($relatedModelInstance->getConnection(), $relatedModelInstance->getTable()));
+        $columnTypes = app(ColumnMetadata::class)->types($relatedModelInstance->getConnection(), $relatedModelInstance->getTable());
+        $columns = array_keys($columnTypes);
         $recordKey = $this->stringValue($definition, RelationManagerDefinition::ATTRIBUTE_RECORD_KEY_NAME)
             ?? $relatedModelInstance->getKeyName();
         $titleAttribute = $this->stringValue($definition, RelationManagerDefinition::ATTRIBUTE_TITLE_ATTRIBUTE) ?? 'name';
@@ -46,7 +47,13 @@ final readonly class RelationManagerMetadataResolver
             $titleAttribute = $recordKey;
         }
         $orderColumn = $columns === [] || in_array($titleAttribute, $columns, true) ? $titleAttribute : $recordKey;
-        $readOnly = $resourceClass::isReadOnly() || (bool) Arr::get($definition, RelationManagerDefinition::ATTRIBUTE_READ_ONLY, false);
+        $timeline = Arr::get($definition, 'presentation') === 'timeline'
+            ? TimelinePresentation::fromDefinition($definition, $columnTypes)
+            : null;
+        if ($timeline !== null && (!$relation instanceof EloquentHasMany || $type !== HasMany::TYPE)) {
+            throw new \InvalidArgumentException('Timeline requires a HasMany relationship.');
+        }
+        $readOnly = $timeline !== null || $resourceClass::isReadOnly() || (bool) Arr::get($definition, RelationManagerDefinition::ATTRIBUTE_READ_ONLY, false);
 
         return new RelationManagerMetadata(
             type: $type,
@@ -78,6 +85,7 @@ final readonly class RelationManagerMetadataResolver
             showOnEdit: (bool) Arr::get($definition, RelationManagerDefinition::ATTRIBUTE_SHOW_ON_EDIT, false),
             definition: $definition,
             orderColumn: $orderColumn,
+            timeline: $timeline,
         );
     }
 

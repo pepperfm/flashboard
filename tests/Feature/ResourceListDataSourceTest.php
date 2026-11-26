@@ -731,16 +731,22 @@ final class ResourceListDataSourceTest extends TestCase
 
         $payload = $this->dataSource()->resolve($resource, \Illuminate\Http\Request::create('/'));
 
+        $queries = $connection->getQueryLog();
         $categoryQueries = array_filter(
-            $connection->getQueryLog(),
-            static fn (array $query): bool => str_contains(strtolower((string) $query['query']), 'select')
+            $queries,
+            static fn (array $query): bool => str_starts_with(strtolower((string) $query['query']), 'select * from "belongs_to_categories"'),
+        );
+        $projections = array_filter(
+            $queries,
+            static fn (array $query): bool => str_contains((string) $query['query'], '__fb_text_')
                 && str_contains((string) $query['query'], 'belongs_to_categories'),
         );
 
         self::assertCount(25, $payload['rows']);
         self::assertSame('Catalog', $payload['rows'][0]['attributes']['category.name']);
         self::assertSame('Catalog', $payload['rows'][24]['attributes']['category.name']);
-        self::assertCount(1, $categoryQueries, 'A related table column must not query once per row.');
+        self::assertCount(1, $categoryQueries, 'The explicitly requested eager load remains batched.');
+        self::assertCount(1, $projections, 'Related text is projected by the page query, not one query per record.');
     }
 
     private function dataSource(): ResourceListDataSource

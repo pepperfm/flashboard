@@ -31,7 +31,7 @@
 
 ## Execution sequence and plan index
 
-Baseline: 0.3.1 (2026-11-26), scoped analytics implementation released; visual acceptance evidence remains open. B and C delivered; A has remaining comprehensive browser automation and remote CI evidence (15 stays open for this coverage). D–F remain queued; existing PLAN.md is preserved.
+Baseline: 0.4.0 release candidate (2026-11-26). B–E implementation delivered; manual production browser acceptance for D/E explicitly deferred by user. A remains open for comprehensive browser automation and remote CI evidence. F (Runtime Maintainability) is next; retain open acceptance items until evidenced. Local release checks: 334 PHP tests (5 skipped), PHPStan clean, 22 frontend tests, TypeScript, Vite and asset manifest passed. Existing Symfony dependency advisories require separate review; no consumer deployment authorized.
 
 | Order | Target | Milestones | Plan | Dependency |
 |---|---|---|---|---|

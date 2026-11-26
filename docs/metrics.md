@@ -67,9 +67,7 @@ Metric::trend('verified')->dateColumn('email_verified_at')->span(4), // 1/3
 Metric::breakdown('statuses')->column('status')->chart('donut')->span(12), // full row
 ```
 
-Scalar cards and charts occupy separate grids, preserving their existing visual
-grouping. Width settings are applied on desktop only; metric definitions do not
-support row placement, chart height, or per-breakpoint positioning.
+All metrics share one 12-column desktop grid in declaration order. Each card honors span(1–12), wraps to the next row when there is insufficient space, and retains its own height. Below the xl breakpoint cards occupy a single column. No automatic grouping by type, dense packing, explicit row placement or configurable chart height.
 
 ### Output
 

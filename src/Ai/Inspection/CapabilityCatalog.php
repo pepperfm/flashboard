@@ -38,6 +38,8 @@ final class CapabilityCatalog
                     'read_only_resources' => true,
                     'enum_breakdown_labels' => true,
                     'custom_pages' => true,
+                    'timeline' => true,
+                    'json_entry' => true,
                     'relation_field_authorization' => true,
                 ],
             ],

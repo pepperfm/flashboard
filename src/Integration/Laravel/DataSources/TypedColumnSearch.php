@@ -11,14 +11,14 @@ final class TypedColumnSearch
     /**
      * @param list<string> $columns
      */
-    public function apply(Builder $query, array $columns, string $value): void
+    public function apply(Builder $query, array $columns, string $value, ?Builder $metadataQuery = null): void
     {
         $postgres = $query->getModel()->getConnection()->getDriverName() === 'pgsql';
         $metadata = app(ColumnMetadata::class);
         $types = [];
         if ($postgres) {
             foreach ($columns as $column) {
-                $types[$column] = $metadata->typeFor($query, $column);
+                $types[$column] = $metadata->typeFor($metadataQuery ?? $query, $column);
             }
         }
 

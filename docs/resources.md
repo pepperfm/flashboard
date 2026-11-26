@@ -399,3 +399,30 @@ For large datasets, apply authorization restrictions in the resource query where
 > Available since 0.3.0.
 
 Override `public static function isReadOnly(): bool` to return true. Flashboard omits standard create/edit/store/update/delete, relation mutation and custom action routes and denies mutation authorization checks. Table, detail, metrics and read-only relation managers remain available. Host-owned query scopes and policies still determine record visibility.
+
+### Structured JSON detail entry (development)
+
+```php
+JsonEntry::make('metadata', 'Event data');
+```
+
+Declare an authorized model attribute containing plain JSON data or encoded JSON text. Built-in JSON casts preserve scalar values, object/list distinction and malformed input reporting; host accessors may return redacted plain values. Arbitrary objects are not serialized. The browser renders escaped plain text in a collapsible preformatted block and allows copying only complete values. The server bounds encoded input to 64 KiB, pretty output to 32 KiB, depth to 8, nodes to 200 and individual strings/keys to 2 KiB. Truncated and invalid values are marked explicitly. The model's hidden/visible attribute rules and resource field ability apply; nested sensitive keys must be removed by the host before exposing a JSON attribute. This is a presentation feature, not an audit collector or automatic secret redactor.
+
+All metrics share one 12-column desktop grid in declaration order. Each card honors span(1–12), wraps to the next row when there is insufficient space, and retains its own height. Below the xl breakpoint cards occupy a single column. No automatic grouping by type, dense packing, explicit row placement or configurable chart height.
+
+### Timeline (upcoming 0.4.0)
+
+Use a timeline in `Resource::relations()` for existing history records:
+
+```php
+use Pepperfm\Flashboard\Core\Relations\Timeline;
+
+Timeline::make('events', 'History')
+    ->resource(OrderEventResource::class)
+    ->titleAttribute('event')
+    ->descriptionAttribute('description')
+    ->dateAttribute('created_at')
+    ->perPage(10);
+```
+
+Timeline is a permanently read-only HasMany presentation, not an event collector. The optional third `make()` argument selects a different Eloquent relation name. It defaults to `created_at`; the date must be a physical date/timestamp column, and the optional description a physical model column. Use the existing related resource query, policy and `modifyRecordsQueryUsing()` to scope events. The server orders by timestamp descending, then record key descending, excluding records without a date. A denied or hidden date excludes the event, and denied or hidden descriptions are omitted; titles fall back to the record key if not visible. Only bounded plain text, keys and authorized detail links are returned. The UI uses Nuxt UI Timeline and loads subsequent pages through the existing relation records endpoint (maximum 100 per page). No create, edit, attach, detach, sync or replace controls are exposed by the timeline; contextual mutations are denied on the server. Direct editing of a related resource elsewhere remains governed by its own policy. As with other offset-paginated relations, refresh to see concurrent changes. No new routes, storage, event bus or audit middleware.

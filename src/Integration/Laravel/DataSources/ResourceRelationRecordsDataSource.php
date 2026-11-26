@@ -163,7 +163,18 @@ final readonly class ResourceRelationRecordsDataSource
                 : [];
         }
 
-        $query->orderBy($metadata->orderColumn ?? $metadata->titleAttribute)->orderBy($metadata->recordKeyName);
+        if ($metadata->timeline !== null) {
+            $timeline = $metadata->timeline;
+            if (!$timeline->canExpose($metadata, $query->getModel(), $timeline->dateAttribute, $user, $this->screenAccessResolver)) {
+                return [];
+            }
+
+            $query->whereNotNull($query->getModel()->qualifyColumn($timeline->dateAttribute))
+                ->reorder($query->getModel()->qualifyColumn($timeline->dateAttribute), 'desc')
+                ->orderBy($query->getModel()->qualifyColumn($metadata->recordKeyName), 'desc');
+        } else {
+            $query->orderBy($metadata->orderColumn ?? $metadata->titleAttribute)->orderBy($metadata->recordKeyName);
+        }
 
         return new AuthorizedOptionPage()->resolve(
             $query,
@@ -230,18 +241,36 @@ final readonly class ResourceRelationRecordsDataSource
         $canViewTitle = $metadata->relatedResource === null
             || $this->screenAccessResolver->canViewField($metadata->relatedResource, $metadata->titleAttribute, $user);
 
+        $timeline = $metadata->timeline;
+        if ($timeline !== null) {
+            $canViewTitle = $timeline->canExpose($metadata, $record, $metadata->titleAttribute, $user, $this->screenAccessResolver);
+        }
+
         $payload = [
             'key' => $key,
-            'title' => $canViewTitle
+            'title' => $canViewTitle && $timeline === null
                 ? (string) ($this->scalarValue(data_get($record, $metadata->titleAttribute)) ?? $key)
                 : (string) $key,
             // The relation UI only needs key/title/links. Never send arbitrary model attributes.
             'attributes' => [],
             'links' => [
                 'detail' => $this->detailUrl($metadata, $record, $user),
-                'edit' => $this->editUrl($metadata, $record, $user),
+                'edit' => $timeline === null ? $this->editUrl($metadata, $record, $user) : null,
             ],
         ];
+
+        if ($timeline !== null) {
+            if (!$timeline->canExpose($metadata, $record, $timeline->dateAttribute, $user, $this->screenAccessResolver)) {
+                return null;
+            }
+
+            $payload['title'] = $canViewTitle ? ($timeline->text($record, $metadata->titleAttribute, 512) ?? (string) $key) : (string) $key;
+            $payload['date'] = $timeline->text($record, $timeline->dateAttribute, 128);
+            $payload['description'] = $timeline->descriptionAttribute !== null
+                && $timeline->canExpose($metadata, $record, $timeline->descriptionAttribute, $user, $this->screenAccessResolver)
+                ? $timeline->text($record, $timeline->descriptionAttribute, 2048)
+                : null;
+        }
 
         $payload['actions'] = array_values(array_filter([
             $payload['links']['detail'] !== null ? [

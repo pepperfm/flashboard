@@ -64,6 +64,7 @@ final readonly class ResourceInspector
             'required', 'disabled', 'visible', 'relationship', 'related_resource', 'related_model',
             'foreign_key', 'owner_key', 'title_attribute', 'read_only', 'attachable', 'detachable',
             'replaceable', 'syncable', 'show_on_edit', 'show_on_detail',
+            'presentation', 'date_attribute', 'description_attribute',
         ];
 
         foreach (array_slice($nodes, 0, self::MAX_NODES) as $node) {
